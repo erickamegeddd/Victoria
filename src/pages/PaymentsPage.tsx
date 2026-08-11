@@ -18,9 +18,10 @@ const PaymentsPage = () => {
   const [paymentForm, setPaymentForm] = useState({received_amount:'',payment_date:'',payment_method:'',notes:''});
   const [selectedIsoForPayment, setSelectedIsoForPayment] = useState({isoId:null,isoName:'',expected:0});
   const [savingPayment, setSavingPayment] = useState(false);
+  const [activeStatusFilter, setActiveStatusFilter] = useState(null);
 
   useEffect(()=>{fetchIsos();},[]);
-  useEffect(()=>{fetchResiduals();fetchPayments();},[selectedMonth]);
+  useEffect(()=>{fetchResiduals();fetchPayments();setActiveStatusFilter(null);},[selectedMonth]);
 
   const fetchIsos=async()=>{const{data}=await supabase.from('isos').select('*').eq('status','active').order('name');if(data)setIsos(data);};
   const fetchResiduals=async()=>{if(!selectedMonth)return;const{data}=await supabase.from('residuals').select('*,isos(id,name)').eq('report_month',selectedMonth).limit(500);if(data)setResiduals(data);};
@@ -48,6 +49,13 @@ const PaymentsPage = () => {
   const shortPaid=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return p&&getStatus(i.expected,p.received_amount)==='short_paid';}).length;
   const pending=expectedByISO.filter(i=>!getPaymentForISO(i.isoId)).length;
   const overpaid=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return p&&getStatus(i.expected,p.received_amount)==='overpaid';}).length;
+
+  const filteredISOs = activeStatusFilter
+    ? expectedByISO.filter(r => {
+        const p = getPaymentForISO(r.isoId);
+        return getStatus(r.expected, p?.received_amount) === activeStatusFilter;
+      })
+    : expectedByISO;
 
   const reconCols=[
     {title:'ISO',key:'iso',render:(_,r)=><Text strong>{r.isoName}</Text>},
@@ -79,13 +87,45 @@ const PaymentsPage = () => {
               <Col span={6} key={title}><Card><Statistic title={title} value={doFmt?Math.abs(value):value} prefix={showSign&&value!==0?(value>0?'▲':'▼'):undefined} formatter={doFmt?v=>`$${Number(v).toLocaleString('en-US',{minimumFractionDigits:2})}`:undefined} valueStyle={{color,fontWeight:700}}/></Card></Col>
             ))}
           </Row>
-          <div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}}>
-            {[{label:`✓ ${matched} Paid in Full`,color:'#059669',bg:'#f0fdf4'},{label:`⚠ ${shortPaid} Short Paid`,color:'#dc2626',bg:'#fef2f2'},{label:`↑ ${overpaid} Overpaid`,color:'#2563eb',bg:'#eff6ff'},{label:`⬜ ${pending} Pending`,color:'#92400e',bg:'#fffbeb'}].map(({label,color,bg})=>(
-              <div key={label} style={{padding:'6px 14px',borderRadius:20,background:bg,color,fontSize:13,fontWeight:600}}>{label}</div>
+          <div style={{display:'flex',gap:8,marginBottom:activeStatusFilter?8:16,flexWrap:'wrap'}}>
+            {[
+              {label:`✓ ${matched} Paid in Full`,color:'#059669',bg:'#f0fdf4',key:'paid'},
+              {label:`⚠ ${shortPaid} Short Paid`,color:'#dc2626',bg:'#fef2f2',key:'short_paid'},
+              {label:`↑ ${overpaid} Overpaid`,color:'#2563eb',bg:'#eff6ff',key:'overpaid'},
+              {label:`⬜ ${pending} Pending`,color:'#92400e',bg:'#fffbeb',key:'pending'},
+            ].map(({label,color,bg,key})=>(
+              <div
+                key={key}
+                onClick={()=>setActiveStatusFilter(activeStatusFilter===key?null:key)}
+                style={{
+                  padding:'6px 14px',
+                  borderRadius:20,
+                  background:bg,
+                  color,
+                  fontSize:13,
+                  fontWeight:600,
+                  cursor:'pointer',
+                  border: activeStatusFilter===key ? `2px solid ${color}` : '1px solid transparent',
+                  transform: activeStatusFilter===key ? 'translateY(-2px)' : 'none',
+                  transition: 'all 0.18s',
+                  userSelect:'none',
+                }}
+              >{label}</div>
             ))}
           </div>
+          {activeStatusFilter&&(
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12,padding:'8px 14px',background:'#eff6ff',borderRadius:10,border:'1px solid #bfdbfe'}}>
+              <Text style={{fontSize:13,fontWeight:600,color:'#1d4ed8'}}>
+                {activeStatusFilter==='paid'?`Showing ${matched} ISO${matched!==1?'s':''} paid in full`:
+                 activeStatusFilter==='short_paid'?`Showing ${shortPaid} ISO${shortPaid!==1?'s':''} with short payments`:
+                 activeStatusFilter==='overpaid'?`Showing ${overpaid} overpaid ISO${overpaid!==1?'s':''}`:
+                 `Showing ${pending} pending ISO${pending!==1?'s':''}`}
+              </Text>
+              <Button size="small" onClick={()=>setActiveStatusFilter(null)} style={{marginLeft:'auto'}}>Clear ✕</Button>
+            </div>
+          )}
           {(shortPaid>0||pending>0)&&<Alert type="warning" showIcon style={{marginBottom:16}} message={`Action needed: ${shortPaid>0?`${shortPaid} ISO${shortPaid>1?'s':''} paid less than expected. `:''}${pending>0?`${pending} ISO${pending>1?'s have':' has'} no payment recorded yet.`:''}`}/>}
-          <Card><Table dataSource={expectedByISO} columns={reconCols} rowKey="isoId" pagination={false} size="middle"
+          <Card><Table dataSource={filteredISOs} columns={reconCols} rowKey="isoId" pagination={false} size="middle"
             onRow={r=>({style:{background:(()=>{const p=getPaymentForISO(r.isoId);const s=p?getStatus(r.expected,p.received_amount):'pending';if(s==='short_paid')return'#fff5f5';if(s==='pending')return'#fffbeb';if(s==='paid')return'#f0fdf4';return undefined;})()}})}
           /></Card>
         </>
