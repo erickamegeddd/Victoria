@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { Menu } from "antd";
 import { useNavigate } from "react-router-dom";
-import { LogoutOutlined, DollarOutlined, BarChartOutlined, AreaChartOutlined, ImportOutlined, LineChartOutlined, SnippetsOutlined, DiffOutlined, UserAddOutlined, HomeOutlined, BulbOutlined } from "@ant-design/icons";
+import { LogoutOutlined, DollarOutlined, BarChartOutlined, AreaChartOutlined, ImportOutlined, LineChartOutlined, SnippetsOutlined, DiffOutlined, UserAddOutlined, HomeOutlined, BulbOutlined, BankOutlined } from "@ant-design/icons";
 import { FaTable, FaPlus } from "react-icons/fa";
 import { VscEye } from "react-icons/vsc";
 import { IoInformationCircleOutline } from "react-icons/io5";
@@ -27,7 +27,8 @@ const SiderComponent = () => {
       { key:"/home/users/new", label:"Add Users", icon:ic(<UserAddOutlined/>, "#f472b6", "rgba(244,114,182,0.15)") },
       { key:"/home/users", label:"View Users", icon:ic(<LuUserSearch/>, "#f472b6", "rgba(244,114,182,0.15)") },
     ]},
-    { key:"/home/merchants", label:"MIDs", icon:ic(<DiffOutlined/>, "#fb923c", "rgba(251,146,60,0.18)") },
+    { key:"/home/merchants", label:"Merchants / MIDs", icon:ic(<DiffOutlined/>, "#fb923c", "rgba(251,146,60,0.18)") },
+    { key:"/home/iso-merchants", label:"ISOs", icon:ic(<BankOutlined/>, "#818cf8", "rgba(129,140,248,0.18)") },
     { key:"/home/revenue-mid", label:"Revenue per MID", icon:ic(<DollarOutlined/>, "#fbbf24", "rgba(251,191,36,0.18)") },
     { key:"/home/agents", label:"Agents Data", icon:ic(<BarChartOutlined/>, "#22d3ee", "rgba(34,211,238,0.18)") },
     { key:"/home/adjustments", label:"Adjustments", icon:ic(<LiaFileInvoiceDollarSolid/>, "#f87171", "rgba(248,113,113,0.18)"), children:[
