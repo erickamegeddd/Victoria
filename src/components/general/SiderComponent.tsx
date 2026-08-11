@@ -10,16 +10,11 @@ import { LiaFileInvoiceDollarSolid } from "react-icons/lia";
 import { MdPayment } from "react-icons/md";
 import { getUserFromLocalStorage } from "../../utils/getUser";
 import { handleLogout } from "../../utils/logout";
-
-const ic = (icon, color, bg) => (
-  <span style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", width:28, height:28, borderRadius:8, background:bg, color:color, fontSize:14, flexShrink:0 }}>{icon}</span>
-);
-
+const ic = (icon, color, bg) => (<span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:28,height:28,borderRadius:8,background:bg,color:color,fontSize:14,flexShrink:0}}>{icon}</span>);
 const SiderComponent = () => {
   const navigate = useNavigate();
-  const user = getUserFromLocalStorage();
   const currentPath = window.location.pathname;
-
+  const user = getUserFromLocalStorage();
   const items = [
     { key:"/home", label:"Home", icon:ic(<LineChartOutlined/>, "#60a5fa", "rgba(96,165,250,0.18)") },
     { key:"/home/import-data", label:"Import Data", icon:ic(<ImportOutlined/>, "#34d399", "rgba(52,211,153,0.18)") },
@@ -45,16 +40,8 @@ const SiderComponent = () => {
     { key:"/home/logs", label:"Logs", icon:ic(<SnippetsOutlined/>, "#94a3b8", "rgba(148,163,184,0.18)") },
     { key:"logout", label:"Logout", icon:ic(<LogoutOutlined/>, "#f87171", "rgba(248,113,113,0.18)"), danger:true },
   ];
-
-  const userItems = [
-    { key:"/home", label:"Home", icon:ic(<HomeOutlined/>, "#60a5fa", "rgba(96,165,250,0.18)") },
-    { key:"/home/monthly-data", label:"Monthly Data", icon:ic(<AreaChartOutlined/>, "#38bdf8", "rgba(56,189,248,0.18)") },
-    { key:"logout", label:"Logout", icon:ic(<LogoutOutlined/>, "#f87171", "rgba(248,113,113,0.18)"), danger:true },
-  ];
-
   const flatten = (items=[]) => items.reduce((acc,item)=>{ acc.push(item); if(item.children)acc=acc.concat(flatten(item.children)); return acc; },[]);
-  const flatItems = flatten(user?.role==="super_admin" ? items : userItems);
-
+  const flatItems = flatten(items);
   const matchKey = (path, menuItems) => {
     for(const item of menuItems){ if(path===item.key)return item.key; if(item.children){const c=matchKey(path,item.children);if(c)return c;} }
     if(path.startsWith("/home/users")&&path!=="/home/users")return"/home/users/new";
@@ -62,20 +49,15 @@ const SiderComponent = () => {
     else if(path.startsWith("/home/iso")&&path!=="/home/iso")return"/home/iso/new";
     else if(path.startsWith("/home/adjustments")&&path!=="/home/adjustments")return"/home/adjustments/new";
     else if(path.startsWith("/home/merchants"))return"/home/merchants";
-    else if(path.startsWith("/home/dashboard"))return"/home/insights";
     return undefined;
   };
-
   const onClick = ({key}) => { if(key==="logout")handleLogout(navigate); else navigate(key); };
-
   return (
     <div style={{paddingTop:8}}>
-      <div style={{padding:"14px 16px 10px", borderBottom:"1px solid rgba(255,255,255,0.07)", marginBottom:4}}>
+      <div style={{padding:"14px 16px 10px",borderBottom:"1px solid rgba(255,255,255,0.07)",marginBottom:4}}>
         <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"1.5px",color:"rgba(255,255,255,0.3)"}}>Menu</span>
       </div>
-      <Menu onClick={onClick} theme="dark" style={{background:"transparent",border:"none"}}
-        selectedKeys={[matchKey(currentPath,flatItems)||currentPath]} mode="inline"
-        items={user?.role==="super_admin" ? items : userItems}/>
+      <Menu onClick={onClick} theme="dark" style={{background:"transparent",border:"none"}} selectedKeys={[matchKey(currentPath,flatItems)||currentPath]} mode="inline" items={items}/>
     </div>
   );
 };
