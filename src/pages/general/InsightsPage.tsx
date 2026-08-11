@@ -142,7 +142,23 @@ const InsightsPage=()=>{
     const totNetA=rowsA.reduce((s,r)=>s+(r.paydiversenet||0),0),totNetB=rowsB.reduce((s,r)=>s+(r.paydiversenet||0),0);
     const totVolA=rowsA.reduce((s,r)=>s+(r.gross_volume||0),0),totVolB=rowsB.reduce((s,r)=>s+(r.gross_volume||0),0);
     const midSetA=new Set(rowsA.map(r=>r.mid)),midSetB=new Set(rowsB.map(r=>r.mid));
-    return{labelA,labelB,isos:isoList,overall:{netA:totNetA,netB:totNetB,netChange:totNetB-totNetA,netPct:totNetA!==0?((totNetB-totNetA)/Math.abs(totNetA)*100):0,volA:totVolA,volB:totVolB,volChange:totVolB-totVolA,volPct:totVolA!==0?((totVolB-totVolA)/Math.abs(totVolA)*100):0,midsA:midSetA.size,midsB:midSetB.size,lostMerchants:[...midSetA].filter(m=>!midSetB.has(m)).length,newMerchants:[...midSetB].filter(m=>!midSetA.has(m)).length},drops:isoList.filter(i=>i.netChange<-50).length,gains:isoList.filter(i=>i.netChange>50).length};
+    const byMerchant=[];
+    const allMids=new Set([...rowsA.map(r=>r.mid),...rowsB.map(r=>r.mid)]);
+    allMids.forEach(mid=>{
+      const ra=rowsA.filter(r=>r.mid===mid);
+      const rb=rowsB.filter(r=>r.mid===mid);
+      const netA=ra.reduce((s,r)=>s+(r.paydiversenet||0),0);
+      const netB=rb.reduce((s,r)=>s+(r.paydiversenet||0),0);
+      const volA=ra.reduce((s,r)=>s+(r.gross_volume||0),0);
+      const volB=rb.reduce((s,r)=>s+(r.gross_volume||0),0);
+      const netChange=netB-netA;
+      const netPct=netA!==0?(netChange/Math.abs(netA)*100):(netB!==0?100:0);
+      const name=rb[0]?.business_name||ra[0]?.business_name||mid;
+      const isoName=rb[0]?.isos?.name||ra[0]?.isos?.name||"";
+      byMerchant.push({mid,name,isoName,netA,netB,netChange,netPct,volA,volB,volChange:volB-volA,hasDataA:ra.length>0,hasDataB:rb.length>0});
+    });
+    byMerchant.sort((a,b)=>Math.abs(b.netChange)-Math.abs(a.netChange));
+    return{labelA,labelB,isos:isoList,merchants:byMerchant,overall:{netA:totNetA,netB:totNetB,netChange:totNetB-totNetA,netPct:totNetA!==0?((totNetB-totNetA)/Math.abs(totNetA)*100):0,volA:totVolA,volB:totVolB,volChange:totVolB-totVolA,volPct:totVolA!==0?((totVolB-totVolA)/Math.abs(totVolA)*100):0,midsA:midSetA.size,midsB:midSetB.size,lostMerchants:[...midSetA].filter(m=>!midSetB.has(m)).length,newMerchants:[...midSetB].filter(m=>!midSetA.has(m)).length},drops:isoList.filter(i=>i.netChange<-50).length,gains:isoList.filter(i=>i.netChange>50).length};
   };
 
   const loadOverview=async()=>{
@@ -259,7 +275,7 @@ const InsightsPage=()=>{
         <Space direction="vertical" style={{width:"100%"}} size={12}>
           <Row gutter={16} align="middle">
             <Col><Text strong>Compare by:</Text></Col>
-            <Col><Radio.Group value={compareBy} onChange={e=>setCompareBy(e.target.value)} buttonStyle="solid"><Radio.Button value="iso">By ISO</Radio.Button><Radio.Button value="overall">Overall</Radio.Button></Radio.Group></Col>
+            <Col><Radio.Group value={compareBy} onChange={e=>setCompareBy(e.target.value)} buttonStyle="solid"><Radio.Button value="iso">By ISO</Radio.Button><Radio.Button value="overall">Overall</Radio.Button><Radio.Button value="merchant">By Merchant</Radio.Button></Radio.Group></Col>
             <Col><Text strong style={{marginLeft:16}}>Period:</Text></Col>
             <Col><Radio.Group value={comparePeriodType} onChange={e=>{setComparePeriodType(e.target.value);setCompareA(null);setCompareB(null);}} buttonStyle="solid"><Radio.Button value="month">Month</Radio.Button><Radio.Button value="quarter">Quarter</Radio.Button><Radio.Button value="year">Year</Radio.Button></Radio.Group></Col>
           </Row>
@@ -280,8 +296,46 @@ const InsightsPage=()=>{
               <Col span={8} key={title}><Card><Statistic title={title} value={doFmt?Math.abs(value):value} prefix={doFmt?prefix:undefined} formatter={doFmt?v=>`$${Number(v).toLocaleString("en-US",{minimumFractionDigits:2})}`:undefined} valueStyle={{color,fontWeight:700}}/></Card></Col>
             ))}
           </Row>
-          <Text style={{color:"var(--muted-color)",fontSize:12,display:"block",marginBottom:12}}>{comparison.labelA} → {comparison.labelB} · {comparison.isos.length} ISOs</Text>
+          <Text style={{color:"var(--muted-color)",fontSize:12,display:"block",marginBottom:12}}>{comparison.labelA} → {comparison.labelB} · {compareBy==="merchant"?`${comparison.merchants.length} merchants`:compareBy==="iso"?`${comparison.isos.length} ISOs`:"overall"} compared</Text>
           {compareBy==="iso"&&comparison.isos.map(iso=><ISOCard key={iso.isoId} iso={iso} labelA={comparison.labelA} labelB={comparison.labelB}/>)}
+          {compareBy==="merchant"&&(
+            <div>
+              {comparison.merchants.length===0?(
+                <Card><div style={{textAlign:"center",padding:"40px",color:"var(--muted-color)"}}><Text>No merchant data for this period.</Text></div></Card>
+              ):(
+                <Space direction="vertical" style={{width:"100%"}} size={8}>
+                  {comparison.merchants.map(m=>(
+                    <Card key={m.mid} size="small" style={{borderLeft:`3px solid ${!m.hasDataA||!m.hasDataB?"#f59e0b":m.netChange<-10?"#dc2626":m.netChange>10?"#059669":"#d1d5db"}`}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <div>
+                          <Text strong style={{fontSize:14}}>{m.name}</Text>
+                          {m.isoName&&<Tag style={{marginLeft:8}} color="blue">{m.isoName}</Tag>}
+                          {!m.hasDataB&&<Tag color="red" style={{marginLeft:4}}>Left</Tag>}
+                          {!m.hasDataA&&<Tag color="green" style={{marginLeft:4}}>New</Tag>}
+                          <div style={{fontSize:11,color:"var(--muted-color)",marginTop:2}}>MID: {m.mid}</div>
+                        </div>
+                        <Space align="center">
+                          <div style={{textAlign:"right"}}>
+                            <div style={{fontSize:11,color:"var(--muted-color)"}}>Net Income</div>
+                            <Space>
+                              <Text style={{color:"var(--muted-color)",fontSize:13}}>{m.netA!=null?`$${Number(m.netA).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`:"—"}</Text>
+                              <Text style={{color:"var(--muted-color)"}}>→</Text>
+                              <Text strong style={{color:m.netChange<-1?"#dc2626":m.netChange>1?"#059669":"var(--black-color)",fontSize:14}}>
+                                {m.netB!=null?`$${Number(m.netB).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`:"—"}
+                              </Text>
+                            </Space>
+                          </div>
+                          <Tag color={m.netChange>1?"green":m.netChange<-1?"red":"default"} style={{fontSize:12,padding:"4px 10px"}}>
+                            {m.netChange>=0?"▲":"▼"} {Math.abs(m.netPct).toFixed(1)}%
+                          </Tag>
+                        </Space>
+                      </div>
+                    </Card>
+                  ))}
+                </Space>
+              )}
+            </div>
+          )}
           {compareBy==="overall"&&(
             <Card><Row gutter={12}>
               <Col span={8}><MetricBox label="Net Income" valA={comparison.overall.netA} valB={comparison.overall.netB} change={comparison.overall.netChange} changePct={comparison.overall.netPct}/></Col>
