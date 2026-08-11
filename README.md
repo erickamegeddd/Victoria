@@ -1,3 +1,3 @@
-# Victoria
+# Victoria Dashboard
 
-A dashboard application for payment processing analytics.
+PayDiverse residuals dashboard built with Vite + React + Supabase.
