@@ -79,10 +79,10 @@ const Dashboard = () => {
       {Object.keys(isoGroups).length>0&&<Card style={{marginBottom:16}}><Space wrap><Text style={{color:'var(--muted-color)',fontSize:12,fontWeight:700,textTransform:'uppercase'}}>Merchants by ISO:</Text>{Object.entries(isoGroups).map(([iso,count])=><Tag key={iso} color="blue" icon={<BankOutlined/>}>{iso}: {count}</Tag>)}</Space></Card>}
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
         {key:'residuals',label:`Residuals (${residuals.length})`,children:(
-          <><Card style={{marginBottom:12}}><Space wrap><Select placeholder="All ISOs" allowClear style={{width:200}} onChange={v=>setSelectedIso(v)}>{isos.map(iso=><Option key={iso.id} value={iso.id}>{iso.name}</Option>)}</Select><Text style={{color:'var(--muted-color)',fontSize:12}}>{residuals.length} rows</Text></Space></Card>
+          <><Card style={{marginBottom:12}}><Space wrap><Select placeholder="All ISOs" allowClear style={{width:200}} onChange={v=>setSelectedIso(v)}>{isos.map(iso => <Option key={iso.id} value={iso.id}>{iso.name}</Option>)}</Select><Text style={{color:'var(--muted-color)',fontSize:12}}>{residuals.length} rows</Text></Space></Card>
           {residuals.length===0&&!loading?(<Card><div style={{textAlign:'center',padding:'60px 20px',color:'var(--muted-color)'}}><FileExcelOutlined style={{fontSize:40,marginBottom:12,display:'block'}}/><div style={{fontSize:16,fontWeight:600,marginBottom:8}}>No residual data yet</div><Button type="primary" onClick={()=>navigate('/home/import-data')}>Import Report</Button></div></Card>):(<Card><Table dataSource={residuals} columns={rCols} rowKey="id" loading={loading} pagination={{pageSize:50,showTotal:t=>`${t} rows`}} scroll={{x:900}} size="small"/></Card>)}</>
         )},
-        {key:'merchants',label:`Merchants (${merchants.length})`,children:(<Card><Table dataSource={merchants} columns={mCols} rowKey="id" loading={loadingM} pagination={{pageSize:50,showTotal:t=>`${t} merchants`}} size="small"/></Card>)},
+        {key:'merchants', label:`Merchants (${merchants.length})`,children:<Card><Table dataSource={merchants} columns={mCols} rowKey="id" loading={loadingM} pagination={{pageSize:50,showTotal:t=>`${t} merchants`}} size="small"/></Card>},
       ]}/>
     </div>
   );
