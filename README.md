@@ -1,7 +1,3 @@
-# PayDiverse - Victoria Residuals Dashboard
+# Victoria
 
-To start the frontend:
-
-```
-npm run dev
-```
+A dashboard application for payment processing analytics.
