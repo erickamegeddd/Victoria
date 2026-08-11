@@ -7,6 +7,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App.tsx";
 import "./index.css";
 import { ConfigProvider } from "antd";
+const _build=3;
 const qc = new QueryClient({ defaultOptions: { queries: { suspense: true, retry: 3, retryDelay: 2000 } } });
 createRoot(document.getElementById("root")!).render(
   <StrictMode><QueryClientProvider client={qc}><BrowserRouter>
