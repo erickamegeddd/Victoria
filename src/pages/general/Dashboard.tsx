@@ -5,8 +5,4 @@ import { DollarOutlined, FileExcelOutlined, BankOutlined, SearchOutlined, LeftOu
 import { supabase } from "../../utils/supabase";
 import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
-const { Title, Text } = Typography;
-const { Option } = Select;
-const fmt = (n) => n NULL !!= null ? `$${Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}` : '—';
-const Dashboard = () => null;
-export default Dashboard;
+export default function Dashboard() { return null; }
