@@ -11,29 +11,9 @@ const ErrorPage = lazy(() => import("./pages/general/ErrorPage"));
 const PageNotFound = lazy(() => import("./pages/general/PageNotFound"));
 
 const App = () => {
-  const logError = (error: any) => {
-    console.log("data error", error.response.status);
-    const token = localStorage.getItem("token");
-    if (error.response.status === 401 || token == null || token == "null") {
-      NotificationModal({
-        description:
-          "Your session is expired or your account is no longer active. Please login again or contact support",
-        type: "error",
-      });
-      localStorage.clear();
-      window.location.reload();
-    } else if (error.response.status === 500 || error.response.status === 404) {
-      NotificationModal({
-        description:
-          "An error occurred. Please report it to the system administrator",
-        type: "error",
-      });
-      window.location.reload();
-    }
-  };
   return (
     <>
-      <ErrorBoundary fallback={<WarningMessage />} onError={logError}>
+      <ErrorBoundary fallback={<WarningMessage />}>
         <Suspense fallback={<Spin className="app-loading-wrapper" />}>
           <Routes>
             <Route path="/" element={<Login />} />
