@@ -1,22 +1,39 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
-import { Card, Tag, Typography, Space, Table, Button, Input } from "antd";
-import { UserDeleteOutlined, UserAddOutlined, SearchOutlined } from "@ant-design/icons";
+import { Card, Tag, Typography, Space, Table, Button } from "antd";
 import { supabase } from "../utils/supabase";
+import dayjs from "dayjs";
 const { Title, Text } = Typography;
 
 const ISOsMerchantsPage = () => {
   const [merchants, setMerchants] = useState([]);
+  const [midDates, setMidDates] = useState({}); // { [mid]: { start, end } }
   const [loading, setLoading] = useState(true);
   const [expandedISO, setExpandedISO] = useState(null);
-  const [isoFilters, setIsoFilters] = useState({}); // { [isoId]: 'active' | 'inactive' | null }
+  const [isoFilters, setIsoFilters] = useState({});
 
-  useEffect(() => { fetchMerchants(); }, []);
+  useEffect(() => { fetchAll(); }, []);
 
-  const fetchMerchants = async () => {
+  const fetchAll = async () => {
     setLoading(true);
-    const { data } = await supabase.from("merchants").select("*,isos(id,name,slug)").order("business_name");
-    if (data) setMerchants(data);
+    const [{ data: merchantData }, { data: residualData }] = await Promise.all([
+      supabase.from("merchants").select("*,isos(id,name,slug)").order("business_name"),
+      supabase.from("residuals").select("mid, report_month").order("report_month"),
+    ]);
+
+    if (merchantData) setMerchants(merchantData);
+
+    // Build start/end date map from residuals
+    if (residualData) {
+      const datesMap = {};
+      residualData.forEach(r => {
+        if (!r.mid || !r.report_month) return;
+        if (!datesMap[r.mid]) datesMap[r.mid] = { start: r.report_month, end: r.report_month };
+        if (r.report_month < datesMap[r.mid].start) datesMap[r.mid].start = r.report_month;
+        if (r.report_month > datesMap[r.mid].end) datesMap[r.mid].end = r.report_month;
+      });
+      setMidDates(datesMap);
+    }
     setLoading(false);
   };
 
@@ -32,12 +49,13 @@ const ISOsMerchantsPage = () => {
 
   const setFilter = (isoId, filter) => {
     setIsoFilters(prev => ({ ...prev, [isoId]: prev[isoId] === filter ? null : filter }));
-    // Auto-expand when clicking a pill
     if (expandedISO !== isoId) setExpandedISO(isoId);
   };
 
+  const fmt = (d) => d ? dayjs(d).format("MMM YYYY") : "—";
+
   const merchantColumns = [
-    { title: "MID", dataIndex: "mid", key: "mid", width: 160 },
+    { title: "MID", dataIndex: "mid", key: "mid", width: 150 },
     { title: "Business Name", dataIndex: "business_name", key: "dba", ellipsis: true,
       render: v => <Text strong>{v}</Text> },
     { title: "Status", dataIndex: "status", key: "s", width: 110,
@@ -46,6 +64,30 @@ const ISOsMerchantsPage = () => {
           {v === "active" ? "✓ Active" : "✗ Inactive"}
         </Tag>
       )},
+    {
+      title: "Start Date",
+      key: "start",
+      width: 110,
+      render: (_, r) => {
+        const dates = midDates[r.mid];
+        return dates?.start
+          ? <Text style={{ color: "#059669", fontWeight: 600 }}>{fmt(dates.start)}</Text>
+          : <Text style={{ color: "var(--muted-color)" }}>—</Text>;
+      }
+    },
+    {
+      title: "End Date",
+      key: "end",
+      width: 110,
+      render: (_, r) => {
+        const dates = midDates[r.mid];
+        if (!dates?.end) return <Text style={{ color: "var(--muted-color)" }}>—</Text>;
+        const isRecent = dayjs(dates.end).isAfter(dayjs().subtract(2, "month"));
+        return r.status === "active"
+          ? <Tag color="green" style={{ fontWeight: 600 }}>Still Active</Tag>
+          : <Text style={{ color: "#dc2626", fontWeight: 600 }}>{fmt(dates.end)}</Text>;
+      }
+    },
     { title: "Notes", dataIndex: "notes", key: "n", ellipsis: true,
       render: v => <span style={{ color: "var(--muted-color)", fontSize: 11 }}>{v || "—"}</span> },
   ];
@@ -81,7 +123,6 @@ const ISOsMerchantsPage = () => {
               style={{ borderLeft: `4px solid ${active > 0 ? "#1d4ed8" : "#d1d5db"}`, borderRadius: 12 }}
               bodyStyle={{ padding: "14px 18px" }}>
 
-              {/* Header row */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                   <Text strong style={{ fontSize: 15, cursor: "pointer" }}
@@ -93,7 +134,6 @@ const ISOsMerchantsPage = () => {
                       <div key={label}
                         onClick={() => {
                           if (pillKey === null) {
-                            // Total pill — clear filter + expand
                             setIsoFilters(prev => ({ ...prev, [isoId]: null }));
                             setExpandedISO(isExpanded && !currentFilter ? null : isoId);
                           } else {
@@ -120,7 +160,6 @@ const ISOsMerchantsPage = () => {
                 </Text>
               </div>
 
-              {/* Filter indicator */}
               {isExpanded && currentFilter && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, padding: "6px 12px", background: "#eff6ff", borderRadius: 8, border: "1px solid #bfdbfe" }}>
                   <Text style={{ fontSize: 12, fontWeight: 600, color: "#1d4ed8" }}>
@@ -133,7 +172,6 @@ const ISOsMerchantsPage = () => {
                 </div>
               )}
 
-              {/* Expanded merchant list */}
               {isExpanded && (
                 <div style={{ marginTop: 14, borderTop: "1px solid var(--line-color)", paddingTop: 14 }}>
                   <Table
@@ -142,6 +180,7 @@ const ISOsMerchantsPage = () => {
                     rowKey="id"
                     pagination={{ pageSize: 20, showTotal: t => `${t} merchants` }}
                     size="small"
+                    scroll={{ x: 800 }}
                   />
                 </div>
               )}
