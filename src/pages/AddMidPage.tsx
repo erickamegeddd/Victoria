@@ -1,9 +1,12 @@
-// @ts-nocheck
-export default function MidPage() {
+import MerchantsTable from "../components/tables/MerchantsTable";
+
+const MidPage = () => {
   return (
-    <div style={{ padding: 24 }}>
-      <h2>MIDs</h2>
-      <p>This page is coming soon.</p>
-    </div>
+    <>
+      <h2>MID's Data</h2>
+      <MerchantsTable />
+    </>
   );
-}
+};
+
+export default MidPage;

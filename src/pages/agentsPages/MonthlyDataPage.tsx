@@ -1,9 +1,12 @@
-// @ts-nocheck
-export default function MonthlyData() {
+import AgentMonthlyLineChart from "../../components/charts/AgentMonthlyLineChart";
+
+const MonthlyData = () => {
   return (
-    <div style={{ padding: 24 }}>
-      <h2>Monthly Data</h2>
-      <p>This page is coming soon.</p>
-    </div>
+    <>
+      <h2>Your Monthly Payout Insights</h2>
+      <AgentMonthlyLineChart />
+    </>
   );
-}
+};
+
+export default MonthlyData;
