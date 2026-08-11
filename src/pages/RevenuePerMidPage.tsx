@@ -1,63 +1,137 @@
-import { Col, Row, DatePicker, Tabs } from "antd";
-import type { TabsProps } from "antd";
-import type { DatePickerProps } from "antd";
-import { useState } from "react";
+// @ts-nocheck
+import { useEffect, useState, useRef } from "react";
+import { Card, Table, Select, Typography, Space, Statistic, Row, Col, Tag, Input, Button, DatePicker } from "antd";
+import { SearchOutlined, DollarOutlined } from "@ant-design/icons";
+import { supabase } from "../utils/supabase";
 import dayjs from "dayjs";
-import NegativeRevenuePerCorpTable from "../components/tables/NegativeRevenuePerCorpTable";
-import RevenuePerMidTable from "../components/tables/RevenuePerMidTable";
-import RevenuePerCorporationTable from "../components/tables/RevenuePerCorporationTable";
-import RevenuePerOperatingPartnerTable from "../components/tables/RevenuePerOperatingPartner";
+const { Title, Text } = Typography;
+const { Option } = Select;
+const fmt = (n) => n != null ? `$${Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}` : "—";
 
 const RevenuePerMidPage = () => {
-  const [date, setDate] = useState<string | string[]>(
-    dayjs().subtract(2, "months").format("YYYY-MM-01")
-  );
+  const [data, setData] = useState([]);
+  const [isos, setIsos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedIso, setSelectedIso] = useState(undefined);
+  const [selectedMonth, setSelectedMonth] = useState(undefined);
+  const searchInput = useRef(null);
 
-  const onChange: DatePickerProps["onChange"] = (_, dateString) => {
-    const formattedDate = `${dateString}-01`;
-    setDate(formattedDate);
+  useEffect(() => { fetchIsos(); }, []);
+  useEffect(() => { fetchData(); }, [selectedIso, selectedMonth]);
+
+  const fetchIsos = async () => {
+    const { data } = await supabase.from("isos").select("id,name").eq("status","active").order("name");
+    if (data) setIsos(data);
   };
 
-  const items: TabsProps["items"] = [
-    {
-      key: "1",
-      label: "Revenue Per MID Table",
-      children: <RevenuePerMidTable date={date} />,
-    },
-    {
-      key: "2",
-      label: "Revenue Per Operating Partner",
-      children: <RevenuePerOperatingPartnerTable date={date} />,
-    },
-    {
-      key: "3",
-      label: "Revenue Per Corporation Table",
-      children: (
-        <>
-          <RevenuePerCorporationTable date={date} />
-        </>
-      ),
-    },
-    {
-      key: "4",
-      label: "Negative MID's",
-      children: <NegativeRevenuePerCorpTable date={date} />,
-    },
+  const fetchData = async () => {
+    setLoading(true);
+    let q = supabase.from("residuals").select("*,isos(id,name)").order("paydiversenet", { ascending: false });
+    if (selectedIso) q = q.eq("iso_id", selectedIso);
+    if (selectedMonth) q = q.eq("report_month", selectedMonth);
+    const { data: rows } = await q.limit(2000);
+
+    if (!rows) { setLoading(false); return; }
+
+    // Aggregate by MID
+    const map = {};
+    rows.forEach(r => {
+      const key = r.mid;
+      if (!map[key]) map[key] = {
+        mid: r.mid,
+        business_name: r.business_name || r.mid,
+        iso_name: r.isos?.name || "—",
+        iso_id: r.iso_id,
+        total_net: 0,
+        total_volume: 0,
+        total_gross: 0,
+        months: new Set(),
+        last_month: null,
+      };
+      map[key].total_net += (r.paydiversenet || 0);
+      map[key].total_volume += (r.gross_volume || 0);
+      map[key].total_gross += (r.gross_revenue || 0);
+      if (r.report_month) {
+        map[key].months.add(r.report_month);
+        if (!map[key].last_month || r.report_month > map[key].last_month) map[key].last_month = r.report_month;
+      }
+    });
+
+    const aggregated = Object.values(map).map(r => ({
+      ...r,
+      months: r.months.size,
+    })).sort((a, b) => b.total_net - a.total_net);
+
+    setData(aggregated);
+    setLoading(false);
+  };
+
+  const totalNet = data.reduce((s, r) => s + r.total_net, 0);
+  const totalVol = data.reduce((s, r) => s + r.total_volume, 0);
+
+  const getSearchProps = (dataIndex, label) => ({
+    filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
+      <div style={{ padding: 8, minWidth: 200 }}>
+        <Input ref={searchInput} placeholder={`Search ${label}`} value={selectedKeys[0]}
+          onChange={e => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+          onPressEnter={confirm} style={{ marginBottom: 8, display: "block" }} />
+        <Space>
+          <Button type="primary" onClick={confirm} icon={<SearchOutlined />} size="small" style={{ width: 90 }}>Search</Button>
+          <Button onClick={() => { clearFilters(); confirm(); }} size="small" style={{ width: 90 }}>Reset</Button>
+        </Space>
+      </div>
+    ),
+    filterIcon: filtered => <SearchOutlined style={{ color: filtered ? "var(--primary-color)" : undefined }} />,
+    onFilter: (value, record) => String(record[dataIndex] || "").toLowerCase().includes(String(value).toLowerCase()),
+    onFilterDropdownOpenChange: open => { if (open) setTimeout(() => searchInput.current?.select(), 100); },
+  });
+
+  const columns = [
+    { title: "#", key: "rank", width: 50, render: (_, __, i) => <Text style={{ color: "var(--muted-color)", fontWeight: 700 }}>{i + 1}</Text> },
+    { title: "MID", dataIndex: "mid", key: "mid", width: 160, ...getSearchProps("mid", "MID") },
+    { title: "Business Name", dataIndex: "business_name", key: "dba", ellipsis: true, ...getSearchProps("business_name", "Business Name"),
+      render: v => <Text strong>{v}</Text> },
+    { title: "ISO", dataIndex: "iso_name", key: "iso", width: 130,
+      filters: [...new Set(data.map(r => r.iso_name).filter(Boolean))].sort().map(n => ({ text: n, value: n })),
+      onFilter: (v, r) => r.iso_name === v,
+      render: v => <Tag color="blue">{v}</Tag> },
+    { title: "Total Net Income", dataIndex: "total_net", key: "net", align: "right", sorter: (a, b) => a.total_net - b.total_net, defaultSortOrder: "descend",
+      render: v => <Text strong style={{ color: v > 0 ? "#059669" : "#dc2626" }}>{fmt(v)}</Text> },
+    { title: "Total Volume", dataIndex: "total_volume", key: "vol", align: "right", sorter: (a, b) => a.total_volume - b.total_volume,
+      render: v => fmt(v) },
+    { title: "Gross Revenue", dataIndex: "total_gross", key: "gr", align: "right", sorter: (a, b) => a.total_gross - b.total_gross,
+      render: v => fmt(v) },
+    { title: "Months Active", dataIndex: "months", key: "mo", width: 120, align: "center", sorter: (a, b) => a.months - b.months,
+      render: v => <Tag>{v} month{v !== 1 ? "s" : ""}</Tag> },
+    { title: "Last Report", dataIndex: "last_month", key: "last", width: 110, align: "center", sorter: (a, b) => (a.last_month||"").localeCompare(b.last_month||""),
+      render: v => v ? dayjs(v).format("MMM YYYY") : "—" },
   ];
+
   return (
-    <>
-      <Row justify="end">
-        <Col xs={24} sm={24} md={12} lg={6}>
-          <DatePicker
-            onChange={onChange}
-            picker="month"
-            defaultValue={dayjs().subtract(2, "months")}
-          />
-        </Col>
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Revenue per MID</Title>
+      </div>
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={8}><Card><Statistic title="Total Net Income" value={totalNet} prefix="$" precision={2} valueStyle={{ color: "var(--primary-color)", fontWeight: 700 }} formatter={v => Number(v).toLocaleString("en-US",{minimumFractionDigits:2})}/></Card></Col>
+        <Col span={8}><Card><Statistic title="Total Volume Processed" value={totalVol} prefix="$" precision={2} valueStyle={{ color: "#6b7a99", fontWeight: 700 }} formatter={v => Number(v).toLocaleString("en-US",{minimumFractionDigits:2})}/></Card></Col>
+        <Col span={8}><Card><Statistic title="Unique MIDs" value={data.length} valueStyle={{ color: "var(--primary-color)", fontWeight: 700 }}/></Card></Col>
       </Row>
-      <Tabs defaultActiveKey="1" items={items} />
-    </>
+      <Card style={{ marginBottom: 12 }}>
+        <Space wrap>
+          <Select placeholder="All ISOs" allowClear style={{ width: 200 }} onChange={v => setSelectedIso(v)}>
+            {isos.map(iso => <Option key={iso.id} value={iso.id}>{iso.name}</Option>)}
+          </Select>
+          <DatePicker picker="month" placeholder="All months" onChange={d => setSelectedMonth(d ? d.startOf("month").format("YYYY-MM-DD") : undefined)} style={{ width: 160 }} />
+          <Text style={{ color: "var(--muted-color)", fontSize: 12 }}>{data.length} MIDs · sorted by net income</Text>
+        </Space>
+      </Card>
+      <Card>
+        <Table dataSource={data} columns={columns} rowKey="mid" loading={loading}
+          pagination={{ pageSize: 50, showTotal: t => `${t} MIDs` }}
+          size="small" scroll={{ x: 900 }} />
+      </Card>
+    </div>
   );
 };
-
 export default RevenuePerMidPage;
