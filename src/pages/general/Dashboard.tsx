@@ -1,8 +1,25 @@
 // @ts-nocheck
-import { useEffect, useState, useRef } from "react";
-import { Card, Row, Col, Table, Select, DatePicker, Button, Typography, Space, Statistic, Tabs, Tag, Input, Alert, Modal } from "antd";
-import { DollarOutlined, FileExcelOutlined, BankOutlined, SearchOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
-import { supabase } from "../../utils/supabase";
+import { useState } from "react";
+import { Typography, DatePicker, Space } from "antd";
+import CardsComponent from "../../components/cards/CardsComponent";
 import dayjs from "dayjs";
-import { useNavigate } from "react-router-dom";
-export default function Dashboard() { return null; }
+
+const { Title } = Typography;
+
+export default function Dashboard() {
+  const [date, setDate] = useState(dayjs().format("YYYY-MM-DD"));
+
+  return (
+    <div style={{ padding: "0 4px" }}>
+      <Space style={{ marginBottom: 24, display: "flex", justifyContent: "space-between" }}>
+        <Title level={4} style={{ margin: 0 }}>Dashboard</Title>
+        <DatePicker
+          picker="month"
+          defaultValue={dayjs()}
+          onChange={(val) => val && setDate(val.format("YYYY-MM-DD"))}
+        />
+      </Space>
+      <CardsComponent date={date} />
+    </div>
+  );
+}
