@@ -1,329 +1,305 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import { Card, Row, Col, Tabs, Button, DatePicker, Typography, Space, Statistic, Tag, Alert, Spin, Radio, Select, Tooltip } from "antd";
+import { Card, Row, Col, Tabs, Button, DatePicker, Typography, Space, Statistic, Tag, Alert, Spin, Radio, Tooltip } from "antd";
 import { ArrowUpOutlined, ArrowDownOutlined, MinusOutlined, WarningOutlined, UserDeleteOutlined, UserAddOutlined, BulbOutlined } from "@ant-design/icons";
 import { supabase } from "../../utils/supabase";
 import dayjs from "dayjs";
 import quarterOfYear from "dayjs/plugin/quarterOfYear";
 dayjs.extend(quarterOfYear);
 const { Title, Text } = Typography;
-const { Option } = Select;
-const fmt = (n) => n != null ? `$${Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}` : '—';
-const fmtShort = (n) => {if(n==null)return'—';const abs=Math.abs(n);if(abs>=1000000)return`$${(n/1000000).toFixed(1)}M`;if(abs>=1000)return`$${(n/1000).toFixed(1)}K`;return fmt(n);};
 
-const generateSummary = (iso, periodLabel) => {
-  const parts = [];
-  if(iso.netChange > 0) parts.push(`Net income is up ${fmtShort(iso.netChange)} vs last period.`);
-  else if(iso.netChange < 0) parts.push(`Net income dropped ${fmtShort(Math.abs(iso.netChange))} vs last period.`);
-  else parts.push(`Net income is flat vs last period.`);
-  if(iso.volumeChange > 0) parts.push(`Volume grew ${fmtShort(iso.volumeChange)}.`);
-  else if(iso.volumeChange < 0) parts.push(`Volume declined ${fmtShort(Math.abs(iso.volumeChange))}.`);
-  if(iso.merchantsLeft > 0) parts.push(`${iso.merchantsLeft} merchant${iso.merchantsLeft>1?'s':''} left.`);
-  if(iso.merchantsJoined > 0) parts.push(`${iso.merchantsJoined} new merchant${iso.merchantsJoined>1?'s':''} joined.`);
-  if(iso.activeMids === 0) parts.push(`No active MIDs in this period.`);
-  return parts.join(' ') || 'No change data available.';
+const fmt=(n)=>n!=null?`$${Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`:"—";
+const fmtK=(n)=>{if(n==null)return"—";const abs=Math.abs(n);if(abs>=1000000)return`$${(n/1000000).toFixed(1)}M`;if(abs>=1000)return`$${(n/1000).toFixed(1)}K`;return fmt(n);};
+const fmtPct=(n)=>n!=null?`${n>=0?"+":""}${n.toFixed(1)}%`:"—";
+
+const generateSummary=(netChange,netPct,lostMerchants,newMerchants,hasDataA,hasDataB,netA)=>{
+  if(!hasDataA&&hasDataB)return{type:"warning",text:"No data for the earlier period — this ISO may be new or the report hasn't been uploaded yet."};
+  if(hasDataA&&!hasDataB)return{type:"warning",text:`No report uploaded for the later period yet. Last recorded net income was ${fmt(netA)}.`};
+  if(!hasDataA&&!hasDataB)return{type:"info",text:"No data found for either period."};
+  const parts=[];
+  if(lostMerchants.length>0){const names=lostMerchants.slice(0,3).map(m=>m.name).join(", ");const more=lostMerchants.length>3?` and ${lostMerchants.length-3} more`:"";parts.push(`${lostMerchants.length} merchant${lostMerchants.length>1?"s":""} stopped processing (${names}${more})`);}
+  if(newMerchants.length>0){const names=newMerchants.slice(0,3).map(m=>m.name).join(", ");const more=newMerchants.length>3?` and ${newMerchants.length-3} more`:"";parts.push(`${newMerchants.length} new merchant${newMerchants.length>1?"s":""} started processing (${names}${more})`);}
+  if(parts.length===0){if(Math.abs(netPct)<2)return{type:"success",text:"Income is stable — same merchants, no significant changes detected."};if(netChange<0)return{type:"warning",text:`Same merchants, but income dropped ${Math.abs(netPct).toFixed(1)}%. Likely lower processing volume, rate adjustments, or higher fees.`};return{type:"success",text:`Same merchants with higher activity — income grew ${netPct.toFixed(1)}%.`};}
+  if(netChange<-50)return{type:"error",text:`Income dropped because: ${parts.join(", and ")}. This explains the ${fmt(Math.abs(netChange))} decrease.`};
+  if(netChange>50)return{type:"success",text:`Income grew because: ${parts.join(", and ")}. This contributed ${fmt(netChange)} to earnings.`};
+  return{type:"info",text:`${parts.join(" and ")}, but the overall income impact was small.`};
 };
 
-const ChangeMetric = ({value, label, prefix='$'}) => {
-  if(value == null) return null;
-  const color = value > 0 ? '#059669' : value < 0 ? '#dc2626' : '#6b7280';
-  const icon = value > 0 ? <ArrowUpOutlined/> : value < 0 ? <ArrowDownOutlined/> : <MinusOutlined/>;
-  return (
-    <div style={{display:'inline-flex',alignItems:'center',gap:4,color,fontSize:13,fontWeight:600}}>
-      {icon}
-      <span>{prefix==='$'?fmtShort(Math.abs(value)):Math.abs(value)}</span>
-      {label&&<Text style={{color:'#9ca3af',fontSize:11,fontWeight:400}}>{label}</Text>}
+const MetricBox=({label,valA,valB,change,changePct,formatter=fmtK})=>(
+  <div style={{textAlign:"center",padding:"14px 8px",background:"#f8fafc",borderRadius:8,border:"1px solid var(--line-color)"}}>
+    <Text style={{fontSize:10,color:"var(--muted-color)",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.8px",display:"block",marginBottom:8}}>{label}</Text>
+    <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:6,marginBottom:4}}>
+      <Text style={{fontSize:13,color:"var(--muted-color)"}}>{formatter(valA)}</Text>
+      <Text style={{fontSize:12,color:"var(--muted-color)"}}>→</Text>
+      <Text style={{fontSize:15,fontWeight:800,color:change===0?"var(--black-color)":change>0?"#059669":"#dc2626"}}>{formatter(valB)}</Text>
     </div>
+    {change!==0&&<div style={{fontSize:12,color:change>0?"#059669":"#dc2626",fontWeight:600}}>
+      {change>0?"▲":"▼"} {formatter(Math.abs(change))} ({Math.abs(changePct).toFixed(1)}%)
+    </div>}
+    {change===0&&<div style={{fontSize:12,color:"var(--muted-color)"}}>No change</div>}
+  </div>
+);
+
+const ISOCard=({iso,labelA,labelB})=>{
+  const borderColor=!iso.hasDataA||!iso.hasDataB?"#f59e0b":iso.netChange<-50?"#dc2626":iso.netChange>50?"#059669":"#d1d5db";
+  const badgeBg=!iso.hasDataA||!iso.hasDataB?"#fff7ed":iso.netChange<-50?"#fef2f2":iso.netChange>50?"#f0fdf4":"#f9fafb";
+  const badgeColor=!iso.hasDataA||!iso.hasDataB?"#c2410c":iso.netChange<-50?"#dc2626":iso.netChange>50?"#059669":"#6b7a99";
+  const badgeLabel=!iso.hasDataA||!iso.hasDataB?"⚠ Missing Data":iso.netChange<-50?"↓ Income Dropped":iso.netChange>50?"↑ Income Grew":"→ Stable";
+  return(
+    <Card style={{borderLeft:`4px solid ${borderColor}`,marginBottom:12,borderRadius:12}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+        <div>
+          <Text strong style={{fontSize:16}}>{iso.isoName}</Text>
+          <div style={{marginTop:2}}>
+            <Text style={{fontSize:12,color:"var(--muted-color)"}}>
+              {labelA}: <strong style={{color:"var(--black-color)"}}>{fmt(iso.netA)}</strong>
+              {" → "}
+              {labelB}: <strong style={{color:iso.netChange<0?"#dc2626":iso.netChange>0?"#059669":"var(--black-color)"}}>{fmt(iso.netB)}</strong>
+            </Text>
+          </div>
+        </div>
+        <span style={{padding:"4px 10px",borderRadius:20,background:badgeBg,color:badgeColor,fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>{badgeLabel}</span>
+      </div>
+      <Alert type={iso.summary.type} showIcon message={iso.summary.text} style={{marginBottom:14,borderRadius:8}}/>
+      <Row gutter={12} style={{marginBottom:iso.lostMerchants.length>0||iso.newMerchants.length>0?12:0}}>
+        <Col span={8}><MetricBox label="Net Income" valA={iso.netA} valB={iso.netB} change={iso.netChange} changePct={iso.netPct}/></Col>
+        <Col span={8}><MetricBox label="Volume" valA={iso.volA} valB={iso.volB} change={iso.volChange} changePct={iso.volPct}/></Col>
+        <Col span={8}><MetricBox label="Merchants" valA={iso.midsA} valB={iso.midsB} change={iso.midsB-iso.midsA} changePct={iso.midsA?((iso.midsB-iso.midsA)/iso.midsA*100):0} formatter={v=>String(Math.round(v))}/></Col>
+      </Row>
+      {(iso.lostMerchants.length>0||iso.newMerchants.length>0)&&(
+        <div style={{padding:"10px 12px",background:"#f8fafc",borderRadius:8,border:"1px solid var(--line-color)"}}>
+          {iso.lostMerchants.length>0&&(
+            <div style={{marginBottom:iso.newMerchants.length>0?8:0}}>
+              <Text style={{fontSize:12,fontWeight:700,color:"#dc2626",display:"block",marginBottom:6}}>
+                <UserDeleteOutlined style={{marginRight:4}}/>{iso.lostMerchants.length} Left
+              </Text>
+              <Space wrap size={4}>
+                {iso.lostMerchants.map(m=><Tag key={m.mid} style={{margin:0,background:"#fef2f2",borderColor:"#fecaca",color:"#dc2626"}}>{m.name}</Tag>)}
+              </Space>
+            </div>
+          )}
+          {iso.newMerchants.length>0&&(
+            <div>
+              <Text style={{fontSize:12,fontWeight:700,color:"#059669",display:"block",marginBottom:6}}>
+                <UserAddOutlined style={{marginRight:4}}/>{iso.newMerchants.length} New
+              </Text>
+              <Space wrap size={4}>
+                {iso.newMerchants.map(m=><Tag key={m.mid} style={{margin:0,background:"#f0fdf4",borderColor:"#bbf7d0",color:"#059669"}}>{m.name}</Tag>)}
+              </Space>
+            </div>
+          )}
+        </div>
+      )}
+    </Card>
   );
 };
 
-const StatusBadge = ({trend}) => {
-  if(trend==='up') return <Tag color="green" icon={<ArrowUpOutlined/>}>Growth</Tag>;
-  if(trend==='down') return <Tag color="red" icon={<ArrowDownOutlined/>}>Decline</Tag>;
-  return <Tag color="default" icon={<MinusOutlined/>}>Flat</Tag>;
+const getPeriodDates=(period)=>{
+  const now=dayjs();
+  if(period==="30")return{labelA:now.subtract(1,"month").format("MMM YYYY"),labelB:now.format("MMM YYYY"),dateA:now.subtract(1,"month").startOf("month").format("YYYY-MM-DD"),dateB:now.startOf("month").format("YYYY-MM-DD"),type:"month"};
+  if(period==="60")return{labelA:now.subtract(2,"month").format("MMM YYYY"),labelB:now.subtract(1,"month").format("MMM YYYY"),dateA:now.subtract(2,"month").startOf("month").format("YYYY-MM-DD"),dateB:now.subtract(1,"month").startOf("month").format("YYYY-MM-DD"),type:"month"};
+  if(period==="90")return{labelA:now.subtract(3,"month").format("MMM YYYY"),labelB:now.subtract(2,"month").format("MMM YYYY"),dateA:now.subtract(3,"month").startOf("month").format("YYYY-MM-DD"),dateB:now.subtract(2,"month").startOf("month").format("YYYY-MM-DD"),type:"month"};
+  if(period==="quarter"){const curQ=now.startOf("quarter"),prevQ=curQ.subtract(1,"quarter");return{labelA:`Q${prevQ.quarter()} ${prevQ.year()}`,labelB:`Q${curQ.quarter()} ${curQ.year()}`,monthsA:[0,1,2].map(i=>prevQ.add(i,"month").format("YYYY-MM-DD")),monthsB:[0,1,2].map(i=>curQ.add(i,"month").format("YYYY-MM-DD")),type:"quarter"};}
+  if(period==="year")return{labelA:String(now.year()-1),labelB:String(now.year()),yearA:now.year()-1,yearB:now.year(),type:"year"};
+  return null;
 };
 
-const ISOCard = ({iso, onClick, active}) => (
-  <Card
-    size="small"
-    style={{marginBottom:12,border:active?'2px solid var(--primary-color)':'1px solid var(--line-color)',cursor:'pointer',transition:'all 0.2s'}}
-    onClick={onClick}
-    hoverable
-  >
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
-      <div>
-        <Text strong style={{fontSize:15}}>{iso.name}</Text>
-        <div style={{marginTop:2}}><StatusBadge trend={iso.trend}/></div>
-      </div>
-      <div style={{textAlign:'right'}}>
-        <div style={{fontSize:18,fontWeight:700,color:'var(--primary-color)'}}>{fmtShort(iso.currentNet)}</div>
-        <Text style={{fontSize:11,color:'var(--muted-color)'}}>net income</Text>
-      </div>
-    </div>
-    <div style={{display:'flex',gap:16,flexWrap:'wrap'}}>
-      <div><Text style={{fontSize:11,color:'var(--muted-color)'}}>vs prev </Text><ChangeMetric value={iso.netChange}/></div>
-      <div><Text style={{fontSize:11,color:'var(--muted-color)'}}>volume </Text><ChangeMetric value={iso.volumeChange}/></div>
-      <div><Text style={{fontSize:11,color:'var(--muted-color)'}}>MIDs </Text><span style={{fontSize:13,fontWeight:600}}>{iso.activeMids}</span></div>
-      {iso.merchantsLeft>0&&<div><Text style={{fontSize:11,color:'#dc2626'}}><UserDeleteOutlined/> {iso.merchantsLeft} left</Text></div>}
-      {iso.merchantsJoined>0&&<div><Text style={{fontSize:11,color:'#059669'}}><UserAddOutlined/> {iso.merchantsJoined} joined</Text></div>}
-    </div>
-    <div style={{marginTop:8,padding:'6px 10px',background:'#f9fafb',borderRadius:6,fontSize:12,color:'#4b5563',display:'flex',gap:6,alignItems:'flex-start'}}>
-      <BulbOutlined style={{color:'#f59e0b',marginTop:2,flexShrink:0}}/>
-      <span>{generateSummary(iso,'this period')}</span>
-    </div>
-  </Card>
-);
+const InsightsPage=()=>{
+  const [activeTab,setActiveTab]=useState("overview");
+  const [overviewPeriod,setOverviewPeriod]=useState("30");
+  const [overviewData,setOverviewData]=useState(null);
+  const [loadingOverview,setLoadingOverview]=useState(false);
+  const [activeFilter,setActiveFilter]=useState(null);
+  const [compareBy,setCompareBy]=useState("iso");
+  const [comparePeriodType,setComparePeriodType]=useState("month");
+  const [compareA,setCompareA]=useState(null);
+  const [compareB,setCompareB]=useState(null);
+  const [comparison,setComparison]=useState(null);
+  const [runningComparison,setRunningComparison]=useState(false);
 
-export default function InsightsPage() {
-  const [activeTab, setActiveTab] = useState('overview');
-  const [overviewData, setOverviewData] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [period, setPeriod] = useState('30');
-  const [activeFilter, setActiveFilter] = useState(null);
-  const [selectedISO, setSelectedISO] = useState(null);
+  useEffect(()=>{loadOverview();setActiveFilter(null);},[overviewPeriod]);
 
-  // Comparison state
-  const [compareBy, setCompareBy] = useState('overall');
-  const [comparePeriod, setComparePeriod] = useState('month');
-  const [dateA, setDateA] = useState(dayjs().subtract(1,'month').startOf('month'));
-  const [dateB, setDateB] = useState(dayjs().startOf('month'));
-  const [compResult, setCompResult] = useState(null);
-  const [comparing, setComparing] = useState(false);
-  const [isos, setIsos] = useState([]);
+  const fetchByMonths=async(months)=>{const{data}=await supabase.from("residuals").select("*,isos(id,name)").in("report_month",months);return data||[];};
+  const fetchByYear=async(year)=>{const{data}=await supabase.from("residuals").select("*,isos(id,name)").gte("report_month",`${year}-01-01`).lte("report_month",`${year}-12-31`);return data||[];};
 
-  useEffect(()=>{loadOverview();fetchIsos();},[period]);
+  const groupData=(rows)=>{const map={};rows.forEach(r=>{const k=r.iso_id;if(!map[k])map[k]={isoId:k,isoName:r.isos?.name||"Unknown",rows:[],totalNet:0,totalVolume:0,mids:new Map()};map[k].rows.push(r);map[k].totalNet+=(r.paydiversenet||0);map[k].totalVolume+=(r.gross_volume||0);map[k].mids.set(r.mid,r.business_name||r.mid);});return map;};
 
-  const fetchIsos=async()=>{const{data}=await supabase.from('isos').select('*').eq('status','active').order('name');if(data)setIsos(data);};
+  const buildComparison=(rowsA,rowsB,labelA,labelB)=>{
+    const gA=groupData(rowsA),gB=groupData(rowsB);
+    const allIds=new Set([...Object.keys(gA),...Object.keys(gB)]);
+    const isoList=Array.from(allIds).map(isoId=>{
+      const a=gA[isoId],b=gB[isoId];
+      const isoName=a?.isoName||b?.isoName||"Unknown";
+      const netA=a?.totalNet||0,netB=b?.totalNet||0,volA=a?.totalVolume||0,volB=b?.totalVolume||0;
+      const midsA=a?.mids||new Map(),midsB=b?.mids||new Map();
+      const netChange=netB-netA,netPct=netA!==0?(netChange/Math.abs(netA)*100):(netB!==0?100:0);
+      const volChange=volB-volA,volPct=volA!==0?(volChange/Math.abs(volA)*100):0;
+      const lostMerchants=[...midsA.entries()].filter(([mid])=>!midsB.has(mid)).map(([mid,name])=>({mid,name}));
+      const newMerchants=[...midsB.entries()].filter(([mid])=>!midsA.has(mid)).map(([mid,name])=>({mid,name}));
+      const summary=generateSummary(netChange,netPct,lostMerchants,newMerchants,!!a,!!b,netA);
+      return{isoId,isoName,netA,netB,netChange,netPct,volA,volB,volChange,volPct,midsA:midsA.size,midsB:midsB.size,lostMerchants,newMerchants,hasDataA:!!a,hasDataB:!!b,summary};
+    }).sort((a,b)=>Math.abs(b.netChange)-Math.abs(a.netChange));
+    const totNetA=rowsA.reduce((s,r)=>s+(r.paydiversenet||0),0),totNetB=rowsB.reduce((s,r)=>s+(r.paydiversenet||0),0);
+    const totVolA=rowsA.reduce((s,r)=>s+(r.gross_volume||0),0),totVolB=rowsB.reduce((s,r)=>s+(r.gross_volume||0),0);
+    const midSetA=new Set(rowsA.map(r=>r.mid)),midSetB=new Set(rowsB.map(r=>r.mid));
+    return{labelA,labelB,isos:isoList,overall:{netA:totNetA,netB:totNetB,netChange:totNetB-totNetA,netPct:totNetA!==0?((totNetB-totNetA)/Math.abs(totNetA)*100):0,volA:totVolA,volB:totVolB,volChange:totVolB-totVolA,volPct:totVolA!==0?((totVolB-totVolA)/Math.abs(totVolA)*100):0,midsA:midSetA.size,midsB:midSetB.size,lostMerchants:[...midSetA].filter(m=>!midSetB.has(m)).length,newMerchants:[...midSetB].filter(m=>!midSetA.has(m)).length},drops:isoList.filter(i=>i.netChange<-50).length,gains:isoList.filter(i=>i.netChange>50).length};
+  };
 
   const loadOverview=async()=>{
-    setLoading(true);
-    const days=parseInt(period);
-    const cutoff=dayjs().subtract(days,'day').format('YYYY-MM-DD');
-    const prevCutoff=dayjs().subtract(days*2,'day').format('YYYY-MM-DD');
-
-    const [{data:currResiduals},{data:prevResiduals},{data:merchants}]=await Promise.all([
-      supabase.from('residuals').select('*,isos(id,name)').gte('report_month',cutoff),
-      supabase.from('residuals').select('*,isos(id,name)').gte('report_month',prevCutoff).lt('report_month',cutoff),
-      supabase.from('merchants').select('*,isos(id,name)').order('created_at'),
-    ]);
-
-    const isoMap={};
-    (currResiduals||[]).forEach(r=>{
-      const id=r.iso_id; if(!id)return;
-      if(!isoMap[id])isoMap[id]={id,name:r.isos?.name||'Unknown',currentNet:0,currentVol:0,mids:new Set()};
-      isoMap[id].currentNet+=(r.paydiversenet||0);
-      isoMap[id].currentVol+=(r.gross_volume||0);
-      if(r.mid)isoMap[id].mids.add(r.mid);
-    });
-    const prevMap={};
-    (prevResiduals||[]).forEach(r=>{
-      const id=r.iso_id; if(!id)return;
-      if(!prevMap[id])prevMap[id]={prevNet:0,prevVol:0};
-      prevMap[id].prevNet+=(r.paydiversenet||0);
-      prevMap[id].prevVol+=(r.gross_volume||0);
-    });
-
-    const currMids={};const prevMids={};
-    (currResiduals||[]).forEach(r=>{if(!r.iso_id||!r.mid)return;if(!currMids[r.iso_id])currMids[r.iso_id]=new Set();currMids[r.iso_id].add(r.mid);});
-    (prevResiduals||[]).forEach(r=>{if(!r.iso_id||!r.mid)return;if(!prevMids[r.iso_id])prevMids[r.iso_id]=new Set();prevMids[r.iso_id].add(r.mid);});
-
-    const result=Object.values(isoMap).map(iso=>{
-      const prev=prevMap[iso.id]||{prevNet:0,prevVol:0};
-      const netChange=iso.currentNet-prev.prevNet;
-      const volumeChange=iso.currentVol-prev.prevVol;
-      const cm=currMids[iso.id]||new Set();
-      const pm=prevMids[iso.id]||new Set();
-      const merchantsLeft=[...pm].filter(m=>!cm.has(m)).length;
-      const merchantsJoined=[...cm].filter(m=>!pm.has(m)).length;
-      const trend=netChange>50?'up':netChange<-50?'down':'flat';
-      return{...iso,netChange,volumeChange,activeMids:cm.size,merchantsLeft,merchantsJoined,trend,prevNet:prev.prevNet};
-    }).sort((a,b)=>b.currentNet-a.currentNet);
-
-    setOverviewData(result);
-    setLoading(false);
+    setLoadingOverview(true);
+    const pd=getPeriodDates(overviewPeriod);if(!pd){setLoadingOverview(false);return;}
+    let rowsA=[],rowsB=[];
+    if(pd.type==="month"){[rowsA,rowsB]=await Promise.all([fetchByMonths([pd.dateA]),fetchByMonths([pd.dateB])]);}
+    else if(pd.type==="quarter"){[rowsA,rowsB]=await Promise.all([fetchByMonths(pd.monthsA),fetchByMonths(pd.monthsB)]);}
+    else{[rowsA,rowsB]=await Promise.all([fetchByYear(pd.yearA),fetchByYear(pd.yearB)]);}
+    setOverviewData(buildComparison(rowsA,rowsB,pd.labelA,pd.labelB));
+    setLoadingOverview(false);
   };
 
   const runComparison=async()=>{
-    setComparing(true);setCompResult(null);
-    let getRange=(d,p)=>{
-      if(p==='month')return{start:d.startOf('month').format('YYYY-MM-DD'),end:d.endOf('month').format('YYYY-MM-DD')};
-      if(p==='quarter')return{start:d.startOf('quarter').format('YYYY-MM-DD'),end:d.endOf('quarter').format('YYYY-MM-DD')};
-      return{start:d.startOf('year').format('YYYY-MM-DD'),end:d.endOf('year').format('YYYY-MM-DD')};
-    };
-    const rA=getRange(dateA,comparePeriod);
-    const rB=getRange(dateB,comparePeriod);
-    const [resA,resB]=await Promise.all([
-      supabase.from('residuals').select('*,isos(id,name)').gte('report_month',rA.start).lte('report_month',rA.end),
-      supabase.from('residuals').select('*,isos(id,name)').gte('report_month',rB.start).lte('report_month',rB.end),
-    ]);
-    const aggregate=(rows)=>{
-      const m={};
-      (rows||[]).forEach(r=>{
-        const k=compareBy==='overall'?'overall':compareBy==='iso'?r.iso_id:r.mid;
-        const label=compareBy==='overall'?'Overall':compareBy==='iso'?(r.isos?.name||r.iso_id):r.mid;
-        if(!k)return;
-        if(!m[k])m[k]={key:k,label,net:0,volume:0,mids:new Set()};
-        m[k].net+=(r.paydiversenet||0);
-        m[k].volume+=(r.gross_volume||0);
-        if(r.mid)m[k].mids.add(r.mid);
-      });
-      return m;
-    };
-    const mA=aggregate(resA.data);const mB=aggregate(resB.data);
-    const keys=new Set([...Object.keys(mA),...Object.keys(mB)]);
-    const rows=[...keys].map(k=>({
-      key:k,
-      label:mA[k]?.label||mB[k]?.label||k,
-      netA:mA[k]?.net||0,netB:mB[k]?.net||0,
-      volA:mA[k]?.volume||0,volB:mB[k]?.volume||0,
-      midsA:mA[k]?.mids.size||0,midsB:mB[k]?.mids.size||0,
-    })).map(r=>({...r,netDiff:r.netB-r.netA,volDiff:r.volB-r.volA}))
-    .sort((a,b)=>Math.abs(b.netDiff)-Math.abs(a.netDiff));
-    setCompResult({rows,rangeA:rA,rangeB:rB});
-    setComparing(false);
+    if(!compareA||!compareB)return;
+    setRunningComparison(true);
+    let rowsA=[],rowsB=[];
+    const pt=comparePeriodType;
+    if(pt==="month"){[rowsA,rowsB]=await Promise.all([fetchByMonths([compareA]),fetchByMonths([compareB])]);}
+    else if(pt==="quarter"){const qA=dayjs(compareA).startOf("quarter"),qB=dayjs(compareB).startOf("quarter");[rowsA,rowsB]=await Promise.all([fetchByMonths([0,1,2].map(i=>qA.add(i,"month").format("YYYY-MM-DD"))),fetchByMonths([0,1,2].map(i=>qB.add(i,"month").format("YYYY-MM-DD")))]);}
+    else{[rowsA,rowsB]=await Promise.all([fetchByYear(dayjs(compareA).year()),fetchByYear(dayjs(compareB).year())]);}
+    const labelA=pt==="month"?dayjs(compareA).format("MMM YYYY"):pt==="quarter"?`Q${dayjs(compareA).quarter()} ${dayjs(compareA).year()}`:String(dayjs(compareA).year());
+    const labelB=pt==="month"?dayjs(compareB).format("MMM YYYY"):pt==="quarter"?`Q${dayjs(compareB).quarter()} ${dayjs(compareB).year()}`:String(dayjs(compareB).year());
+    setComparison(buildComparison(rowsA,rowsB,labelA,labelB));
+    setRunningComparison(false);
   };
 
-  const totalNet=overviewData.reduce((s,i)=>s+i.currentNet,0);
-  const totalVol=overviewData.reduce((s,i)=>s+i.currentVol,0);
-  const isosDrop=overviewData.filter(i=>i.trend==='down').length;
-  const isosGrowth=overviewData.filter(i=>i.trend==='up').length;
-  const totalLeft=overviewData.reduce((s,i)=>s+i.merchantsLeft,0);
-
-  const filtered=activeFilter==='drop'?overviewData.filter(i=>i.trend==='down')
-    :activeFilter==='growth'?overviewData.filter(i=>i.trend==='up')
-    :activeFilter==='left'?overviewData.filter(i=>i.merchantsLeft>0)
-    :overviewData;
-
-  const kpiCards=[
-    {label:'Net Income Δ',value:totalNet,fmt:fmtShort,color:'var(--primary-color)',filter:null,sub:'total this period'},
-    {label:'ISOs with Drop',value:isosDrop,fmt:v=>v,color:'#dc2626',filter:'drop',sub:'click to filter'},
-    {label:'ISOs with Growth',value:isosGrowth,fmt:v=>v,color:'#059669',filter:'growth',sub:'click to filter'},
-    {label:'Merchants Left',value:totalLeft,fmt:v=>v,color:'#f59e0b',filter:'left',sub:'vs prev period'},
-  ];
-
-  const periodLabel = period==='30'?'Last 30 Days':period==='60'?'Last 60 Days':period==='90'?'Last 90 Days':period==='quarter'?'This Quarter':'This Year';
-
-  return (
+  const overviewTab=(
     <div>
-      <Title level={4} style={{margin:'0 0 16px'}}>Insights & Analytics</Title>
-      <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
-        {
-          key:'overview',
-          label:'Overview',
-          children:(
-            <div>
-              <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16,flexWrap:'wrap'}}>
-                <Text style={{fontWeight:600,color:'var(--muted-color)',fontSize:12}}>PERIOD:</Text>
-                <Radio.Group value={period} onChange={e=>setPeriod(e.target.value)} size="small" buttonStyle="solid">
-                  <Radio.Button value="30">Last 30 Days</Radio.Button>
-                  <Radio.Button value="60">Last 60 Days</Radio.Button>
-                  <Radio.Button value="90">Last 90 Days</Radio.Button>
-                  <Radio.Button value="quarter">Quarterly</Radio.Button>
-                  <Radio.Button value="annual">Annual</Radio.Button>
-                </Radio.Group>
-                {activeFilter&&<Button size="small" onClick={()=>setActiveFilter(null)}>Clear Filter ✕</Button>}
-              </div>
-              {loading?<div style={{textAlign:'center',padding:60}}><Spin size="large"/></div>:(
-                <>
-                  <Row gutter={16} style={{marginBottom:16}}>
-                    {kpiCards.map(k=>(
-                      <Col span={6} key={k.label}>
-                        <Card
-                          size="small"
-                          hoverable={!!k.filter}
-                          onClick={k.filter?()=>setActiveFilter(activeFilter===k.filter?null:k.filter):undefined}
-                          style={{cursor:k.filter?'pointer':'default',border:activeFilter===k.filter?`2px solid ${k.color}`:'1px solid var(--line-color)',transition:'all 0.2s'}}
-                        >
-                          <Statistic title={k.label} value={k.fmt(k.value)} valueStyle={{color:k.color,fontWeight:700}}/>
-                          <Text style={{fontSize:11,color:'var(--muted-color)'}}>{k.sub}</Text>
-                        </Card>
-                      </Col>
-                    ))}
-                  </Row>
-                  <Row gutter={16} style={{marginBottom:16}}>
-                    <Col span={12}><Card size="small"><Statistic title="Overall Net Income" value={fmtShort(totalNet)} valueStyle={{color:'var(--primary-color)',fontWeight:700}}/><Text style={{fontSize:11,color:'var(--muted-color)'}}>{periodLabel}</Text></Card></Col>
-                    <Col span={12}><Card size="small"><Statistic title="Total Volume" value={fmtShort(totalVol)} valueStyle={{color:'#6b7a99',fontWeight:700}}/><Text style={{fontSize:11,color:'var(--muted-color)'}}>{periodLabel}</Text></Card></Col>
-                  </Row>
-                  {activeFilter&&<Alert type="info" showIcon style={{marginBottom:12}} message={`Showing ${filtered.length} ISO${filtered.length!==1?'s':''} matching filter: ${activeFilter}`}/>}
-                  {filtered.length===0?<Alert type="warning" showIcon message="No data for this period. Try importing reports or changing the period."/>:(
-                    filtered.map(iso=><ISOCard key={iso.id} iso={iso} active={selectedISO===iso.id} onClick={()=>setSelectedISO(selectedISO===iso.id?null:iso.id)}/>)
-                  )}
-                </>
-              )}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+        <Text style={{color:"var(--muted-color)",fontSize:13}}>Auto-loaded summary based on available data</Text>
+        <Radio.Group value={overviewPeriod} onChange={e=>setOverviewPeriod(e.target.value)} buttonStyle="solid" size="middle">
+          {[{label:"Last 30 Days",value:"30"},{label:"Last 60 Days",value:"60"},{label:"Last 90 Days",value:"90"},{label:"Quarterly",value:"quarter"},{label:"Annual",value:"year"}].map(o=><Radio.Button key={o.value} value={o.value}>{o.label}</Radio.Button>)}
+        </Radio.Group>
+      </div>
+      {loadingOverview&&<div style={{textAlign:"center",padding:60}}><Spin size="large"/><br/><Text style={{color:"var(--muted-color)",marginTop:12,display:"block"}}>Loading summary...</Text></div>}
+      {!loadingOverview&&overviewData&&(
+        <>
+          <Text style={{color:"var(--muted-color)",fontSize:12,display:"block",marginBottom:14}}>
+            Comparing <strong>{overviewData.labelA}</strong> → <strong>{overviewData.labelB}</strong>
+          </Text>
+          <Row gutter={16} style={{marginBottom:16}}>
+            {[
+              {title:"Net Income Change",value:overviewData.overall.netChange,color:overviewData.overall.netChange>=0?"#059669":"#dc2626",doFmt:true,prefix:overviewData.overall.netChange>=0?"▲":"▼",filter:null},
+              {title:"ISOs with Drop",value:overviewData.drops,color:"#dc2626",filter:"drops"},
+              {title:"ISOs with Growth",value:overviewData.gains,color:"#059669",filter:"gains"},
+              {title:"Merchants Left",value:overviewData.overall.lostMerchants,color:"#f59e0b",filter:"left"},
+            ].map(({title,value,color,prefix,doFmt,filter})=>(
+              <Col span={6} key={title}>
+                <Card onClick={()=>filter&&setActiveFilter(activeFilter===filter?null:filter)}
+                  style={{cursor:filter?"pointer":"default",border:activeFilter===filter&&filter?`2px solid ${color}`:"1px solid var(--line-color)",transition:"all 0.18s",transform:activeFilter===filter&&filter?"translateY(-2px)":"none"}}>
+                  <Statistic title={title} value={doFmt?Math.abs(value):value} prefix={doFmt?prefix:undefined} formatter={doFmt?v=>`$${Number(v).toLocaleString("en-US",{minimumFractionDigits:2})}`:undefined} valueStyle={{color,fontWeight:700}}/>
+                  {filter&&<Text style={{fontSize:10,color:activeFilter===filter?color:"#94a3b8",display:"block",marginTop:4}}>{activeFilter===filter?"▼ filtered":"→ click to filter"}</Text>}
+                </Card>
+              </Col>
+            ))}
+          </Row>
+          {activeFilter&&(
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,padding:"8px 14px",background:"#eff6ff",borderRadius:10,border:"1px solid #bfdbfe"}}>
+              <Text style={{fontSize:13,fontWeight:600,color:"#1d4ed8"}}>
+                {activeFilter==="drops"?`Showing ${overviewData.drops} ISO${overviewData.drops!==1?"s":""} with dropped income`:
+                 activeFilter==="gains"?`Showing ${overviewData.gains} ISO${overviewData.gains!==1?"s":""} with grown income`:
+                 `Showing ISOs with merchants who left`}
+              </Text>
+              <Button size="small" onClick={()=>setActiveFilter(null)} style={{marginLeft:"auto"}}>Clear ✕</Button>
             </div>
-          )
-        },
-        {
-          key:'comparison',
-          label:'Comparison',
-          children:(
-            <div>
-              <Card style={{marginBottom:16}}>
-                <Space wrap size="middle">
-                  <div>
-                    <Text style={{fontSize:12,fontWeight:600,display:'block',marginBottom:4}}>Compare By</Text>
-                    <Select value={compareBy} onChange={setCompareBy} style={{width:160}}>
-                      <Option value="overall">Overall</Option>
-                      <Option value="iso">By ISO</Option>
-                      <Option value="merchant">By Merchant</Option>
-                    </Select>
-                  </div>
-                  <div>
-                    <Text style={{fontSize:12,fontWeight:600,display:'block',marginBottom:4}}>Period Type</Text>
-                    <Radio.Group value={comparePeriod} onChange={e=>setComparePeriod(e.target.value)} buttonStyle="solid" size="small">
-                      <Radio.Button value="month">Month</Radio.Button>
-                      <Radio.Button value="quarter">Quarter</Radio.Button>
-                      <Radio.Button value="year">Year</Radio.Button>
-                    </Radio.Group>
-                  </div>
-                  <div>
-                    <Text style={{fontSize:12,fontWeight:600,display:'block',marginBottom:4}}>Period A</Text>
-                    <DatePicker picker={comparePeriod==='month'?'month':comparePeriod==='quarter'?'quarter':'year'} value={dateA} onChange={d=>d&&setDateA(d)} format={comparePeriod==='month'?'MMM YYYY':comparePeriod==='quarter'?'[Q]Q YYYY':'YYYY'}/>
-                  </div>
-                  <div>
-                    <Text style={{fontSize:12,fontWeight:600,display:'block',marginBottom:4}}>Period B</Text>
-                    <DatePicker picker={comparePeriod==='month'?'month':comparePeriod==='quarter'?'quarter':'year'} value={dateB} onChange={d=>d&&setDateB(d)} format={comparePeriod==='month'?'MMM YYYY':comparePeriod==='quarter'?'[Q]Q YYYY':'YYYY'}/>
-                  </div>
-                  <div style={{paddingTop:20}}>
-                    <Button type="primary" loading={comparing} onClick={runComparison}>Run Comparison</Button>
-                  </div>
-                </Space>
-              </Card>
-              {comparing&&<div style={{textAlign:'center',padding:40}}><Spin size="large"/></div>}
-              {compResult&&(
-                <div>
-                  <div style={{display:'flex',gap:12,marginBottom:16,flexWrap:'wrap'}}>
-                    {[
-                      {label:'Period A',val:compResult.rows.reduce((s,r)=>s+r.netA,0),color:'#6b7a99'},
-                      {label:'Period B',val:compResult.rows.reduce((s,r)=>s+r.netB,0),color:'var(--primary-color)'},
-                      {label:'Net Change',val:compResult.rows.reduce((s,r)=>s+r.netDiff,0),color:compResult.rows.reduce((s,r)=>s+r.netDiff,0)>=0?'#059669':'#dc2626'},
-                    ].map(({label,val,color})=>(
-                      <Card key={label} size="small" style={{minWidth:160}}>
-                        <Text style={{fontSize:12,color:'var(--muted-color)',display:'block'}}>{label}</Text>
-                        <div style={{fontSize:22,fontWeight:700,color}}>{fmtShort(val)}</div>
-                      </Card>
-                    ))}
-                  </div>
-                  {compResult.rows.map(r=>(
-                    <Card key={r.key} size="small" style={{marginBottom:8,borderLeft:`4px solid ${r.netDiff>0?'#059669':r.netDiff<0?'#dc2626':'#d1d5db'}`}}>
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8}}>
-                        <Text strong style={{fontSize:14}}>{r.label}</Text>
-                        <Space wrap>
-                          <div><Text style={{fontSize:11,color:'var(--muted-color)'}}>A: </Text><Text strong>{fmtShort(r.netA)}</Text></div>
-                          <div><Text style={{fontSize:11,color:'var(--muted-color)'}}>B: </Text><Text strong>{fmtShort(r.netB)}</Text></div>
-                          <ChangeMetric value={r.netDiff} label="net"/>
-                          <ChangeMetric value={r.volDiff} label="vol"/>
-                        </Space>
-                      </div>
-                    </Card>
-                  ))}
+          )}
+          <Row gutter={16} style={{marginBottom:16}}>
+            <Col span={12}>
+              <Card style={{borderLeft:`4px solid ${overviewData.overall.netChange>=0?"#059669":"#dc2626"}`}}>
+                <Text style={{fontSize:11,color:"var(--muted-color)",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.6px",display:"block",marginBottom:10}}>Overall Net Income</Text>
+                <div style={{display:"flex",alignItems:"center",gap:16}}>
+                  <div><Text style={{color:"var(--muted-color)",fontSize:12,display:"block"}}>{overviewData.labelA}</Text><Text strong style={{fontSize:20}}>{fmtK(overviewData.overall.netA)}</Text></div>
+                  <Text style={{fontSize:20,color:"var(--muted-color)"}}>→</Text>
+                  <div><Text style={{color:"var(--muted-color)",fontSize:12,display:"block"}}>{overviewData.labelB}</Text><Text strong style={{fontSize:20,color:overviewData.overall.netChange>=0?"#059669":"#dc2626"}}>{fmtK(overviewData.overall.netB)}</Text></div>
+                  <Tag color={overviewData.overall.netChange>=0?"green":"red"} style={{fontSize:13,marginLeft:4}}>{overviewData.overall.netChange>=0?"▲":"▼"} {fmtPct(Math.abs(overviewData.overall.netPct))}</Tag>
                 </div>
-              )}
-              {!compResult&&!comparing&&<Alert type="info" showIcon message="Select periods and click Run Comparison to see results."/>}
-            </div>
-          )
-        }
-      ]}/>
+              </Card>
+            </Col>
+            <Col span={12}>
+              <Card style={{borderLeft:"4px solid #6b7a99"}}>
+                <Text style={{fontSize:11,color:"var(--muted-color)",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.6px",display:"block",marginBottom:10}}>Total Volume</Text>
+                <div style={{display:"flex",alignItems:"center",gap:16}}>
+                  <div><Text style={{color:"var(--muted-color)",fontSize:12,display:"block"}}>{overviewData.labelA}</Text><Text strong style={{fontSize:20}}>{fmtK(overviewData.overall.volA)}</Text></div>
+                  <Text style={{fontSize:20,color:"var(--muted-color)"}}>→</Text>
+                  <div><Text style={{color:"var(--muted-color)",fontSize:12,display:"block"}}>{overviewData.labelB}</Text><Text strong style={{fontSize:20,color:overviewData.overall.volChange>=0?"#059669":"#dc2626"}}>{fmtK(overviewData.overall.volB)}</Text></div>
+                  <Tag color={overviewData.overall.volChange>=0?"green":"red"} style={{fontSize:13,marginLeft:4}}>{overviewData.overall.volChange>=0?"▲":"▼"} {fmtPct(Math.abs(overviewData.overall.volPct))}</Tag>
+                </div>
+              </Card>
+            </Col>
+          </Row>
+          {(()=>{
+            const filtered=overviewData.isos.filter(iso=>{
+              if(!activeFilter)return true;
+              if(activeFilter==="drops")return iso.netChange<-50;
+              if(activeFilter==="gains")return iso.netChange>50;
+              if(activeFilter==="left")return iso.lostMerchants.length>0;
+              return true;
+            });
+            if(filtered.length===0)return<Card><div style={{textAlign:"center",padding:"30px",color:"var(--muted-color)"}}><Text>No ISOs match this filter for this period.</Text></div></Card>;
+            return filtered.map(iso=><ISOCard key={iso.isoId} iso={iso} labelA={overviewData.labelA} labelB={overviewData.labelB}/>);
+          })()}
+        </>
+      )}
+      {!loadingOverview&&overviewData&&overviewData.isos.length===0&&!activeFilter&&(
+        <Card><div style={{textAlign:"center",padding:"40px",color:"var(--muted-color)"}}><BulbOutlined style={{fontSize:40,display:"block",marginBottom:12,color:"#d1d5db"}}/><Text style={{fontSize:15,fontWeight:600,display:"block",marginBottom:8}}>No data for this period</Text><Text>Upload residual reports via Import Report to see comparisons here.</Text></div></Card>
+      )}
     </div>
   );
-}
+
+  const comparisonTab=(
+    <div>
+      <Card style={{marginBottom:16}}>
+        <Space direction="vertical" style={{width:"100%"}} size={12}>
+          <Row gutter={16} align="middle">
+            <Col><Text strong>Compare by:</Text></Col>
+            <Col><Radio.Group value={compareBy} onChange={e=>setCompareBy(e.target.value)} buttonStyle="solid"><Radio.Button value="iso">By ISO</Radio.Button><Radio.Button value="overall">Overall</Radio.Button></Radio.Group></Col>
+            <Col><Text strong style={{marginLeft:16}}>Period:</Text></Col>
+            <Col><Radio.Group value={comparePeriodType} onChange={e=>{setComparePeriodType(e.target.value);setCompareA(null);setCompareB(null);}} buttonStyle="solid"><Radio.Button value="month">Month</Radio.Button><Radio.Button value="quarter">Quarter</Radio.Button><Radio.Button value="year">Year</Radio.Button></Radio.Group></Col>
+          </Row>
+          <Row gutter={12} align="middle">
+            <Col><Text strong>From:</Text></Col>
+            <Col><DatePicker picker={comparePeriodType==="month"?"month":comparePeriodType==="quarter"?"quarter":"year"} onChange={d=>setCompareA(d?d.startOf(comparePeriodType==="year"?"year":comparePeriodType==="quarter"?"quarter":"month").format("YYYY-MM-DD"):null)} style={{width:160}}/></Col>
+            <Col><Text style={{color:"var(--muted-color)",fontSize:16}}>→</Text></Col>
+            <Col><DatePicker picker={comparePeriodType==="month"?"month":comparePeriodType==="quarter"?"quarter":"year"} onChange={d=>setCompareB(d?d.startOf(comparePeriodType==="year"?"year":comparePeriodType==="quarter"?"quarter":"month").format("YYYY-MM-DD"):null)} style={{width:160}}/></Col>
+            <Col><Button type="primary" onClick={runComparison} loading={runningComparison} disabled={!compareA||!compareB} size="large">Run Comparison</Button></Col>
+          </Row>
+        </Space>
+      </Card>
+      {runningComparison&&<div style={{textAlign:"center",padding:60}}><Spin size="large"/></div>}
+      {comparison&&!runningComparison&&(
+        <>
+          <Row gutter={16} style={{marginBottom:16}}>
+            {[{title:"Net Income Δ",value:comparison.overall.netChange,color:comparison.overall.netChange>=0?"#059669":"#dc2626",doFmt:true,prefix:comparison.overall.netChange>=0?"▲":"▼"},{title:"ISOs with Drop",value:comparison.drops,color:"#dc2626"},{title:"ISOs with Growth",value:comparison.gains,color:"#059669"}].map(({title,value,color,prefix,doFmt})=>(
+              <Col span={8} key={title}><Card><Statistic title={title} value={doFmt?Math.abs(value):value} prefix={doFmt?prefix:undefined} formatter={doFmt?v=>`$${Number(v).toLocaleString("en-US",{minimumFractionDigits:2})}`:undefined} valueStyle={{color,fontWeight:700}}/></Card></Col>
+            ))}
+          </Row>
+          <Text style={{color:"var(--muted-color)",fontSize:12,display:"block",marginBottom:12}}>{comparison.labelA} → {comparison.labelB} · {comparison.isos.length} ISOs</Text>
+          {compareBy==="iso"&&comparison.isos.map(iso=><ISOCard key={iso.isoId} iso={iso} labelA={comparison.labelA} labelB={comparison.labelB}/>)}
+          {compareBy==="overall"&&(
+            <Card><Row gutter={12}>
+              <Col span={8}><MetricBox label="Net Income" valA={comparison.overall.netA} valB={comparison.overall.netB} change={comparison.overall.netChange} changePct={comparison.overall.netPct}/></Col>
+              <Col span={8}><MetricBox label="Volume" valA={comparison.overall.volA} valB={comparison.overall.volB} change={comparison.overall.volChange} changePct={comparison.overall.volPct}/></Col>
+              <Col span={8}><MetricBox label="Merchants" valA={comparison.overall.midsA} valB={comparison.overall.midsB} change={comparison.overall.midsB-comparison.overall.midsA} changePct={comparison.overall.midsA?((comparison.overall.midsB-comparison.overall.midsA)/comparison.overall.midsA*100):0} formatter={v=>String(Math.round(v))}/></Col>
+            </Row></Card>
+          )}
+        </>
+      )}
+      {!comparison&&!runningComparison&&(<Card><div style={{textAlign:"center",padding:"60px 20px",color:"var(--muted-color)"}}><BulbOutlined style={{fontSize:48,marginBottom:16,display:"block",color:"#d1d5db"}}/><Text style={{fontSize:16,fontWeight:600,display:"block",marginBottom:8}}>Set your comparison parameters above</Text><Text>Choose the period type, pick two periods, and click Run Comparison.</Text></div></Card>)}
+    </div>
+  );
+
+  return(
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}><Title level={4} style={{margin:0}}>Insights</Title></div>
+      <Tabs activeKey={activeTab} onChange={setActiveTab} size="large" items={[{key:"overview",label:"📈 Overview",children:overviewTab},{key:"comparison",label:"⚖️ Comparison",children:comparisonTab}]}/>
+    </div>
+  );
+};
+export default InsightsPage;
