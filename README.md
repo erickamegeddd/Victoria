@@ -1,6 +1,6 @@
-# PayDiverse - Victoria Dashboard
+# PayDiverse - Victoria Residuals Dashboard
 
-To start the frontend on your local server:
+To start the frontend:
 
 ```
 npm run dev
