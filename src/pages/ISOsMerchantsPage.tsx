@@ -186,7 +186,7 @@ const ISOsMerchantsPage = () => {
         </div>
       </div>
 
-      <SectionHeader label="Processors / ISOs" color="#1d4ed8" />
+      <SectionHeader label="ISOs" color="#1d4ed8" />
       <Space direction="vertical" style={{ width: "100%" }} size={10}>
         {regularISOs.map(iso => renderISOCard(iso))}
       </Space>
