@@ -8,6 +8,16 @@ const { Option } = Select;
 
 const GATEWAY_ISO_NAMES = ["nmi", "authorize.net", "e-fitness today", "efitness today", "fraud deflect", "midmetrics"];
 
+const SectionHeader = ({ label, color }) => (
+  <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+    <div style={{ height: 2, flex: 1, background: color, borderRadius: 2 }} />
+    <span style={{ fontSize: 14, fontWeight: 800, color: color, letterSpacing: 2, textTransform: "uppercase", whiteSpace: "nowrap" }}>
+      {label}
+    </span>
+    <div style={{ height: 2, flex: 1, background: color, borderRadius: 2 }} />
+  </div>
+);
+
 const ISOsMerchantsPage = () => {
   const [merchants, setMerchants] = useState([]);
   const [midDates, setMidDates] = useState({});
@@ -23,7 +33,7 @@ const ISOsMerchantsPage = () => {
     setLoading(true);
     const [{ data: merchantData }, { data: residualData }] = await Promise.all([
       supabase.from("merchants").select("*,isos(id,name,slug)").order("business_name"),
-      supabase.from("residuals").select("mid, report_month, iso_id, gross_revenue, paydiversenet"),
+      supabase.from("residuals").select("mid, report_month, iso_id, gross_revenue, gross_volume, paydiversenet"),
     ]);
 
     if (merchantData) setMerchants(merchantData);
@@ -39,7 +49,7 @@ const ISOsMerchantsPage = () => {
         }
         if (r.iso_id) {
           if (!statsMap[r.iso_id]) statsMap[r.iso_id] = { volume: 0, residual: 0 };
-          statsMap[r.iso_id].volume += (r.gross_revenue || 0);
+          statsMap[r.iso_id].volume += (r.gross_volume || r.gross_revenue || 0);
           statsMap[r.iso_id].residual += (r.paydiversenet || 0);
         }
       });
@@ -77,18 +87,18 @@ const ISOsMerchantsPage = () => {
     if (expandedISO !== isoId) setExpandedISO(isoId);
   };
 
-  const fmt = (d) => d ? dayjs(d).format("MMM YYYY") : "—";
+  const fmt = (d) => d ? dayjs(d).format("MMM YYYY") : "--";
 
   const merchantColumns = [
     { title: "MID", dataIndex: "mid", key: "mid", width: 150 },
     { title: "Business Name", dataIndex: "business_name", key: "dba", ellipsis: true, render: v => <Text strong>{v}</Text> },
     { title: "Status", dataIndex: "status", key: "s", width: 110,
-      render: v => <Tag color={v === "active" ? "green" : "default"} style={{ fontWeight: 600 }}>{v === "active" ? "✓ Active" : "✗ Inactive"}</Tag> },
+      render: v => <Tag color={v === "active" ? "green" : "default"} style={{ fontWeight: 600 }}>{v === "active" ? "Active" : "Inactive"}</Tag> },
     { title: "Start Date", key: "start", width: 110,
-      render: (_, r) => { const d = midDates[r.mid]; return d?.start ? <Text style={{ color: "#059669", fontWeight: 600 }}>{fmt(d.start)}</Text> : <Text style={{ color: "var(--muted-color)" }}>—</Text>; } },
+      render: (_, r) => { const d = midDates[r.mid]; return d?.start ? <Text style={{ color: "#059669", fontWeight: 600 }}>{fmt(d.start)}</Text> : <Text style={{ color: "var(--muted-color)" }}>--</Text>; } },
     { title: "End Date", key: "end", width: 110,
-      render: (_, r) => { const d = midDates[r.mid]; if (!d?.end) return <Text style={{ color: "var(--muted-color)" }}>—</Text>; return r.status === "active" ? <Tag color="green" style={{ fontWeight: 600 }}>Still Active</Tag> : <Text style={{ color: "#dc2626", fontWeight: 600 }}>{fmt(d.end)}</Text>; } },
-    { title: "Notes", dataIndex: "notes", key: "n", ellipsis: true, render: v => <span style={{ color: "var(--muted-color)", fontSize: 11 }}>{v || "—"}</span> },
+      render: (_, r) => { const d = midDates[r.mid]; if (!d?.end) return <Text style={{ color: "var(--muted-color)" }}>--</Text>; return r.status === "active" ? <Tag color="green" style={{ fontWeight: 600 }}>Still Active</Tag> : <Text style={{ color: "#dc2626", fontWeight: 600 }}>{fmt(d.end)}</Text>; } },
+    { title: "Notes", dataIndex: "notes", key: "n", ellipsis: true, render: v => <span style={{ color: "var(--muted-color)", fontSize: 11 }}>{v || "--"}</span> },
   ];
 
   const renderISOCard = ({ isoId, isoName, merchants: isoMerchants }) => {
@@ -98,8 +108,8 @@ const ISOsMerchantsPage = () => {
     const currentFilter = isoFilters[isoId] || null;
     const filteredMerchants = currentFilter ? isoMerchants.filter(m => currentFilter === "active" ? m.status === "active" : m.status !== "active") : isoMerchants;
     const pills = [
-      { label: `✓ ${active} Active`, key: "active", color: "#059669", bg: "#f0fdf4", border: "#bbf7d0" },
-      { label: `✗ ${inactive} Inactive`, key: "inactive", color: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
+      { label: `${active} Active`, key: "active", color: "#059669", bg: "#f0fdf4", border: "#bbf7d0" },
+      { label: `${inactive} Inactive`, key: "inactive", color: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
       { label: `${isoMerchants.length} Total`, key: null, color: "#1d4ed8", bg: "#eff6ff", border: "#bfdbfe" },
     ];
     return (
@@ -116,12 +126,12 @@ const ISOsMerchantsPage = () => {
               ))}
             </div>
           </div>
-          <Text onClick={() => setExpandedISO(isExpanded ? null : isoId)} style={{ color: "var(--muted-color)", fontSize: 12, cursor: "pointer", whiteSpace: "nowrap", marginLeft: 8 }}>{isExpanded ? "▲ Hide" : "▼ Show"}</Text>
+          <Text onClick={() => setExpandedISO(isExpanded ? null : isoId)} style={{ color: "var(--muted-color)", fontSize: 12, cursor: "pointer", whiteSpace: "nowrap", marginLeft: 8 }}>{isExpanded ? "Hide" : "Show"}</Text>
         </div>
         {isExpanded && currentFilter && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, padding: "6px 12px", background: "#eff6ff", borderRadius: 8, border: "1px solid #bfdbfe" }}>
             <Text style={{ fontSize: 12, fontWeight: 600, color: "#1d4ed8" }}>Showing {filteredMerchants.length} {currentFilter} merchant{filteredMerchants.length !== 1 ? "s" : ""}</Text>
-            <Button size="small" onClick={() => setIsoFilters(prev => ({ ...prev, [isoId]: null }))} style={{ marginLeft: "auto", fontSize: 11, borderRadius: 12 }}>Clear ✕</Button>
+            <Button size="small" onClick={() => setIsoFilters(prev => ({ ...prev, [isoId]: null }))} style={{ marginLeft: "auto", fontSize: 11, borderRadius: 12 }}>Clear</Button>
           </div>
         )}
         {isExpanded && (
@@ -137,31 +147,28 @@ const ISOsMerchantsPage = () => {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>ISOs — Merchant Overview</Title>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <Title level={4} style={{ margin: 0 }}>ISOs -- Merchant Overview</Title>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <Text style={{ color: "var(--muted-color)", fontSize: 12 }}>Sort by:</Text>
-          <Select value={sortBy} onChange={setSortBy} size="small" style={{ width: 175 }}>
+          <Select value={sortBy} onChange={setSortBy} size="small" style={{ width: 185 }}>
             <Option value="alpha">Alphabetical</Option>
             <Option value="mids">Number of MIDs</Option>
-            <Option value="volume">Total Volume</Option>
-            <Option value="residual">Total Residual</Option>
+            <Option value="volume">Transaction Volume</Option>
+            <Option value="residual">Residual (High to Low)</Option>
           </Select>
-          <Text style={{ color: "var(--muted-color)", fontSize: 13, marginLeft: 4 }}>{allISOs.length} ISOs · {merchants.length} merchants</Text>
+          <Text style={{ color: "var(--muted-color)", fontSize: 13, marginLeft: 4 }}>{allISOs.length} ISOs -- {merchants.length} merchants</Text>
         </div>
       </div>
 
+      <SectionHeader label="Processors / ISOs" color="#1d4ed8" />
       <Space direction="vertical" style={{ width: "100%" }} size={10}>
         {regularISOs.map(iso => renderISOCard(iso))}
       </Space>
 
       {gatewayISOs.length > 0 && (
-        <div style={{ marginTop: 28 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-            <div style={{ height: 1, flex: 1, background: "var(--line-color)" }} />
-            <Tag color="purple" style={{ fontSize: 13, fontWeight: 700, padding: "4px 18px", borderRadius: 20, letterSpacing: 1, margin: 0 }}>⚡ GATEWAY</Tag>
-            <div style={{ height: 1, flex: 1, background: "var(--line-color)" }} />
-          </div>
+        <div style={{ marginTop: 32 }}>
+          <SectionHeader label="Gateway" color="#7c3aed" />
           <Space direction="vertical" style={{ width: "100%" }} size={10}>
             {gatewayISOs.map(iso => renderISOCard(iso))}
           </Space>
