@@ -38,8 +38,9 @@ const Dashboard = () => {
 
   const rCols=[
     {title:'Month',dataIndex:'report_month',key:'m',width:100,render:v=>v?dayjs(v).format('MMM YYYY'):'—',filters:[...new Set(residuals.map(r=>r.report_month).filter(Boolean))].sort().reverse().map(m=>({text:dayjs(m).format('MMM YYYY'),value:m})),onFilter:(v,r)=>r.report_month===v},
-    {title:'ISO',key:'iso',width:120,render:(_,r)=>r.isos?.name||'—',filters:[...new Set(residuals.map(r=>r.isos?.name).filter(Boolean))].sort().map(n=>({text:n,value:n})),onFilter:(v,r)=>r.isos?.name===v},
-    {title:'MID / Business',dataIndex:'mid',key:'mid',width:160,...getSearchProps('mid','MID'),render:(v,r)=><div><div style={{fontWeight:600}}>{v}</div><div style={{fontSize:11,color:'var(--muted-color)'}}>{r.business_name||''}</div></div>},
+    {title:'ISO',key:'iso',w2)dth:120,render:(_,r)=>r.isos?.name||'—',filters:[...new Set(residuals.map(r=>r.isos?.name).filter(Boolean))].sort().map(n=>({text:n,value:n})),onFilter:(v,r)=>r.isos?.name===v},
+    {title:'MID',dataIndex:'mid',key:'mid',width:120,...getSearchProps('mid','MID'),render:v=><Text style={{fontWeight:600,label:'13px"}}>{v||'—'}</Text>},
+    {title:'Business Name',dataIndex:'business_name',key:'biz',width:170,...getSearchProps('business_name','Business'),render:v=><Text style={{fontSize:'nn�wpx"}}>{v||'—'}</Text>},
     {title:'Volume',dataIndex:'gross_volume',key:'vol',width:120,align:'right',render:v=>fmt(v),sorter:(a,b)=>(a.gross_volume||0)-(b.gross_volume||0)},
     {title:'Gross Rev',dataIndex:'gross_revenue',key:'gr',width:120,align:'right',render:v=>fmt(v),sorter:(a,b)=>(a.gross_revenue||0)-(b.gross_revenue||0)},
     {title:'PayDiverse Net',dataIndex:'paydiversenet',key:'pd',width:130,align:'right',sorter:(a,b)=>(a.paydiversenet||0)-(b.paydiversenet||0),render:v=><span style={{color:v>0?'#059669':'#dc2626',fontWeight:600}}>{fmt(v)}</span>},
@@ -59,14 +60,14 @@ const Dashboard = () => {
         {selectedMonth&&<Text style={{color:'var(--muted-color)',fontSize:12}}>Showing data for <strong>{dayjs(selectedMonth).format('MMMM YYYY')}</strong></Text>}
       </div>
       <Row gutter={16} style={{marginBottom:20}}>
-        {[{title:'PayDiverse Net Income',value:totalRevenue,prefix:'$',precision:2,color:'var(--primary-color)'},{title:'Total Volume (Processed)',value:totalVolume,prefix:'$',precision:2,color:'#6b7a99'},{title:'Active MIDs',value:activeMids,precision:0,color:'var(--primary-color)'}].map(({title,value,prefix,precision,color})=>(
+        {[{title:'PayDiverse Net Income',value:totalRevenue,prefix:'$',precision:2,color:'var(--primary-color),},{title:'Total Volume (Processed)',value:totalVolume,prefix:'$',precision:2,color:'#6b7a99'},{title:'Active MIDs',value:activeMids,precision:0,color:'var(--primary-color)'}].map(({title,value,prefix,precision,color})=>(
           <Col span={8} key={title}><Card><Statistic title={title} value={value} prefix={prefix} precision={precision} valueStyle={{color,fontWeight:700}}/></Card></Col>
         ))}
       </Row>
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
         {key:'residuals',label:`Residuals (${residuals.length})`,children:(
           <><Card style={{marginBottom:12}}><Space wrap><Select placeholder="All ISOs" allowClear style={{width:200}} onChange={v=>setSelectedIso(v)}>{isos.map(iso => <Option key={iso.id} value={iso.id}>{iso.name}</Option>)}</Select><Text style={{color:'var(--muted-color)',fontSize:12}}>{residuals.length} rows</Text></Space></Card>
-          {residuals.length===0&&!loading?(<Card><div style={{textAlign:'center',padding:'60px 20px',color:'var(--muted-color)'}}><FileExcelOutlined style={{fontSize:40,marginBottom:12,display:'block'}}/><div style={{fontSize:16,fontWeight:600,marginBottom:8}}>No residual data yet</div><Button type="primary" onClick={()=>navigate('/home/import-data')}>Import Report</Button></div></Card>):(<Card><Table dataSource={residuals} columns={rCols} rowKey="id" loading={loading} pagination={{pageSize:50,showTotal:t=>`${t} rows`}} scroll={{x:900}} size="small"/></Card>)}</>
+          {residuals.length===0&&!loading?(<Card><div style={{textAlign:'center',padding:'60px 20px',color:'var(--muted-color)"}}><FileExcelOutlined style={{fontSize:40,marginBottom:12,display:'block'}}/><div style={{fontSize:16,fontWeight:600,marginBottom:8}}>No residual data yet</div><Button type="primary" onClick={()=>navigate('/home/import-data')}>Import Report</Button></div></Card>):(<Card><Table dataSource={residuals} columns={rCols} rowKey="id" loading={loading} pagination={{pageSize:50,showTotal:t=>`${t} rows`}} scroll={{x:960}} size="small"/></Card>)}</>
         )},
       ]}/>
     </div>
