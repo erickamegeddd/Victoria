@@ -11,7 +11,7 @@ import ResetPassWordIcon from "../ui/ResetPasswordIcon";
 import dayjs from "dayjs";
 
 const parseExpDate = (notes) => { if (!notes) return null; const m = notes.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/); return m ? m[1] : null; };
-const fmtMoney = (n) => n != null ? `$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : "—";
+const fmtMoney = (n) => n != null ? `$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : "--";
 
 const HeaderComponent = ({ collapsed, handleToggle }) => {
   const user = getUserFromLocalStorage();
@@ -44,7 +44,7 @@ const HeaderComponent = ({ collapsed, handleToggle }) => {
         {overduePayments.length > 0 && <span style={{ background: "#dc2626", color: "#fff", borderRadius: 10, padding: "1px 8px", fontSize: 11, fontWeight: 700 }}>{overduePayments.length}</span>}
       </div>
       {overduePayments.length === 0 ? (
-        <div style={{ padding: "24px 16px", textAlign: "center", color: "#6b7280", fontSize: 13 }}>✓ No overdue payments</div>
+        <div style={{ padding: "24px 16px", textAlign: "center", color: "#6b7280", fontSize: 13 }}>No overdue payments</div>
       ) : (
         <div style={{ maxHeight: 340, overflowY: "auto" }}>
           {overduePayments.map(p => (
@@ -53,7 +53,7 @@ const HeaderComponent = ({ collapsed, handleToggle }) => {
               <div>
                 <div style={{ fontWeight: 600, fontSize: 13, color: "#111" }}>{p.isoName}</div>
                 <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
-                  {p.month ? dayjs(p.month).format("MMMM YYYY") : "—"} ½ Due {dayjs(p.expDate).format("MMM D, YYYY")}
+                  {p.month ? dayjs(p.month).format("MMMM YYYY") : "--"} - Due {dayjs(p.expDate).format("MMM D, YYYY")}
                 </div>
               </div>
               <div style={{ color: "#dc2626", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", marginLeft: 12 }}>{fmtMoney(p.expected)}</div>
