@@ -15,6 +15,7 @@ const fmtPct=(n)=>n!=null?`${n>=0?"+":""}${n.toFixed(1)}%`:"—";
 
 // ── SVG Trend Chart ───────────────────────────────────────────────────────────
 const TrendChart = ({ data, height = 140, color = "#1d4ed8", labelKey = "label", valueKey = "net" }) => {
+  const [hovered, setHovered] = useState(null);
   if (!data || data.length < 2) return null;
   const W = 900, H = height, PL = 48, PR = 16, PT = 12, PB = 28;
   const w = W - PL - PR, h = H - PT - PB;
@@ -25,6 +26,7 @@ const TrendChart = ({ data, height = 140, color = "#1d4ed8", labelKey = "label",
   const pathD = data.map((d, i) => `${i === 0 ? "M" : "L"} ${toX(i).toFixed(1)} ${toY(d[valueKey] || 0).toFixed(1)}`).join(" ");
   const areaD = `${pathD} L ${toX(data.length-1).toFixed(1)} ${toY(minV).toFixed(1)} L ${toX(0).toFixed(1)} ${toY(minV).toFixed(1)} Z`;
   const yTicks = [0, 0.5, 1].map(f => minV + f * range);
+  const fmtTip = (v) => v >= 1000000 ? `$${(v/1000000).toFixed(2)}M` : v >= 1000 ? `$${(v/1000).toFixed(1)}K` : `$${Number(v).toFixed(0)}`;
   return (
     <div style={{ width: "100%", overflowX: "auto" }}>
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: H, display: "block" }}>
@@ -42,12 +44,36 @@ const TrendChart = ({ data, height = 140, color = "#1d4ed8", labelKey = "label",
         ))}
         <path d={areaD} fill="url(#tg1)"/>
         <path d={pathD} fill="none" stroke={color} strokeWidth="2.5"/>
-        {data.map((d, i) => (
-          <g key={i}>
-            <circle cx={toX(i)} cy={toY(d[valueKey]||0)} r="4" fill="#fff" stroke={color} strokeWidth="2.5"/>
-            <text x={toX(i)} y={H-4} textAnchor="middle" fontSize="9" fill="#9ca3af">{d[labelKey]}</text>
-          </g>
-        ))}
+        {data.map((d, i) => {
+          const cx = toX(i), cy = toY(d[valueKey]||0);
+          const isHov = hovered === i;
+          return (
+            <g key={i} onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)} style={{ cursor: "pointer" }}>
+              <circle cx={cx} cy={cy} r="12" fill="transparent"/>
+              <circle cx={cx} cy={cy} r={isHov ? 6 : 4} fill="#fff" stroke={color} strokeWidth="2.5"/>
+              <text x={cx} y={H-4} textAnchor="middle" fontSize="9" fill="#9ca3af">{d[labelKey]}</text>
+              {isHov && (() => {
+                const tipW = 72, tipH = 32, tipR = 6;
+                const above = cy > PT + 40;
+                const tx = Math.min(Math.max(cx, PL + tipW/2), W - PR - tipW/2);
+                const ty = above ? cy - 44 : cy + 14;
+                const ay = above ? cy - 14 : cy + 14;
+                const fmted = fmtTip(d[valueKey] || 0);
+                return (
+                  <g>
+                    {above
+                      ? <polygon points={`${cx-5},${cy-14} ${cx+5},${cy-14} ${cx},${cy-7}`} fill="#1e3a8a"/>
+                      : <polygon points={`${cx-5},${cy+14} ${cx+5},${cy+14} ${cx},${cy+7}`} fill="#1e3a8a"/>
+                    }
+                    <rect x={tx-tipW/2} y={ty} width={tipW} height={tipH} rx={tipR} fill="#1e3a8a"/>
+                    <text x={tx} y={ty+12} textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.7)" fontWeight="500">{d[labelKey]}</text>
+                    <text x={tx} y={ty+26} textAnchor="middle" fontSize="12" fill="#fff" fontWeight="700">{fmted}</text>
+                  </g>
+                );
+              })()}
+            </g>
+          );
+        })}
       </svg>
     </div>
   );
