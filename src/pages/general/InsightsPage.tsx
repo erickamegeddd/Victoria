@@ -8,9 +8,9 @@ import quarterOfYear from "dayjs/plugin/quarterOfYear";
 dayjs.extend(quarterOfYear);
 const { Title, Text } = Typography;
 
-const fmt=(n)=>n!=null?`$${Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`:"—";
-const fmtK=(n)=>{if(n==null)return"—";const abs=Math.abs(n);if(abs>=1000000)return`$${(n/1000000).toFixed(1)}M`;if(abs>=1000)return`$${(n/1000).toFixed(1)}K`;return fmt(n);};
-const fmtPct=(n)=>n!=null?`${n>=0?"+":""}${n.toFixed(1)}%`:"—";
+const fmt=(n)=>n!=null?`$${Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`:"--";
+const fmtK=(n)=>{if(n==null)return"--";const abs=Math.abs(n);if(abs>=1000000)return`$${(n/1000000).toFixed(1)}M`;if(abs>=1000)return`$${(n/1000).toFixed(1)}K`;return fmt(n);};
+const fmtPct=(n)=>n!=null?`${n>=0?"+":""}${n.toFixed(1)}%`:"--";
 
 
 // ── SVG Trend Chart ───────────────────────────────────────────────────────────
@@ -139,7 +139,7 @@ const ISOCard=({iso,labelA,labelB})=>{
   const borderColor=!iso.hasDataA||!iso.hasDataB?"#f59e0b":iso.netChange<-50?"#dc2626":iso.netChange>50?"#059669":"#d1d5db";
   const badgeBg=!iso.hasDataA||!iso.hasDataB?"#fff7ed":iso.netChange<-50?"#fef2f2":iso.netChange>50?"#f0fdf4":"#f9fafb";
   const badgeColor=!iso.hasDataA||!iso.hasDataB?"#c2410c":iso.netChange<-50?"#dc2626":iso.netChange>50?"#059669":"#6b7a99";
-  const badgeLabel=!iso.hasDataA||!iso.hasDataB?"⚠ Missing Data":iso.netChange<-50?"↓ Income Dropped":iso.netChange>50?"↑ Income Grew":"→ Stable";
+  const badgeLabel=!iso.hasDataA||!iso.hasDataB?"Missing Data":iso.netChange<-50?"Income Dropped":iso.netChange>50?"Income Grew":"Stable";
   return(
     <Card style={{borderLeft:`4px solid ${borderColor}`,marginBottom:12,borderRadius:12}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
@@ -446,10 +446,10 @@ const InsightsPage=()=>{
                           <div style={{textAlign:"right"}}>
                             <div style={{fontSize:11,color:"var(--muted-color)"}}>Net Income</div>
                             <Space>
-                              <Text style={{color:"var(--muted-color)",fontSize:13}}>{m.netA!=null?`$${Number(m.netA).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`:"—"}</Text>
+                              <Text style={{color:"var(--muted-color)",fontSize:13}}>{m.netA!=null?`$${Number(m.netA).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`:"--"}</Text>
                               <Text style={{color:"var(--muted-color)"}}>→</Text>
                               <Text strong style={{color:m.netChange<-1?"#dc2626":m.netChange>1?"#059669":"var(--black-color)",fontSize:14}}>
-                                {m.netB!=null?`$${Number(m.netB).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`:"—"}
+                                {m.netB!=null?`$${Number(m.netB).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`:"--"}
                               </Text>
                             </Space>
                           </div>
@@ -480,7 +480,7 @@ const InsightsPage=()=>{
   return(
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}><Title level={4} style={{margin:0}}>Insights</Title></div>
-      <Tabs activeKey={activeTab} onChange={setActiveTab} size="large" items={[{key:"overview",label:"📈 Overview",children:overviewTab},{key:"comparison",label:"⚖️ Comparison",children:comparisonTab}]}/>
+      <Tabs activeKey={activeTab} onChange={setActiveTab} size="large" items={[{key:"overview",label:"Overview",children:overviewTab},{key:"comparison",label:"Comparison",children:comparisonTab}]}/>
     </div>
   );
 };
