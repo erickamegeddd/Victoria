@@ -14,6 +14,16 @@ const fmtMoney = (n) => {
   return `$${Number(n).toFixed(0)}`;
 };
 
+const SectionHeader = ({ label, color }) => (
+  <div style={{ display: "flex", alignItems: "center", gap: 14, margin: "24px 0 12px" }}>
+    <div style={{ height: 2, flex: 1, background: color, borderRadius: 2 }} />
+    <span style={{ fontSize: 13, fontWeight: 800, color, letterSpacing: 2, textTransform: "uppercase", whiteSpace: "nowrap" }}>
+      {label}
+    </span>
+    <div style={{ height: 2, flex: 1, background: color, borderRadius: 2 }} />
+  </div>
+);
+
 const ISOsMerchantsPage = () => {
   const [merchants, setMerchants] = useState([]);
   const [midDates, setMidDates] = useState({});
@@ -59,7 +69,7 @@ const ISOsMerchantsPage = () => {
     return acc;
   }, {});
 
-  const tableData = Object.values(isoGroups).map(({ isoId, isoName, merchants: ms }) => ({
+  const allRows = Object.values(isoGroups).map(({ isoId, isoName, merchants: ms }) => ({
     isoId,
     isoName,
     isGateway: GATEWAY_ISO_NAMES.includes(isoName.toLowerCase()),
@@ -70,6 +80,9 @@ const ISOsMerchantsPage = () => {
     volume: isoStats[isoId]?.volume || 0,
     residual: isoStats[isoId]?.residual || 0,
   }));
+
+  const regularRows = allRows.filter(r => !r.isGateway);
+  const gatewayRows = allRows.filter(r => r.isGateway);
 
   const fmt = (d) => d ? dayjs(d).format("MMM YYYY") : "--";
 
@@ -85,36 +98,29 @@ const ISOsMerchantsPage = () => {
     { title: "Notes", dataIndex: "notes", key: "n", ellipsis: true, render: v => <span style={{ color: "var(--muted-color)", fontSize: 11 }}>{v || "--"}</span> },
   ];
 
-  const isoColumns = [
+  const buildIsoColumns = (showSorter = true) => [
     {
       title: "ISO Name",
       dataIndex: "isoName",
       key: "iso",
-      sorter: (a, b) => a.isoName.localeCompare(b.isoName),
+      sorter: showSorter ? (a, b) => a.isoName.localeCompare(b.isoName) : false,
       defaultSortOrder: "ascend",
-      render: (name, row) => (
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Text strong style={{ fontSize: 14 }}>{name}</Text>
-          {row.isGateway && <Tag color="purple" style={{ fontSize: 10, margin: 0, padding: "0 6px" }}>Gateway</Tag>}
-        </div>
-      ),
+      render: (name) => <Text strong style={{ fontSize: 14 }}>{name}</Text>,
     },
     {
       title: "Active",
       key: "active",
       width: 90,
       align: "center",
-      sorter: (a, b) => a.active - b.active,
-      render: (_, row) => (
-        <span style={{ color: "#059669", fontWeight: 700, fontSize: 14 }}>{row.active}</span>
-      ),
+      sorter: showSorter ? (a, b) => a.active - b.active : false,
+      render: (_, row) => <span style={{ color: "#059669", fontWeight: 700, fontSize: 14 }}>{row.active}</span>,
     },
     {
       title: "Inactive",
       key: "inactive",
       width: 90,
       align: "center",
-      sorter: (a, b) => a.inactive - b.inactive,
+      sorter: showSorter ? (a, b) => a.inactive - b.inactive : false,
       render: (_, row) => (
         <span style={{ color: row.inactive > 0 ? "#dc2626" : "var(--muted-color)", fontWeight: row.inactive > 0 ? 700 : 400, fontSize: 14 }}>
           {row.inactive}
@@ -126,7 +132,7 @@ const ISOsMerchantsPage = () => {
       key: "total",
       width: 100,
       align: "center",
-      sorter: (a, b) => a.total - b.total,
+      sorter: showSorter ? (a, b) => a.total - b.total : false,
       render: (_, row) => <span style={{ fontWeight: 600 }}>{row.total}</span>,
     },
     {
@@ -134,7 +140,7 @@ const ISOsMerchantsPage = () => {
       key: "volume",
       width: 120,
       align: "right",
-      sorter: (a, b) => a.volume - b.volume,
+      sorter: showSorter ? (a, b) => a.volume - b.volume : false,
       render: (_, row) => <Text style={{ color: "var(--muted-color)" }}>{fmtMoney(row.volume)}</Text>,
     },
     {
@@ -142,7 +148,7 @@ const ISOsMerchantsPage = () => {
       key: "residual",
       width: 130,
       align: "right",
-      sorter: (a, b) => a.residual - b.residual,
+      sorter: showSorter ? (a, b) => a.residual - b.residual : false,
       render: (_, row) => (
         <Text style={{ color: row.residual > 0 ? "#059669" : "#dc2626", fontWeight: 600 }}>
           {fmtMoney(row.residual)}
@@ -151,6 +157,59 @@ const ISOsMerchantsPage = () => {
     },
   ];
 
+  const expandableConfig = {
+    expandedRowKeys: expandedRows,
+    onExpandedRowsChange: (keys) => setExpandedRows(keys),
+    expandedRowRender: (row) => {
+      const filter = isoFilters[row.isoId] || null;
+      const filtered = filter
+        ? row.merchants.filter(m => filter === "active" ? m.status === "active" : m.status !== "active")
+        : row.merchants;
+      return (
+        <div style={{ padding: "14px 16px", background: "#f8fafc", borderTop: "1px solid var(--line-color)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <Text style={{ fontSize: 12, color: "var(--muted-color)", marginRight: 4 }}>Filter:</Text>
+            {[
+              { label: `${row.active} Active`, key: "active", color: "#059669", bg: "#f0fdf4", border: "#bbf7d0" },
+              { label: `${row.inactive} Inactive`, key: "inactive", color: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
+              { label: `${row.total} All`, key: null, color: "#1d4ed8", bg: "#eff6ff", border: "#bfdbfe" },
+            ].map(({ label, key: k, color, bg, border }) => (
+              <div
+                key={label}
+                onClick={() => setIsoFilters(prev => ({ ...prev, [row.isoId]: prev[row.isoId] === k ? null : k }))}
+                style={{
+                  padding: "3px 12px", borderRadius: 14,
+                  background: filter === k ? color : bg,
+                  border: `2px solid ${filter === k ? color : border}`,
+                  color: filter === k ? "#fff" : color,
+                  fontSize: 12, fontWeight: 600, cursor: "pointer",
+                  transition: "all 0.15s",
+                  transform: filter === k ? "translateY(-1px)" : "none",
+                }}
+              >
+                {label}
+              </div>
+            ))}
+            {filter && (
+              <Button size="small" onClick={() => setIsoFilters(prev => ({ ...prev, [row.isoId]: null }))} style={{ marginLeft: "auto", fontSize: 11, borderRadius: 12 }}>
+                Clear
+              </Button>
+            )}
+          </div>
+          <Table
+            dataSource={filtered}
+            columns={merchantColumns}
+            rowKey="id"
+            size="small"
+            pagination={{ pageSize: 20, showTotal: t => `${t} merchants` }}
+            scroll={{ x: 800 }}
+          />
+        </div>
+      );
+    },
+    expandRowByClick: true,
+  };
+
   if (loading) return <div style={{ padding: 40, textAlign: "center" }}><Text style={{ color: "var(--muted-color)" }}>Loading...</Text></div>;
 
   return (
@@ -158,76 +217,42 @@ const ISOsMerchantsPage = () => {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>ISOs -- Merchant Overview</Title>
         <Text style={{ color: "var(--muted-color)", fontSize: 13 }}>
-          {tableData.length} ISOs -- {merchants.length} merchants -- click any row to expand
+          {allRows.length} ISOs -- {merchants.length} merchants -- click any row to expand
         </Text>
       </div>
 
+      {/* ISOs section */}
       <Card bodyStyle={{ padding: 0 }}>
         <Table
-          dataSource={tableData}
-          columns={isoColumns}
+          dataSource={regularRows}
+          columns={buildIsoColumns(true)}
           rowKey="isoId"
           size="middle"
           pagination={false}
           scroll={{ x: 700 }}
-          expandable={{
-            expandedRowKeys: expandedRows,
-            onExpandedRowsChange: (keys) => setExpandedRows(keys),
-            expandedRowRender: (row) => {
-              const filter = isoFilters[row.isoId] || null;
-              const filtered = filter
-                ? row.merchants.filter(m => filter === "active" ? m.status === "active" : m.status !== "active")
-                : row.merchants;
-              return (
-                <div style={{ padding: "14px 16px", background: "#f8fafc", borderTop: "1px solid var(--line-color)" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                    <Text style={{ fontSize: 12, color: "var(--muted-color)", marginRight: 4 }}>Filter:</Text>
-                    {[
-                      { label: `${row.active} Active`, key: "active", color: "#059669", bg: "#f0fdf4", border: "#bbf7d0" },
-                      { label: `${row.inactive} Inactive`, key: "inactive", color: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
-                      { label: `${row.total} All`, key: null, color: "#1d4ed8", bg: "#eff6ff", border: "#bfdbfe" },
-                    ].map(({ label, key: k, color, bg, border }) => (
-                      <div
-                        key={label}
-                        onClick={() => setIsoFilters(prev => ({ ...prev, [row.isoId]: prev[row.isoId] === k ? null : k }))}
-                        style={{
-                          padding: "3px 12px", borderRadius: 14,
-                          background: filter === k ? color : bg,
-                          border: `2px solid ${filter === k ? color : border}`,
-                          color: filter === k ? "#fff" : color,
-                          fontSize: 12, fontWeight: 600,
-                          cursor: "pointer",
-                          transition: "all 0.15s",
-                          transform: filter === k ? "translateY(-1px)" : "none",
-                        }}
-                      >
-                        {label}
-                      </div>
-                    ))}
-                    {filter && (
-                      <Button size="small" onClick={() => setIsoFilters(prev => ({ ...prev, [row.isoId]: null }))} style={{ marginLeft: "auto", fontSize: 11, borderRadius: 12 }}>
-                        Clear
-                      </Button>
-                    )}
-                  </div>
-                  <Table
-                    dataSource={filtered}
-                    columns={merchantColumns}
-                    rowKey="id"
-                    size="small"
-                    pagination={{ pageSize: 20, showTotal: t => `${t} merchants` }}
-                    scroll={{ x: 800 }}
-                  />
-                </div>
-              );
-            },
-            expandRowByClick: true,
-          }}
-          onRow={(row) => ({
-            style: { cursor: "pointer" },
-          })}
+          expandable={expandableConfig}
+          onRow={() => ({ style: { cursor: "pointer" } })}
         />
       </Card>
+
+      {/* Gateway section */}
+      {gatewayRows.length > 0 && (
+        <>
+          <SectionHeader label="Gateway" color="#7c3aed" />
+          <Card bodyStyle={{ padding: 0 }}>
+            <Table
+              dataSource={gatewayRows}
+              columns={buildIsoColumns(true)}
+              rowKey="isoId"
+              size="middle"
+              pagination={false}
+              scroll={{ x: 700 }}
+              expandable={expandableConfig}
+              onRow={() => ({ style: { cursor: "pointer" } })}
+            />
+          </Card>
+        </>
+      )}
     </div>
   );
 };
