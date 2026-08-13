@@ -8,6 +8,13 @@ const { Option } = Select;
 
 const GATEWAY_ISO_NAMES = ["nmi", "authorize.net", "e-fitness today", "efitness today", "fraud deflect", "midmetrics"];
 
+const fmtMoney = (n) => {
+  if (n == null || n === 0) return null;
+  if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
+  return `$${Number(n).toFixed(0)}`;
+};
+
 const SectionHeader = ({ label, color }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
     <div style={{ height: 2, flex: 1, background: color, borderRadius: 2 }} />
@@ -35,9 +42,7 @@ const ISOsMerchantsPage = () => {
       supabase.from("merchants").select("*,isos(id,name,slug)").order("business_name"),
       supabase.from("residuals").select("mid, report_month, iso_id, gross_revenue, gross_volume, paydiversenet"),
     ]);
-
     if (merchantData) setMerchants(merchantData);
-
     if (residualData) {
       const datesMap = {};
       const statsMap = {};
@@ -107,15 +112,29 @@ const ISOsMerchantsPage = () => {
     const isExpanded = expandedISO === isoId;
     const currentFilter = isoFilters[isoId] || null;
     const filteredMerchants = currentFilter ? isoMerchants.filter(m => currentFilter === "active" ? m.status === "active" : m.status !== "active") : isoMerchants;
+    const stats = isoStats[isoId];
+
+    // Sort metric badge — shown only when sorted by volume or residual
+    const sortMetric = (() => {
+      if (sortBy === "volume" && stats?.volume) {
+        return { label: "Vol", value: fmtMoney(stats.volume), color: "#1d4ed8", bg: "#eff6ff" };
+      }
+      if (sortBy === "residual" && stats?.residual != null) {
+        return { label: "Net", value: fmtMoney(stats.residual), color: "#059669", bg: "#f0fdf4" };
+      }
+      return null;
+    })();
+
     const pills = [
       { label: `${active} Active`, key: "active", color: "#059669", bg: "#f0fdf4", border: "#bbf7d0" },
       { label: `${inactive} Inactive`, key: "inactive", color: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
       { label: `${isoMerchants.length} Total`, key: null, color: "#1d4ed8", bg: "#eff6ff", border: "#bfdbfe" },
     ];
+
     return (
       <Card key={isoId} style={{ borderLeft: `4px solid ${active > 0 ? "#1d4ed8" : "#d1d5db"}`, borderRadius: 12 }} bodyStyle={{ padding: "14px 18px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", flex: 1 }}>
             <Text strong style={{ fontSize: 15, cursor: "pointer" }} onClick={() => setExpandedISO(isExpanded ? null : isoId)}>{isoName}</Text>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {pills.map(({ label, key: pillKey, color, bg, border }) => (
@@ -124,6 +143,12 @@ const ISOsMerchantsPage = () => {
                   {label}
                 </div>
               ))}
+              {sortMetric && (
+                <div style={{ padding: "3px 12px", borderRadius: 14, background: sortMetric.bg, border: `2px solid ${sortMetric.color}`, color: sortMetric.color, fontSize: 12, fontWeight: 700, display: "flex", gap: 4, alignItems: "center" }}>
+                  <span style={{ opacity: 0.7, fontWeight: 500 }}>{sortMetric.label}</span>
+                  <span>{sortMetric.value}</span>
+                </div>
+              )}
             </div>
           </div>
           <Text onClick={() => setExpandedISO(isExpanded ? null : isoId)} style={{ color: "var(--muted-color)", fontSize: 12, cursor: "pointer", whiteSpace: "nowrap", marginLeft: 8 }}>{isExpanded ? "Hide" : "Show"}</Text>
