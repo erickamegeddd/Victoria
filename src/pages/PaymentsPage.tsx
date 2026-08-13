@@ -6,7 +6,7 @@ import { supabase } from "../utils/supabase";
 import dayjs from "dayjs";
 const { Title, Text } = Typography;
 const { Option } = Select;
-const fmt = (n) => n != null ? `$${Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}` : '—';
+const fmt = (n) => n != null ? `$${Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}` : 'â€”';
 
 // expected_date stored as EXP:YYYY-MM-DD| prefix in notes field
 const parseExpDate = (notes) => { if (!notes) return null; const m = notes.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/); return m ? m[1] : null; };
@@ -35,7 +35,7 @@ const PaymentsPage = () => {
   const getExpectedByISO=()=>{const map={};residuals.forEach(r=>{const k=r.iso_id;if(!map[k])map[k]={isoId:k,isoName:r.isos?.name||'Unknown',expected:0};map[k].expected+=(r.paydiversenet||0);});return Object.values(map);};
   const getPaymentForISO=(isoId)=>payments.find(p=>p.iso_id===isoId);
   const getStatus=(expected,received)=>{if(received==null)return'pending';const d=received-expected;if(Math.abs(d)<0.01)return'paid';if(d<0)return'short_paid';return'overpaid';};
-  const STATUS_CONFIG={pending:{label:'Pending',color:'default'},paid:{label:'Paid ✓',color:'green'},short_paid:{label:'Short Paid',color:'red'},overpaid:{label:'Overpaid',color:'blue'}};
+  const STATUS_CONFIG={pending:{label:'Pending',color:'default'},paid:{label:'Paid âœ“',color:'green'},short_paid:{label:'Short Paid',color:'red'},overpaid:{label:'Overpaid',color:'blue'}};
 
   const openPaymentModal=(isoId,isoName,expected)=>{
     setSelectedIsoForPayment({isoId,isoName,expected});
@@ -89,19 +89,19 @@ const PaymentsPage = () => {
   const reconCols=[
     {title:'ISO',key:'iso',render:(_,r)=><Text strong>{r.isoName}</Text>},
     {title:'Expected',key:'exp',align:'right',render:(_,r)=><Text strong style={{color:'var(--primary-color)'}}>{fmt(r.expected)}</Text>},
-    {title:'Received',key:'rec',align:'right',render:(_,r)=>{const p=getPaymentForISO(r.isoId);return p?.received_amount!=null?<Text strong style={{color:'#059669'}}>{fmt(p.received_amount)}</Text>:<Text style={{color:'var(--muted-color)'}}>—</Text>;}},
-    {title:'Difference',key:'diff',align:'right',render:(_,r)=>{const p=getPaymentForISO(r.isoId);if(p?.received_amount==null)return<Text style={{color:'var(--muted-color)'}}>—</Text>;const diff=(p?.received_amount||0)-r.expected;return<Text strong style={{color:Math.abs(diff)<0.01?'#059669':diff<0?'#dc2626':'#2563eb'}}>{diff>=0?'+':''}{fmt(diff)}</Text>;}},
+    {title:'Received',key:'rec',align:'right',render:(_,r)=>{const p=getPaymentForISO(r.isoId);return p?.received_amount!=null?<Text strong style={{color:'#059669'}}>{fmt(p.received_amount)}</Text>:<Text style={{color:'var(--muted-color)'}}>â€”</Text>;}},
+    {title:'Difference',key:'diff',align:'right',render:(_,r)=>{const p=getPaymentForISO(r.isoId);if(p?.received_amount==null)return<Text style={{color:'var(--muted-color)'}}>â€”</Text>;const diff=(p?.received_amount||0)-r.expected;return<Text strong style={{color:Math.abs(diff)<0.01?'#059669':diff<0?'#dc2626':'#2563eb'}}>{diff>=0?'+':''}{fmt(diff)}</Text>;}},
     {title:'Status',key:'status',render:(_,r)=>{const p=getPaymentForISO(r.isoId);const s=p?getStatus(r.expected,p.received_amount):'pending';const cfg=STATUS_CONFIG[s];return<Tag color={cfg.color}>{cfg.label}</Tag>;}},
     {title:'Payment Expected By',key:'expdate',width:150,render:(_,r)=>{
       const p=getPaymentForISO(r.isoId);
       const expDate=parseExpDate(p?.notes);
-      if(!expDate)return<Text style={{color:'var(--muted-color)',fontSize:12}}>—</Text>;
+      if(!expDate)return<Text style={{color:'var(--muted-color)',fontSize:12}}>â€”</Text>;
       const isOverdue=expDate<today&&p?.received_amount==null;
       return isOverdue
-        ?<Tag color="red" style={{fontWeight:600}}>⚠ Overdue · {dayjs(expDate).format('MMM D')}</Tag>
+        ?<Tag color="red" style={{fontWeight:600}}>âš  Overdue Â· {dayjs(expDate).format('MMM D')}</Tag>
         :<Text style={{fontSize:12,color:p?.received_amount==null?'#d97706':'var(--muted-color)'}}>{dayjs(expDate).format('MMM D, YYYY')}</Text>;
     }},
-    {title:'Payment Date',key:'date',render:(_,r)=>{const p=getPaymentForISO(r.isoId);return p?.payment_date?<Text style={{fontSize:12,color:'var(--muted-color)'}}>{dayjs(p.payment_date).format('MMM D, YYYY')}</Text>:<Text style={{color:'var(--muted-color)'}}>—</Text>;}},
+    {title:'Payment Date',key:'date',render:(_,r)=>{const p=getPaymentForISO(r.isoId);return p?.payment_date?<Text style={{fontSize:12,color:'var(--muted-color)'}}>{dayjs(p.payment_date).format('MMM D, YYYY')}</Text>:<Text style={{color:'var(--muted-color)'}}>â€”</Text>;}},
     {title:'Notes',key:'notes',ellipsis:true,render:(_,r)=>{const p=getPaymentForISO(r.isoId);const n=parseActualNotes(p?.notes);return n?<Text style={{fontSize:12,color:'var(--muted-color)'}}>{n}</Text>:null;}},
     {title:'',key:'action',width:140,render:(_,r)=>{const p=getPaymentForISO(r.isoId);return<Button size="small" type={p?'default':'primary'} onClick={()=>openPaymentModal(r.isoId,r.isoName,r.expected)}>{p?'Edit':'Record Payment'}</Button>;}},
   ];
@@ -115,25 +115,25 @@ const PaymentsPage = () => {
         <Button icon={<LeftOutlined/>} size="small" onClick={()=>{const prev=dayjs(selectedMonth||dayjs().startOf('month')).subtract(1,'month').startOf('month').format('YYYY-MM-DD');setSelectedMonth(prev);}}/>
         <DatePicker picker="month" value={selectedMonth?dayjs(selectedMonth):null} onChange={d=>setSelectedMonth(d?d.startOf('month').format('YYYY-MM-DD'):undefined)} format="MMMM YYYY" allowClear={false} style={{width:160}}/>
         <Button icon={<RightOutlined/>} size="small" onClick={()=>{const next=dayjs(selectedMonth||dayjs().startOf('month')).add(1,'month').startOf('month').format('YYYY-MM-DD');setSelectedMonth(next);}}/>
-        <Button size="small" onClick={()=>setSelectedMonth(undefined)} style={{color:'var(--muted-color)',fontSize:12}}>All Time</Button>
+        <Button size="small" onClick={()=>setSelectedMonth(dayjs().startOf('month').format('YYYY-MM-DD'))} style={{color:'var(--primary-color)',fontSize:12,fontWeight:600}}>Current Month</Button>
         {selectedMonth&&<Text style={{color:'var(--muted-color)',fontSize:12}}>Showing <strong>{dayjs(selectedMonth).format('MMMM YYYY')}</strong></Text>}
       </div>
       {!selectedMonth?(<Alert type="info" showIcon message="Select a month to view payment reconciliation."/>):(
         <>
           <Row gutter={16} style={{marginBottom:16}}>
             {[{title:'Total Expected',value:totalExpected,color:'var(--primary-color)',doFmt:true},{title:'Total Received',value:totalReceived,color:'#059669',doFmt:true},{title:'Net Difference',value:totalReceived-totalExpected,color:totalReceived>=totalExpected?'#059669':'#dc2626',doFmt:true,showSign:true},{title:'Pending ISOs',value:pending,color:'#f59e0b',doFmt:false}].map(({title,value,color,doFmt,showSign})=>(
-              <Col span={6} key={title}><Card><Statistic title={title} value={doFmt?Math.abs(value):value} prefix={showSign&&value!==0?(value>0?'�V�':'▼'):undefined} formatter={doFmt?v=>`$${Number(v).toLocaleString('en-US',{minimumFractionDigits:2})}`:undefined} valueStyle={{color,fontWeight:700}}/></Card></Col>
+              <Col span={6} key={title}><Card><Statistic title={title} value={doFmt?Math.abs(value):value} prefix={showSign&&value!==0?(value>0?'âV²':'â–¼'):undefined} formatter={doFmt?v=>`$${Number(v).toLocaleString('en-US',{minimumFractionDigits:2})}`:undefined} valueStyle={{color,fontWeight:700}}/></Card></Col>
             ))}
           </Row>
           <div style={{display:'flex',gap:8,marginBottom:activeStatusFilter?8:16,flexWrap:'wrap'}}>
-            {[{label:`✓ ${matched} Paid in Full`,color:'#059669',bg:'#f0fdf4',key:'paid'},{label:`⚠ ${shortPaid} Short Paid`,color:'#dc2626',bg:'#fef2f2',key:'short_paid'},{label:`↑ ${overpaid} Overpaid`,color:'#2563eb',bg:'#eff6ff',key:'overpaid'},{label:`⬜ ${pending} Pending`,color:'#92400e',bg:'#fffbeb',key:'pending'}].map(({label,color,bg,key})=>(
+            {[{label:`âœ“ ${matched} Paid in Full`,color:'#059669',bg:'#f0fdf4',key:'paid'},{label:`âš  ${shortPaid} Short Paid`,color:'#dc2626',bg:'#fef2f2',key:'short_paid'},{label:`â†‘ ${overpaid} Overpaid`,color:'#2563eb',bg:'#eff6ff',key:'overpaid'},{label:`â¬œ ${pending} Pending`,color:'#92400e',bg:'#fffbeb',key:'pending'}].map(({label,color,bg,key})=>(
               <div key={key} onClick={()=>setActiveStatusFilter(activeStatusFilter===key?null:key)}
                 style={{padding:'6px 14px',borderRadius:20,background:bg,color,fontSize:13,fontWeight:600,cursor:'pointer',border:activeStatusFilter===key?`2px solid ${color}`:'1px solid transparent',transform:activeStatusFilter===key?'translateY(-2px)':'none',transition:'all 0.18s',userSelect:'none'}}>
                 {label}
               </div>
             ))}
           </div>
-          {activeStatusFilter&&(<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12,padding:'8px 14px',background:'#eff6ff',borderRadius:10,border:'1px solid #bfdbfe'}}><Text style={{fontSize:13,fontWeight:600,color:'#1d4ed8'}}>{activeStatusFilter==='paid'?`Showing ${matched} ISO${matched!==1?'s':''} paid in full`:activeStatusFilter==='short_paid'?`Showing ${shortPaid} ISO${shortPaid!==1?'s':''} with short payments`:activeStatusFilter==='overpaid'?`Showing ${overpaid} overpaid ISO${overpaid!==1?'s':''}`:`Showing ${pending} pending ISO${pending!==1?'s':''}`}</Text><Button size="small" onClick={()=>setActiveStatusFilter(null)} style={{marginLeft:'auto'}}>Clear ✕</Button></div>)}
+          {activeStatusFilter&&(<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12,padding:'8px 14px',background:'#eff6ff',borderRadius:10,border:'1px solid #bfdbfe'}}><Text style={{fontSize:13,fontWeight:600,color:'#1d4ed8'}}>{activeStatusFilter==='paid'?`Showing ${matched} ISO${matched!==1?'s':''} paid in full`:activeStatusFilter==='short_paid'?`Showing ${shortPaid} ISO${shortPaid!==1?'s':''} with short payments`:activeStatusFilter==='overpaid'?`Showing ${overpaid} overpaid ISO${overpaid!==1?'s':''}`:`Showing ${pending} pending ISO${pending!==1?'s':''}`}</Text><Button size="small" onClick={()=>setActiveStatusFilter(null)} style={{marginLeft:'auto'}}>Clear âœ•</Button></div>)}
           {(shortPaid>0||pending>0)&&<Alert type="warning" showIcon style={{marginBottom:16}} message={`Action needed: ${shortPaid>0?`${shortPaid} ISO${shortPaid>1?'s':''} paid less than expected. `:''}${pending>0?`${pending} ISO${pending>1?'s have':' has'} no payment recorded yet.`:''}`}/>}
           <Card><Table dataSource={filteredISOs} columns={reconCols} rowKey="isoId" pagination={false} size="middle"
             scroll={{x:1000}}
@@ -142,7 +142,7 @@ const PaymentsPage = () => {
         </>
       )}
       <Modal open={paymentModal} onCancel={()=>{setPaymentModal(false);setEditingPayment(null);}} footer={null}
-        title={<Space><DollarOutlined style={{color:'var(--primary-color)'}}/><span>Record Payment — {selectedIsoForPayment.isoName}</span></Space>}>
+        title={<Space><DollarOutlined style={{color:'var(--primary-color)'}}/><span>Record Payment â€” {selectedIsoForPayment.isoName}</span></Space>}>
         <Space direction="vertical" style={{width:'100%',marginTop:8}} size="middle">
           <div style={{padding:'10px 14px',background:'var(--background-color)',borderRadius:8,border:'1px solid var(--line-color)'}}><Text style={{fontSize:12,color:'var(--muted-color)'}}>Expected for {selectedMonth?dayjs(selectedMonth).format('MMMM YYYY'):''}</Text><div style={{fontSize:20,fontWeight:700,color:'var(--primary-color)'}}>{fmt(selectedIsoForPayment.expected)}</div></div>
           <div><Text style={{fontSize:12,fontWeight:600,display:'block',marginBottom:4}}>Payment Expected By</Text><DatePicker style={{width:'100%'}} placeholder="Set expected payment date" value={paymentForm.expected_date?dayjs(paymentForm.expected_date):null} onChange={d=>setPaymentForm(f=>({...f,expected_date:d?d.format('YYYY-MM-DD'):''}))} /></div>
