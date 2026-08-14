@@ -1,3 +1,4 @@
+body{background:url('/bg.png') center/cover fixed;background-color:var(--background-color);}
 @import url("https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;500;600;700;800&display=swap");
 :root {
   --primary-color:#1d4ed8;--primary-dark:#1e3a8a;--primary-light:#3b82f6;
@@ -8,7 +9,7 @@
 }
 *{scrollbar-width:thin;scrollbar-color:var(--line-color) var(--background-color);margin:0;padding:0;box-sizing:border-box;font-family:"Albert Sans",sans-serif;}
 a{font-weight:500;color:var(--primary-color);text-decoration:inherit;}
-.ant-layout{background:var(--background-color)!important;}
+.ant-layout{background:transparent!important;}
 .ant-layout-sider{background:var(--sidebar-bg)!important;box-shadow:4px 0 24px rgba(15,32,64,0.22)!important;}
 .ant-layout-header{background:var(--panel-color)!important;border-bottom:2px solid var(--line-color)!important;box-shadow:0 2px 12px rgba(29,78,216,0.07)!important;}
 .ant-menu{background:transparent!important;border-inline-end:none!important;}
