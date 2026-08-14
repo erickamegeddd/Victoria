@@ -215,11 +215,12 @@ const InsightsPage=()=>{
 
   useEffect(()=>{loadOverview();loadTrend();setActiveFilter(null);},[overviewPeriod]);
 
-  const fetchByMonths=async(months)=>{const{data}=await supabase.from("residuals").select("*,isos(id,name)").in("report_month",months);return data||[];};
-  const fetchByYear=async(year)=>{const{data}=await supabase.from("residuals").select("*,isos(id,name)").gte("report_month",`${year}-01-01`).lte("report_month",`${year}-12-31`);return data||[];};
+  const fetchAllPaginated=async(query)=>{let all=[],from=0;while(true){const{data:batch}=await query.range(from,from+999);if(!batch||batch.length===0)break;all=all.concat(batch);if(batch.length<1000)break;from+=1000;}return all;};
+  const fetchByMonths=async(months)=>{return fetchAllPaginated(supabase.from("residuals").select("*,isos(id,name)").in("report_month",months));};
+  const fetchByYear=async(year)=>{return fetchAllPaginated(supabase.from("residuals").select("*,isos(id,name)").gte("report_month",`${year}-01-01`).lte("report_month",`${year}-12-31`));};
 
   const loadTrend=async()=>{
-    const{data}=await supabase.from("residuals").select("report_month,paydiversenet,gross_revenue").order("report_month");
+    const data=await fetchAllPaginated(supabase.from("residuals").select("report_month,paydiversenet,gross_revenue").order("report_month"));
     if(!data||data.length===0)return;
     const map={};
     data.forEach(r=>{const m=r.report_month;if(!m)return;if(!map[m])map[m]={label:dayjs(m).format("MMM YY"),net:0,vol:0};map[m].net+=(r.paydiversenet||0);map[m].vol+=(r.gross_revenue||0);});
