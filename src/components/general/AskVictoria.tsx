@@ -157,7 +157,7 @@ const AskVictoria = ({ open, onClose }) => {
       const res = await fetch("/api/victoria", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: CATEGORY_QUESTIONS[cat.key] || cat.label, history: [] })
+        body: JSON.stringify({ question: CATEGORY_QUESTIONS[cat.key] || cat.label, history: [], category: cat.key })
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
