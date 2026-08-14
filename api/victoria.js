@@ -75,7 +75,7 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).end();
 
-  const { question, history = [] } = req.body || {};
+  const { question, history = [], category } = req.body || {};
   if (!question) return res.status(400).json({ error: "No question provided" });
 
   const GROQ_KEY = process.env.GROQ_API_KEY;
@@ -210,7 +210,37 @@ export default async function handler(req, res) {
         }))
       };
 
-    } else if (fullContext.includes("overdue") || (fullContext.includes("late") && fullContext.includes("pay")) || fullContext.includes("past due")) {
+    } else if (category === "payments" || category === "overdue") {
+      // Explicit category from tile click — route to payments
+      const payments = await sbGet("iso_payments?select=iso_id,report_month,expected_amount,received_amount,payment_date,payment_method,notes,status,isos(name)&order=report_month.desc&limit=200");
+      const totalExp = payments.reduce((s,p) => s+(p.expected_amount||0), 0);
+      const totalRec = payments.reduce((s,p) => s+(p.received_amount||0), 0);
+      const overdue = payments.filter(p => { const exp = p.notes?.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/)?.[1]; return !p.received_amount && exp && exp < today; });
+      const pending = payments.filter(p => !p.received_amount);
+      contextData.payments = {
+        total_expected: fmtK(totalExp), total_received: fmtK(totalRec),
+        difference: fmtK(totalRec - totalExp),
+        overdue_count: overdue.length,
+        overdue_amount: fmtK(overdue.reduce((s,p)=>s+(p.expected_amount||0),0)),
+        pending_count: pending.filter(p => !overdue.includes(p)).length,
+        overdue_list: overdue.map(p => ({ iso: p.isos?.name, month: fmtMonth(p.report_month), expected: fmtK(p.expected_amount), due_date: p.notes?.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/)?.[1] })),
+        records: payments.slice(0,40).map(p => ({ iso: p.isos?.name, month: fmtMonth(p.report_month), expected: fmtK(p.expected_amount), received: p.received_amount != null ? fmtK(p.received_amount) : "pending", due_date: p.notes?.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/)?.[1], status: p.status, overdue: p.received_amount==null && (p.notes?.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/)?.[1]||"") < today }))
+      };
+    } else if (category === "merchants") {
+      // Explicit merchants category
+      const merchants = await sbGetAll("merchants?select=status,business_name,vertical,is_startup,isos(name)");
+      const byISO = {};
+      merchants.forEach(m => {
+        const n = m.isos?.name || "Unknown";
+        if (!byISO[n]) byISO[n] = { active: 0, inactive: 0 };
+        if (m.status === "active") byISO[n].active++; else byISO[n].inactive++;
+      });
+      contextData.merchants = {
+        total: merchants.length, active: merchants.filter(m=>m.status==="active").length,
+        inactive: merchants.filter(m=>m.status!=="active").length,
+        by_iso: Object.entries(byISO).sort((a,b)=>(b[1].active+b[1].inactive)-(a[1].active+a[1].inactive)).map(([n,d])=>`${n}: ${d.active+d.inactive} total (${d.active} active, ${d.inactive} inactive)`)
+      };
+    } else if (fullContext.includes("overdue") || (fullContext.includes("late") && fullContext.includes("payment")) || fullContext.includes("past due")) {
       const payments = await sbGet("iso_payments?select=iso_id,report_month,expected_amount,received_amount,notes,status,isos(name)&is.received_amount=null&limit=200");
       const overdue = payments.filter(p => { const exp = p.notes?.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/)?.[1]; return exp && exp < today; });
       contextData.overdue_payments = {
@@ -262,7 +292,7 @@ export default async function handler(req, res) {
           .map(([n,d])=>`${n}: ${d.active+d.inactive} total (${d.active} active, ${d.inactive} inactive)`)
       };
 
-    } else if (fullContext.includes("pay") || fullContext.includes("collect") || fullContext.includes("receiv")) {
+    } else if ((fullContext.includes("payment") || fullContext.includes("collected") || fullContext.includes("received") || fullContext.includes("overdue") || fullContext.includes("reconcil")) && !mentionedISO) {
       let payQuery = "iso_payments?select=iso_id,report_month,expected_amount,received_amount,payment_date,payment_method,notes,status,isos(name)&order=report_month.desc&limit=200";
       if (monthFilter && monthFilter.length === 1) payQuery += `&report_month=eq.${monthFilter[0]}`;
       const payments = await sbGet(payQuery);
