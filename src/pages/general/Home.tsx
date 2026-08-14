@@ -23,16 +23,17 @@ const Home = () => {
         </Card>
       </Layout>
     </Layout>
-    {/* Ask Victoria — fixed floating button, always visible */}
-    <div
-      onClick={() => setAskOpen(true)}
-      style={{position:"fixed",bottom:24,left:collapsed?20:96,zIndex:1100,display:"flex",alignItems:"center",gap:10,cursor:"pointer",transition:"left 0.2s"}}
-    >
-      <div style={{width:42,height:42,borderRadius:"50%",background:"#f59e0b",boxShadow:"0 4px 14px rgba(245,158,11,0.5)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-        <MessageOutlined style={{fontSize:18,color:"#fff"}}/>
+    {/* Ask Victoria — centered in sidebar width, hidden when open */}
+    {!askOpen && (
+      <div style={{position:"fixed",bottom:20,left:0,width:collapsed?60:230,zIndex:1100,display:"flex",justifyContent:"center",alignItems:"center",transition:"width 0.2s",pointerEvents:"none"}}>
+        <div onClick={() => setAskOpen(true)} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",pointerEvents:"all"}}>
+          <div style={{width:38,height:38,borderRadius:"50%",background:"#f59e0b",boxShadow:"0 4px 14px rgba(245,158,11,0.45)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            <MessageOutlined style={{fontSize:17,color:"#fff"}}/>
+          </div>
+          {!collapsed && <span style={{fontSize:13,fontWeight:600,color:"rgba(255,255,255,0.85)"}}>Ask Victoria</span>}
+        </div>
       </div>
-      <span style={{fontSize:13,fontWeight:700,color:"#fff",background:"rgba(15,32,64,0.75)",padding:"3px 10px",borderRadius:20,whiteSpace:"nowrap",backdropFilter:"blur(4px)"}}>Ask Victoria</span>
-    </div>
+    )}
     <AskVictoria open={askOpen} onClose={() => setAskOpen(false)} />
     </>
   );
