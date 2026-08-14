@@ -34,14 +34,26 @@ const ISOsMerchantsPage = () => {
 
   useEffect(() => { fetchAll(); }, []);
 
+  const fetchAllPaginated = async (query) => {
+    let all = [], from = 0;
+    while (true) {
+      const { data: batch } = await query.range(from, from + 999);
+      if (!batch || batch.length === 0) break;
+      all = all.concat(batch);
+      if (batch.length < 1000) break;
+      from += 1000;
+    }
+    return all;
+  };
+
   const fetchAll = async () => {
     setLoading(true);
-    const [{ data: merchantData }, { data: residualData }] = await Promise.all([
-      supabase.from("merchants").select("*,isos(id,name,slug)").order("business_name"),
-      supabase.from("residuals").select("mid, report_month, iso_id, gross_revenue, gross_volume, paydiversenet"),
+    const [merchantData, residualData] = await Promise.all([
+      fetchAllPaginated(supabase.from("merchants").select("*,isos(id,name,slug)").order("business_name")),
+      fetchAllPaginated(supabase.from("residuals").select("mid, report_month, iso_id, gross_revenue, gross_volume, paydiversenet").order("report_month")),
     ]);
     if (merchantData) setMerchants(merchantData);
-    if (residualData) {
+    if (residualData && residualData.length > 0) {
       const datesMap = {}, statsMap = {};
       residualData.forEach(r => {
         if (r.mid && r.report_month) {
