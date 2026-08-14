@@ -60,16 +60,21 @@ export default async function handler(req, res) {
       const isoId = mentionedISO.id;
       const [merchants, residuals, payments] = await Promise.all([
         sbGet(`merchants?select=status,business_name&current_iso_id=eq.${isoId}&limit=500`),
-        sbGet(`residuals?select=report_month,paydiversenet,gross_revenue&iso_id=eq.${isoId}&order=report_month.asc&limit=200`),
+        sbGet(`residuals?select=report_month,paydiversenet,gross_revenue,mid&iso_id=eq.${isoId}&order=report_month.asc&limit=2000`),
         sbGet(`iso_payments?select=report_month,expected_amount,received_amount,notes&iso_id=eq.${isoId}&order=report_month.desc&limit=24`)
       ]);
       const active = merchants.filter(m => m.status === "active");
       const inactive = merchants.filter(m => m.status !== "active");
       const byMonth = {};
+      const midsByMonth = {};
       residuals.forEach(r => {
         if (!byMonth[r.report_month]) byMonth[r.report_month] = { net: 0, gross: 0 };
         byMonth[r.report_month].net += (r.paydiversenet || 0);
         byMonth[r.report_month].gross += (r.gross_revenue || 0);
+        if (r.mid) {
+          if (!midsByMonth[r.report_month]) midsByMonth[r.report_month] = new Set();
+          midsByMonth[r.report_month].add(r.mid);
+        }
       });
       contextData.focused_iso = {
         name: mentionedISO.name,
@@ -78,7 +83,8 @@ export default async function handler(req, res) {
         inactive_count: inactive.length,
         active_merchant_names: active.map(m => m.business_name),
         inactive_merchant_names: inactive.map(m => m.business_name),
-        revenue_by_month: Object.entries(byMonth).map(([m, v]) => `${m}: net=${fmtK(v.net)}, gross=${fmtK(v.gross)}`),
+        revenue_by_month: Object.entries(byMonth).map(([m, v]) => `${m}: net=${fmtK(v.net)}, gross=${fmtK(v.gross)}, active_merchants=${midsByMonth[m] ? midsByMonth[m].size : "unknown"}`),
+        merchants_by_month: Object.entries(midsByMonth).map(([m, s]) => `${m}: ${s.size} active merchants (processed transactions)`),
         all_time_net: fmtK(Object.values(byMonth).reduce((s, v) => s + v.net, 0)),
         payments: payments.map(p => ({
           month: p.report_month,
