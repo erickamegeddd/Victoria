@@ -85,30 +85,26 @@ const SiderComponent = () => {
           mode="inline"
           items={allMenuItems}
         />
-        {/* Ask Victoria button */}
+        {/* Ask Victoria bubble button */}
         <div
           onClick={() => setAskOpen(true)}
           style={{
-            margin:"12px 10px 16px",
-            padding:"10px 14px",
-            borderRadius:12,
-            background:"linear-gradient(135deg,rgba(29,78,216,0.35),rgba(124,58,237,0.35))",
-            border:"1px solid rgba(139,92,246,0.4)",
+            margin:"6px 12px 16px",
+            padding:"7px 14px",
+            borderRadius:24,
+            background:"rgba(124,58,237,0.18)",
+            border:"1px solid rgba(139,92,246,0.32)",
             cursor:"pointer",
             display:"flex",
             alignItems:"center",
-            gap:10,
-            transition:"all 0.2s",
+            gap:7,
+            transition:"all 0.18s",
           }}
-          onMouseEnter={e => e.currentTarget.style.background="linear-gradient(135deg,rgba(29,78,216,0.55),rgba(124,58,237,0.55))"}
-          onMouseLeave={e => e.currentTarget.style.background="linear-gradient(135deg,rgba(29,78,216,0.35),rgba(124,58,237,0.35))"}
+          onMouseEnter={e => { e.currentTarget.style.background="rgba(124,58,237,0.32)"; e.currentTarget.style.borderColor="rgba(139,92,246,0.6)"; }}
+          onMouseLeave={e => { e.currentTarget.style.background="rgba(124,58,237,0.18)"; e.currentTarget.style.borderColor="rgba(139,92,246,0.32)"; }}
         >
-          <div style={{width:30,height:30,borderRadius:"50%",background:"linear-gradient(135deg,#1d4ed8,#7c3aed)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:"#fff",fontWeight:800,flexShrink:0}}>V</div>
-          <div>
-            <div style={{fontSize:12,fontWeight:700,color:"#fff",lineHeight:1.2}}>Ask Victoria</div>
-            <div style={{fontSize:10,color:"rgba(255,255,255,0.6)"}}>Data assistant</div>
-          </div>
-          <MessageOutlined style={{marginLeft:"auto",color:"rgba(255,255,255,0.5)",fontSize:14}}/>
+          <MessageOutlined style={{fontSize:15,color:"#c084fc"}}/>
+          <span style={{fontSize:12,fontWeight:600,color:"rgba(255,255,255,0.82)",letterSpacing:"0.2px"}}>Ask Victoria</span>
         </div>
       </div>
       <AskVictoria open={askOpen} onClose={() => setAskOpen(false)} />
