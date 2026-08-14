@@ -104,6 +104,30 @@ export default async function handler(req, res) {
       }));
       contextData.total_overdue_count = overdue.length;
       contextData.total_overdue_amount = fmtK(overdue.reduce((s, p) => s + (p.expected_amount || 0), 0));
+    } else if (fullContext.includes("merchant") && (fullContext.includes("top") || fullContext.includes("best") || fullContext.includes("most") || fullContext.includes("rank") || fullContext.includes("highest") || fullContext.includes("residual") || fullContext.includes("revenue") || fullContext.includes("earning") || fullContext.includes("perform"))) {
+      // Merchant-level residual ranking
+      const residuals = await sbGet("residuals?select=mid,business_name,paydiversenet,gross_revenue,iso_id,isos(name)&order=paydiversenet.desc&limit=2000");
+      const byMid = {};
+      residuals.forEach(r => {
+        const key = r.mid || r.business_name || "Unknown";
+        if (!byMid[key]) byMid[key] = { name: r.business_name || r.mid || "Unknown", iso: r.isos?.name || "Unknown", net: 0, gross: 0, months: new Set() };
+        byMid[key].net += (r.paydiversenet || 0);
+        byMid[key].gross += (r.gross_revenue || 0);
+        if (r.report_month) byMid[key].months.add(r.report_month);
+      });
+      const ranked = Object.values(byMid).sort((a, b) => b.net - a.net);
+      contextData.merchant_residuals = {
+        total_merchants_with_data: ranked.length,
+        top_20_by_net_residual: ranked.slice(0, 20).map((m, i) => ({
+          rank: i + 1,
+          merchant: m.name,
+          iso: m.iso,
+          total_net: fmtK(m.net),
+          total_gross: fmtK(m.gross),
+          months_active: m.months.size
+        })),
+        bottom_5: ranked.slice(-5).reverse().map((m, i) => ({ rank: ranked.length - i, merchant: m.name, iso: m.iso, total_net: fmtK(m.net) }))
+      };
     } else if (fullContext.includes("merchant") && !hasMonthRef) {
       const merchants = await sbGet("merchants?select=status,business_name,isos(name)&limit=1000");
       const byISO = {};
