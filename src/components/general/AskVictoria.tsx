@@ -139,14 +139,29 @@ const AskVictoria = ({ open, onClose }) => {
 
   const reset = () => { setStep("categories"); setSelectedCat(null); setCustomQ(""); setAnswer(""); };
 
+  const CATEGORY_QUESTIONS = {
+    iso: "Give me a complete ISO Performance summary: total PayDiverse net income all time, top ISOs by net income with their amounts and months of data, and total number of active ISOs.",
+    payments: "Give me a full Payments & Collections summary: total expected, total received, difference, how many are paid in full, pending, short-paid, and overdue. List all overdue ISOs.",
+    merchants: "Give me a Merchant overview: total merchants, active count, inactive count, top 5 ISOs by merchant count with active/inactive breakdown.",
+    revenue: "Give me a Revenue Summary: all-time net income, gross volume, months with data, best month, and monthly breakdown for all available months.",
+    overdue: "List all overdue payments in detail: which ISOs, which months, expected amounts, due dates, and total overdue amount."
+  };
+
   const handleCategory = async (cat) => {
     setSelectedCat(cat);
     if (cat.key === "custom") { setStep("custom"); return; }
+    const now = new Date().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+    setMessages(prev => [...prev, { role:"user", text: cat.label, time: now }]);
     setStep("loading");
     try {
-      const result = await fetchData(cat.key, "");
-      const now = new Date().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
-      setMessages(prev => [...prev, { role:"user", text: cat.label, time: now }, { role:"victoria", text: result, time: now }]);
+      const res = await fetch("/api/victoria", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: CATEGORY_QUESTIONS[cat.key] || cat.label, history: [] })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setMessages(prev => [...prev, { role:"victoria", text: data.answer, time: now }]);
       setStep("answer");
     } catch(e) {
       setStep("answer");
