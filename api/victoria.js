@@ -431,15 +431,27 @@ Rules:
       { role: "user", content: question }
     ];
 
-    const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: groqMessages, temperature: 0.1, max_tokens: 1500 })
-    });
-
-    const groqData = await groqRes.json();
-    if (groqData.error) return res.status(500).json({ error: groqData.error.message });
-    return res.json({ answer: groqData.choices[0].message.content });
+    const MODELS = ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama-3.1-8b-instant"];
+    let answer = null;
+    let lastError = null;
+    for (const model of MODELS) {
+      const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model, messages: groqMessages, temperature: 0.1, max_tokens: 1500 })
+      });
+      const groqData = await groqRes.json();
+      if (groqData.error) {
+        lastError = groqData.error.message;
+        // Only retry on rate limit errors
+        if (groqData.error.message && groqData.error.message.includes("Rate limit")) continue;
+        return res.status(500).json({ error: groqData.error.message });
+      }
+      answer = groqData.choices[0].message.content;
+      break;
+    }
+    if (!answer) return res.status(500).json({ error: "All AI models are rate limited. Please try again in a few minutes." });
+    return res.json({ answer });
 
   } catch (err) {
     console.error("Victoria API error:", err);
