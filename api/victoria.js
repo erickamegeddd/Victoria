@@ -65,6 +65,8 @@ export default async function handler(req, res) {
   const today = new Date().toISOString().split("T")[0];
   const fullContext = [...history.map(m => m.content || ""), question].join(" ").toLowerCase();
   const monthFilter = detectMonthFilter(fullContext);
+  // For analysis/comparison questions, ignore month filter so we can compare across months
+  const isAnalysisQ = /why|how come|reason|went down|went up|decrease|increase|drop|chang|trend|compar|differ|less than|more than|previous|last month|versus|vs\./.test(fullContext);
 
   try {
     const isos = await sbGet("isos?select=id,name,status&limit=100");
@@ -88,7 +90,7 @@ export default async function handler(req, res) {
       // ── ISO-specific: fetch all data for this ISO ──
       const isoId = mentionedISO.id;
       let residualQuery = `residuals?select=report_month,mid,business_name,gross_volume,gross_revenue,net_revenue,paydiversenet,agent_payout,agent_split_pct&iso_id=eq.${isoId}&order=report_month.asc&limit=2000`;
-      if (monthFilter && monthFilter.length === 1) residualQuery += `&report_month=eq.${monthFilter[0]}`;
+      if (monthFilter && monthFilter.length === 1 && !isAnalysisQ) residualQuery += `&report_month=eq.${monthFilter[0]}`;
 
       const [merchants, residuals, payments] = await Promise.all([
         sbGet(`merchants?select=mid,business_name,status,vertical,merchant_type,is_startup,monthly_volume,notes&current_iso_id=eq.${isoId}&limit=500`),
@@ -122,6 +124,37 @@ export default async function handler(req, res) {
       });
 
       const rankedMerchants = Object.entries(byMerchant).sort((a,b) => b[1].net - a[1].net);
+
+      // Month-over-month analysis: who joined, who left, revenue changes
+      const monthKeys = Object.keys(byMonth).sort();
+      const monthOverMonth = [];
+      const merchantByMonth = {}; // mid -> { month -> net }
+      residuals.forEach(r => {
+        const key = r.business_name || r.mid || "Unknown";
+        if (!merchantByMonth[key]) merchantByMonth[key] = {};
+        merchantByMonth[key][r.report_month] = (merchantByMonth[key][r.report_month] || 0) + (r.paydiversenet || 0);
+      });
+      for (let i = 1; i < monthKeys.length; i++) {
+        const prev = monthKeys[i-1], curr = monthKeys[i];
+        const prevMerchants = new Set(Object.keys(merchantByMonth).filter(k => merchantByMonth[k][prev] != null));
+        const currMerchants = new Set(Object.keys(merchantByMonth).filter(k => merchantByMonth[k][curr] != null));
+        const left = [...prevMerchants].filter(k => !currMerchants.has(k));
+        const joined = [...currMerchants].filter(k => !prevMerchants.has(k));
+        const netChange = (byMonth[curr]?.paydiversenet || 0) - (byMonth[prev]?.paydiversenet || 0);
+        // Top movers (biggest drops)
+        const movers = [...prevMerchants].filter(k => currMerchants.has(k))
+          .map(k => ({ name: k, change: (merchantByMonth[k][curr]||0) - (merchantByMonth[k][prev]||0) }))
+          .sort((a,b) => a.change - b.change).slice(0, 5);
+        monthOverMonth.push({
+          from: fmtMonth(prev), to: fmtMonth(curr),
+          paydiversenet_change: fmtK(netChange),
+          direction: netChange >= 0 ? "increase" : "decrease",
+          merchants_left: left.map(k => ({ name: k, prev_residual: fmtK(merchantByMonth[k][prev]) })),
+          merchants_joined: joined.map(k => ({ name: k, new_residual: fmtK(merchantByMonth[k][curr]) })),
+          biggest_drops: movers.filter(m => m.change < 0).map(m => ({ name: m.name, change: fmtK(m.change) })),
+          biggest_gains: movers.filter(m => m.change > 0).map(m => ({ name: m.name, change: fmtK(m.change) }))
+        });
+      }
       const allTimeNet = Object.values(byMonth).reduce((s,v) => s + v.paydiversenet, 0);
 
       contextData.focused_iso = {
@@ -145,6 +178,7 @@ export default async function handler(req, res) {
           rank: i+1, merchant: name, mid: d.mid, total_paydiversenet: fmtK(d.net),
           total_gross_volume: fmtK(d.gross_volume), months_active: d.months.size
         })),
+        month_over_month_analysis: monthOverMonth,
         payments: payments.map(p => ({
           month: fmtMonth(p.report_month),
           expected: fmtK(p.expected_amount),
