@@ -89,7 +89,12 @@ export default async function handler(req, res) {
 
   try {
     const isos = await sbGet("isos?select=id,name,status&limit=100");
-    const mentionedISO = isos.find(iso => fullContext.includes(iso.name.toLowerCase()));
+    // Check current question first, then recent history — avoids false matches from history responses
+    const currentQ = question.toLowerCase();
+    const recentHistory = history.slice(-3).map(m => m.content || "").join(" ").toLowerCase();
+    const mentionedISO =
+      isos.find(iso => currentQ.includes(iso.name.toLowerCase())) ||
+      isos.find(iso => recentHistory.includes(iso.name.toLowerCase()));
 
     let contextData = {
       iso_list: isos.map(i => i.name).join(", "),
@@ -386,7 +391,11 @@ export default async function handler(req, res) {
         overdue_payment_count: overdue.length,
         overdue_amount: fmtK(overdue.reduce((s,p)=>s+(p.expected_amount||0),0)),
         revenue_by_month: Object.entries(byMonth).map(([m,v])=>({ month: fmtMonth(m), paydiversenet: fmtK(v.paydiversenet), gross_volume: fmtK(v.gross_volume), gross_revenue: fmtK(v.gross_revenue) })),
-        top_isos_all_time: Object.entries(byISO).map(([n,months])=>({ iso: n, total: fmtK(Object.values(months).reduce((s,v)=>s+v,0)) })).sort((a,b)=>parseFloat(b.total.replace(/[$KM,]/g,""))-parseFloat(a.total.replace(/[$KM,]/g,""))).slice(0,10),
+        top_isos_all_time: Object.entries(byISO)
+          .map(([n,months])=>{ const raw=Object.values(months).reduce((s,v)=>s+v,0); return {iso:n,paydiversenet:fmtK(raw),_raw:raw}; })
+          .sort((a,b)=>b._raw-a._raw)
+          .slice(0,10)
+          .map(({iso,paydiversenet})=>({iso,paydiversenet})),
         month_over_month_analysis: monthOverMonth
       };
     }
