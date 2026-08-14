@@ -1,13 +1,15 @@
 // @ts-nocheck
+import { useState } from "react";
 import { Menu } from "antd";
 import { useNavigate } from "react-router-dom";
-import { LogoutOutlined, DollarOutlined, BarChartOutlined, AreaChartOutlined, ImportOutlined, SnippetsOutlined, DiffOutlined, UserAddOutlined, BulbOutlined, BankOutlined, SettingOutlined } from "@ant-design/icons";
+import { LogoutOutlined, DollarOutlined, BarChartOutlined, AreaChartOutlined, ImportOutlined, SnippetsOutlined, DiffOutlined, UserAddOutlined, BulbOutlined, BankOutlined, SettingOutlined, MessageOutlined } from "@ant-design/icons";
 import { LuUsers } from "react-icons/lu";
 import { LiaFileInvoiceDollarSolid } from "react-icons/lia";
 import { MdPayment } from "react-icons/md";
 import { TbLayoutDashboard } from "react-icons/tb";
 import { getUserFromLocalStorage } from "../../utils/getUser";
 import { handleLogout } from "../../utils/logout";
+import AskVictoria from "./AskVictoria";
 
 const ic = (icon, color, bg) => (
   <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:28,height:28,borderRadius:8,background:bg,color:color,fontSize:15,flexShrink:0}}>
@@ -19,6 +21,7 @@ const SiderComponent = () => {
   const navigate = useNavigate();
   const currentPath = window.location.pathname;
   const user = getUserFromLocalStorage();
+  const [askOpen, setAskOpen] = useState(false);
 
   const adminPaths = ["/home/users","/home/adjustments","/home/agents","/home/logs","/home/import-data"];
 
@@ -68,20 +71,48 @@ const SiderComponent = () => {
   const isInAdmin = adminPaths.some(p => currentPath.startsWith(p));
 
   return (
-    <div style={{paddingTop:8}}>
-      <div style={{padding:"14px 16px 10px",borderBottom:"1px solid rgba(255,255,255,0.07)",marginBottom:4}}>
-        <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"1.5px",color:"rgba(255,255,255,0.3)"}}>Menu</span>
+    <>
+      <div style={{paddingTop:8,height:"100%",display:"flex",flexDirection:"column",position:"relative"}}>
+        <div style={{padding:"14px 16px 10px",borderBottom:"1px solid rgba(255,255,255,0.07)",marginBottom:4}}>
+          <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"1.5px",color:"rgba(255,255,255,0.3)"}}>Menu</span>
+        </div>
+        <Menu
+          onClick={onClick}
+          theme="dark"
+          style={{background:"transparent",border:"none",flex:1,overflowY:"auto"}}
+          selectedKeys={[matchKey(currentPath)||currentPath]}
+          defaultOpenKeys={isInAdmin ? ["admin"] : []}
+          mode="inline"
+          items={allMenuItems}
+        />
+        {/* Ask Victoria button */}
+        <div
+          onClick={() => setAskOpen(true)}
+          style={{
+            margin:"12px 10px 16px",
+            padding:"10px 14px",
+            borderRadius:12,
+            background:"linear-gradient(135deg,rgba(29,78,216,0.35),rgba(124,58,237,0.35))",
+            border:"1px solid rgba(139,92,246,0.4)",
+            cursor:"pointer",
+            display:"flex",
+            alignItems:"center",
+            gap:10,
+            transition:"all 0.2s",
+          }}
+          onMouseEnter={e => e.currentTarget.style.background="linear-gradient(135deg,rgba(29,78,216,0.55),rgba(124,58,237,0.55))"}
+          onMouseLeave={e => e.currentTarget.style.background="linear-gradient(135deg,rgba(29,78,216,0.35),rgba(124,58,237,0.35))"}
+        >
+          <div style={{width:30,height:30,borderRadius:"50%",background:"linear-gradient(135deg,#1d4ed8,#7c3aed)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:"#fff",fontWeight:800,flexShrink:0}}>V</div>
+          <div>
+            <div style={{fontSize:12,fontWeight:700,color:"#fff",lineHeight:1.2}}>Ask Victoria</div>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.6)"}}>Data assistant</div>
+          </div>
+          <MessageOutlined style={{marginLeft:"auto",color:"rgba(255,255,255,0.5)",fontSize:14}}/>
+        </div>
       </div>
-      <Menu
-        onClick={onClick}
-        theme="dark"
-        style={{background:"transparent",border:"none"}}
-        selectedKeys={[matchKey(currentPath)||currentPath]}
-        defaultOpenKeys={isInAdmin ? ["admin"] : []}
-        mode="inline"
-        items={allMenuItems}
-      />
-    </div>
+      <AskVictoria open={askOpen} onClose={() => setAskOpen(false)} />
+    </>
   );
 };
 export default SiderComponent;
