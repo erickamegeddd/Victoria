@@ -114,10 +114,14 @@ async function fetchData(category, customQ) {
   }
 
   if (category === "custom") {
+    const groqHistory = messages.map(m => ({
+      role: m.role === "user" ? "user" : "assistant",
+      content: m.text
+    }));
     const res = await fetch("/api/victoria", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: customQ })
+      body: JSON.stringify({ question: customQ, history: groqHistory })
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
