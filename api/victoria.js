@@ -9,6 +9,25 @@ async function sbGet(path) {
   return res.json();
 }
 
+// Paginated fetch — bypasses Supabase's 1000-row hard cap
+async function sbGetAll(path) {
+  let offset = 0;
+  const batch = 1000;
+  let all = [];
+  while (true) {
+    const sep = path.includes("?") ? "&" : "?";
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}${sep}offset=${offset}&limit=${batch}`, {
+      headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` }
+    });
+    const rows = await res.json();
+    if (!Array.isArray(rows) || rows.length === 0) break;
+    all = all.concat(rows);
+    if (rows.length < batch) break;
+    offset += batch;
+  }
+  return all;
+}
+
 function fmt(n) { return n != null ? `$${Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}` : "--"; }
 function fmtK(n) {
   if (!n && n !== 0) return "$0";
@@ -93,8 +112,8 @@ export default async function handler(req, res) {
       if (monthFilter && monthFilter.length === 1 && !isAnalysisQ) residualQuery += `&report_month=eq.${monthFilter[0]}`;
 
       const [merchants, residuals, payments] = await Promise.all([
-        sbGet(`merchants?select=mid,business_name,status,vertical,merchant_type,is_startup,monthly_volume,notes&current_iso_id=eq.${isoId}&limit=500`),
-        sbGet(residualQuery),
+        sbGetAll(`merchants?select=mid,business_name,status,vertical,merchant_type,is_startup,monthly_volume,notes&current_iso_id=eq.${isoId}`),
+        sbGetAll(residualQuery),
         sbGet(`iso_payments?select=report_month,expected_amount,received_amount,payment_date,payment_method,notes,status&iso_id=eq.${isoId}&order=report_month.desc&limit=24`)
       ]);
 
@@ -202,9 +221,9 @@ export default async function handler(req, res) {
 
     } else if (fullContext.includes("merchant") && (fullContext.includes("top") || fullContext.includes("best") || fullContext.includes("most") || fullContext.includes("rank") || fullContext.includes("highest") || fullContext.includes("residual") || fullContext.includes("revenue") || fullContext.includes("earning") || fullContext.includes("perform"))) {
       // Merchant-level residual ranking across all ISOs
-      let resQuery = "residuals?select=mid,business_name,gross_volume,gross_revenue,paydiversenet,iso_id,isos(name),report_month&order=paydiversenet.desc&limit=2000";
+      let resQuery = "residuals?select=mid,business_name,gross_volume,gross_revenue,paydiversenet,iso_id,isos(name),report_month&order=paydiversenet.desc";
       if (monthFilter && monthFilter.length === 1) resQuery += `&report_month=eq.${monthFilter[0]}`;
-      const residuals = await sbGet(resQuery);
+      const residuals = await sbGetAll(resQuery);
       const byMid = {};
       residuals.forEach(r => {
         const key = r.business_name || r.mid || "Unknown";
@@ -270,10 +289,10 @@ export default async function handler(req, res) {
 
     } else {
       // General / revenue / time-based / analysis — always fetch ALL months
-      const resQuery = "residuals?select=report_month,paydiversenet,gross_volume,gross_revenue,agent_payout,business_name,mid,iso_id,isos(name)&order=report_month.asc&limit=2000";
+      const resQuery = "residuals?select=report_month,paydiversenet,gross_volume,gross_revenue,agent_payout,business_name,mid,iso_id,isos(name)&order=report_month.asc";
 
       const [residuals, payments, merchants] = await Promise.all([
-        sbGet(resQuery),
+        sbGetAll(resQuery),
         sbGet("iso_payments?select=iso_id,report_month,expected_amount,received_amount,payment_date,payment_method,notes,status,isos(name)&order=report_month.desc&limit=200"),
         sbGet("merchants?select=status,isos(name)&limit=1000")
       ]);
