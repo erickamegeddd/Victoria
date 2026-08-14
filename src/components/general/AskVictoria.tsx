@@ -125,12 +125,22 @@ async function fetchData(category, customQ) {
       const isoName = mentionedISO.name;
 
       // Merchant-related question about a specific ISO
-      if (q.includes("merchant") || q.includes("mid") || q.includes("how many") || q.includes("count")) {
+      if (q.includes("merchant") || q.includes("mid") || q.includes("how many") || q.includes("count") || q.includes("list") || q.includes("show")) {
         const merchants = await sbGet(`merchants?select=status,business_name&current_iso_id=eq.${isoId}&limit=500`);
-        const active = merchants.filter(m => m.status === "active").length;
-        const inactive = merchants.filter(m => m.status !== "active").length;
-        const topActive = merchants.filter(m => m.status === "active").slice(0, 5).map(m => m.business_name);
-        return `**${isoName} -- Merchants**\n\nTotal Merchants: ${merchants.length}\n- Active: ${active}\n- Inactive: ${inactive}${topActive.length ? "\n\n**Sample Active Merchants:**\n" + topActive.map(n => "- " + n).join("\n") : ""}`;
+        const active = merchants.filter(m => m.status === "active");
+        const inactive = merchants.filter(m => m.status !== "active");
+        const wantsFullList = q.includes("list") || q.includes("all") || q.includes("show") || q.includes("every") || q.includes("full") || q.includes("complete");
+        const wantsActiveOnly = q.includes("active") && !q.includes("inactive");
+        const wantsInactiveOnly = q.includes("inactive") && !q.includes("active");
+        if (wantsFullList) {
+          let out = "**" + isoName + " -- Merchants (" + merchants.length + " total)**\n\nActive: " + active.length + " | Inactive: " + inactive.length + "\n";
+          const showList = wantsInactiveOnly ? inactive : (wantsActiveOnly ? active : merchants);
+          const label = wantsInactiveOnly ? "Inactive" : (wantsActiveOnly ? "Active" : "All");
+          out += "\n**" + label + " Merchants:**\n" + showList.map(m => "- " + m.business_name + (m.status !== "active" ? " (inactive)" : "")).join("\n");
+          return out;
+        }
+        const topActive = active.slice(0, 5).map(m => m.business_name);
+        return "**" + isoName + " -- Merchants**\n\nTotal Merchants: " + merchants.length + "\n- Active: " + active.length + "\n- Inactive: " + inactive.length + (topActive.length ? "\n\n**Sample Active Merchants:**\n" + topActive.map(n => "- " + n).join("\n") : "") + "\n\n_Ask me to \'list all merchants\' to see the complete list._";
       }
 
       // Revenue/residual question about a specific ISO
@@ -140,7 +150,10 @@ async function fetchData(category, customQ) {
         residuals.forEach(r => { const m = r.report_month; if (!byMonth[m]) byMonth[m] = 0; byMonth[m] += (r.paydiversenet || 0); });
         const months = Object.entries(byMonth).sort(([a],[b]) => b.localeCompare(a));
         const total = months.reduce((s,[,v]) => s+v, 0);
-        return `**${isoName} -- Revenue**\n\nAll-Time Net: ${fmtK(total)}\nMonths with Data: ${months.length}\n\n**By Month (latest first):**\n${months.slice(0,6).map(([m,v]) => "- " + dayjs(m).format("MMM YYYY") + ": " + fmtK(v)).join("\n")}`;
+        const showAllMonths = q.includes("all") || q.includes("every") || q.includes("full");
+        const monthsToShow = showAllMonths ? months : months.slice(0, 6);
+        const suffix = !showAllMonths && months.length > 6 ? "\n\n_Showing latest 6 months. Ask \'show all months\' for full history._" : "";
+        return "**" + isoName + " -- Revenue**\n\nAll-Time Net: " + fmtK(total) + "\nMonths with Data: " + months.length + "\n\n**By Month (latest first):**\n" + monthsToShow.map(([m,v]) => "- " + dayjs(m).format("MMM YYYY") + ": " + fmtK(v)).join("\n") + suffix;
       }
 
       // Payment question about a specific ISO
@@ -169,7 +182,7 @@ async function fetchData(category, customQ) {
     if (q.includes("merchant") || q.includes("mid")) return fetchData("merchants", "");
     if (q.includes("revenue") || q.includes("income") || q.includes("residual") || q.includes("earn")) return fetchData("revenue", "");
     if (q.includes("overdue") || q.includes("late") || q.includes("miss")) return fetchData("overdue", "");
-    return `I couldn't find a specific answer for that question. Try one of the categories:\n\n- ISO Performance\n- Payments & Collections\n- Merchants\n- Revenue Summary\n- Overdue Alerts\n\nOr mention a specific ISO name (e.g. "How many merchants does Maverick have?")`;
+    return "I couldn't find a specific answer for that question.\n\nTips:\n- To see merchants: \"List all of Maverick\'s merchants\"\n- To see revenue: \"What is Maverick\'s revenue?\"\n- To see payments: \"Are Maverick\'s payments up to date?\"\n- For overdue: \"Which ISOs have overdue payments?\"\n\nMention the ISO name + what you want to know (merchants, revenue, payments, status).";
   }
   return "Please select a category.";
 }
