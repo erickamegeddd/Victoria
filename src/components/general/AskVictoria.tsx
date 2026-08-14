@@ -114,75 +114,14 @@ async function fetchData(category, customQ) {
   }
 
   if (category === "custom") {
-    const q = customQ.toLowerCase();
-
-    // First: check if a specific ISO name is mentioned in the question
-    const allIsos = await sbGet("isos?select=id,name&limit=100");
-    const mentionedISO = allIsos.find(iso => q.includes(iso.name.toLowerCase()));
-
-    if (mentionedISO) {
-      const isoId = mentionedISO.id;
-      const isoName = mentionedISO.name;
-
-      // Merchant-related question about a specific ISO
-      if (q.includes("merchant") || q.includes("mid") || q.includes("how many") || q.includes("count") || q.includes("list") || q.includes("show")) {
-        const merchants = await sbGet(`merchants?select=status,business_name&current_iso_id=eq.${isoId}&limit=500`);
-        const active = merchants.filter(m => m.status === "active");
-        const inactive = merchants.filter(m => m.status !== "active");
-        const wantsFullList = q.includes("list") || q.includes("all") || q.includes("show") || q.includes("every") || q.includes("full") || q.includes("complete");
-        const wantsActiveOnly = q.includes("active") && !q.includes("inactive");
-        const wantsInactiveOnly = q.includes("inactive") && !q.includes("active");
-        if (wantsFullList) {
-          let out = "**" + isoName + " -- Merchants (" + merchants.length + " total)**\n\nActive: " + active.length + " | Inactive: " + inactive.length + "\n";
-          const showList = wantsInactiveOnly ? inactive : (wantsActiveOnly ? active : merchants);
-          const label = wantsInactiveOnly ? "Inactive" : (wantsActiveOnly ? "Active" : "All");
-          out += "\n**" + label + " Merchants:**\n" + showList.map(m => "- " + m.business_name + (m.status !== "active" ? " (inactive)" : "")).join("\n");
-          return out;
-        }
-        const topActive = active.slice(0, 5).map(m => m.business_name);
-        return "**" + isoName + " -- Merchants**\n\nTotal Merchants: " + merchants.length + "\n- Active: " + active.length + "\n- Inactive: " + inactive.length + (topActive.length ? "\n\n**Sample Active Merchants:**\n" + topActive.map(n => "- " + n).join("\n") : "") + "\n\n_Ask me to \'list all merchants\' to see the complete list._";
-      }
-
-      // Revenue/residual question about a specific ISO
-      if (q.includes("revenue") || q.includes("residual") || q.includes("income") || q.includes("earn") || q.includes("net") || q.includes("paid")) {
-        const residuals = await sbGet(`residuals?select=report_month,paydiversenet&iso_id=eq.${isoId}&order=report_month.desc&limit=200`);
-        const byMonth = {};
-        residuals.forEach(r => { const m = r.report_month; if (!byMonth[m]) byMonth[m] = 0; byMonth[m] += (r.paydiversenet || 0); });
-        const months = Object.entries(byMonth).sort(([a],[b]) => b.localeCompare(a));
-        const total = months.reduce((s,[,v]) => s+v, 0);
-        const showAllMonths = q.includes("all") || q.includes("every") || q.includes("full");
-        const monthsToShow = showAllMonths ? months : months.slice(0, 6);
-        const suffix = !showAllMonths && months.length > 6 ? "\n\n_Showing latest 6 months. Ask \'show all months\' for full history._" : "";
-        return "**" + isoName + " -- Revenue**\n\nAll-Time Net: " + fmtK(total) + "\nMonths with Data: " + months.length + "\n\n**By Month (latest first):**\n" + monthsToShow.map(([m,v]) => "- " + dayjs(m).format("MMM YYYY") + ": " + fmtK(v)).join("\n") + suffix;
-      }
-
-      // Payment question about a specific ISO
-      if (q.includes("pay") || q.includes("receiv") || q.includes("owed") || q.includes("collect")) {
-        const payments = await sbGet(`iso_payments?select=report_month,expected_amount,received_amount,status&iso_id=eq.${isoId}&order=report_month.desc&limit=20`);
-        if (!payments.length) return `No payment records found for ${isoName}.`;
-        const totalExp = payments.reduce((s,p) => s+(p.expected_amount||0), 0);
-        const totalRec = payments.reduce((s,p) => s+(p.received_amount||0), 0);
-        return `**${isoName} -- Payments**\n\nTotal Expected: ${fmtK(totalExp)}\nTotal Received: ${fmtK(totalRec)}\nDifference: ${fmtK(totalRec-totalExp)}\n\n**By Month:**\n${payments.slice(0,6).map(p => "- " + dayjs(p.report_month).format("MMM YYYY") + ": expected " + fmtK(p.expected_amount) + ", received " + (p.received_amount != null ? fmtK(p.received_amount) : "pending")).join("\n")}`;
-      }
-
-      // General ISO question
-      const [merchants, residuals] = await Promise.all([
-        sbGet(`merchants?select=status&current_iso_id=eq.${isoId}&limit=500`),
-        sbGet(`residuals?select=report_month,paydiversenet&iso_id=eq.${isoId}&order=report_month.desc&limit=200`)
-      ]);
-      const active = merchants.filter(m => m.status === "active").length;
-      const totalNet = residuals.reduce((s,r) => s+(r.paydiversenet||0), 0);
-      const months = [...new Set(residuals.map(r => r.report_month))];
-      return `**${isoName} -- Summary**\n\nMerchants: ${merchants.length} total (${active} active)\nAll-Time Net Income: ${fmtK(totalNet)}\nMonths with Data: ${months.length}`;
-    }
-
-    // No specific ISO detected -- use keyword routing
-    if (q.includes("iso") || q.includes("processor")) return fetchData("iso", "");
-    if (q.includes("pay") || q.includes("receiv") || q.includes("collect")) return fetchData("payments", "");
-    if (q.includes("merchant") || q.includes("mid")) return fetchData("merchants", "");
-    if (q.includes("revenue") || q.includes("income") || q.includes("residual") || q.includes("earn")) return fetchData("revenue", "");
-    if (q.includes("overdue") || q.includes("late") || q.includes("miss")) return fetchData("overdue", "");
-    return "I couldn't find a specific answer for that question.\n\nTips:\n- To see merchants: \"List all of Maverick\'s merchants\"\n- To see revenue: \"What is Maverick\'s revenue?\"\n- To see payments: \"Are Maverick\'s payments up to date?\"\n- For overdue: \"Which ISOs have overdue payments?\"\n\nMention the ISO name + what you want to know (merchants, revenue, payments, status).";
+    const res = await fetch("/api/victoria", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: customQ })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    return data.answer;
   }
   return "Please select a category.";
 }
