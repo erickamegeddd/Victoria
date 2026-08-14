@@ -1,15 +1,13 @@
 // @ts-nocheck
-import { useState } from "react";
 import { Menu } from "antd";
 import { useNavigate } from "react-router-dom";
-import { LogoutOutlined, DollarOutlined, BarChartOutlined, AreaChartOutlined, ImportOutlined, SnippetsOutlined, DiffOutlined, UserAddOutlined, BulbOutlined, BankOutlined, SettingOutlined, MessageOutlined } from "@ant-design/icons";
+import { LogoutOutlined, DollarOutlined, BarChartOutlined, AreaChartOutlined, ImportOutlined, SnippetsOutlined, DiffOutlined, UserAddOutlined, BulbOutlined, BankOutlined, SettingOutlined } from "@ant-design/icons";
 import { LuUsers } from "react-icons/lu";
 import { LiaFileInvoiceDollarSolid } from "react-icons/lia";
 import { MdPayment } from "react-icons/md";
 import { TbLayoutDashboard } from "react-icons/tb";
 import { getUserFromLocalStorage } from "../../utils/getUser";
 import { handleLogout } from "../../utils/logout";
-import AskVictoria from "./AskVictoria";
 
 const ic = (icon, color, bg) => (
   <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:28,height:28,borderRadius:8,background:bg,color:color,fontSize:15,flexShrink:0}}>
@@ -21,7 +19,6 @@ const SiderComponent = () => {
   const navigate = useNavigate();
   const currentPath = window.location.pathname;
   const user = getUserFromLocalStorage();
-  const [askOpen, setAskOpen] = useState(false);
 
   const adminPaths = ["/home/users","/home/adjustments","/home/agents","/home/logs","/home/import-data"];
 
@@ -71,8 +68,7 @@ const SiderComponent = () => {
   const isInAdmin = adminPaths.some(p => currentPath.startsWith(p));
 
   return (
-    <>
-      <div style={{paddingTop:8,height:"100%",display:"flex",flexDirection:"column",position:"relative"}}>
+    <div style={{paddingTop:8,height:"100%",display:"flex",flexDirection:"column",position:"relative"}}>
         <div style={{padding:"14px 16px 10px",borderBottom:"1px solid rgba(255,255,255,0.07)",marginBottom:4}}>
           <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"1.5px",color:"rgba(255,255,255,0.3)"}}>Menu</span>
         </div>
@@ -85,29 +81,8 @@ const SiderComponent = () => {
           mode="inline"
           items={allMenuItems}
         />
-        {/* Ask Victoria floating bubble + label - centered */}
-        <div style={{display:"flex",justifyContent:"center",marginBottom:16,marginTop:4}}>
-          <div
-            onClick={() => setAskOpen(true)}
-            style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer"}}
-            onMouseEnter={e => e.currentTarget.querySelector("span").style.color="rgba(255,255,255,1)"}
-            onMouseLeave={e => e.currentTarget.querySelector("span").style.color="rgba(255,255,255,0.7)"}
-          >
-            <div style={{
-              width:38,height:38,borderRadius:"50%",flexShrink:0,
-              background:"#f59e0b",
-              boxShadow:"0 4px 14px rgba(245,158,11,0.45)",
-              display:"flex",alignItems:"center",justifyContent:"center",
-              transition:"all 0.18s",
-            }}>
-              <MessageOutlined style={{fontSize:17,color:"#fff"}}/>
-            </div>
-            <span style={{fontSize:13,fontWeight:600,color:"rgba(255,255,255,0.7)",transition:"color 0.18s"}}>Ask Victoria</span>
-          </div>
-        </div>
-      </div>
-      <AskVictoria open={askOpen} onClose={() => setAskOpen(false)} />
-    </>
+
+    </div>
   );
 };
 export default SiderComponent;
