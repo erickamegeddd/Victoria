@@ -85,25 +85,27 @@ const SiderComponent = () => {
           mode="inline"
           items={allMenuItems}
         />
-        {/* Ask Victoria floating bubble */}
-        <div style={{display:"flex",justifyContent:"center",marginBottom:16,marginTop:4}}>
-          <div
-            onClick={() => setAskOpen(true)}
-            title="Ask Victoria"
-            style={{
-              width:46,height:46,borderRadius:"50%",
-              background:"#f59e0b",
-              boxShadow:"0 4px 14px rgba(245,158,11,0.45)",
-              cursor:"pointer",
-              display:"flex",alignItems:"center",justifyContent:"center",
-              transition:"all 0.18s",
-              flexDirection:"column",gap:1,
-            }}
-            onMouseEnter={e => { e.currentTarget.style.transform="scale(1.1)"; e.currentTarget.style.boxShadow="0 6px 20px rgba(245,158,11,0.6)"; }}
-            onMouseLeave={e => { e.currentTarget.style.transform="scale(1)"; e.currentTarget.style.boxShadow="0 4px 14px rgba(245,158,11,0.45)"; }}
-          >
-            <MessageOutlined style={{fontSize:18,color:"#fff"}}/>
+        {/* Ask Victoria floating bubble + label */}
+        <div
+          onClick={() => setAskOpen(true)}
+          style={{
+            display:"flex",alignItems:"center",gap:10,
+            margin:"6px 14px 16px",
+            cursor:"pointer",
+          }}
+          onMouseEnter={e => e.currentTarget.querySelector("span").style.color="rgba(255,255,255,1)"}
+          onMouseLeave={e => e.currentTarget.querySelector("span").style.color="rgba(255,255,255,0.7)"}
+        >
+          <div style={{
+            width:38,height:38,borderRadius:"50%",flexShrink:0,
+            background:"#f59e0b",
+            boxShadow:"0 4px 14px rgba(245,158,11,0.45)",
+            display:"flex",alignItems:"center",justifyContent:"center",
+            transition:"all 0.18s",
+          }}>
+            <MessageOutlined style={{fontSize:17,color:"#fff"}}/>
           </div>
+          <span style={{fontSize:13,fontWeight:600,color:"rgba(255,255,255,0.7)",transition:"color 0.18s"}}>Ask Victoria</span>
         </div>
       </div>
       <AskVictoria open={askOpen} onClose={() => setAskOpen(false)} />
