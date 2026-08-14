@@ -115,12 +115,61 @@ async function fetchData(category, customQ) {
 
   if (category === "custom") {
     const q = customQ.toLowerCase();
+
+    // First: check if a specific ISO name is mentioned in the question
+    const allIsos = await sbGet("isos?select=id,name&limit=100");
+    const mentionedISO = allIsos.find(iso => q.includes(iso.name.toLowerCase()));
+
+    if (mentionedISO) {
+      const isoId = mentionedISO.id;
+      const isoName = mentionedISO.name;
+
+      // Merchant-related question about a specific ISO
+      if (q.includes("merchant") || q.includes("mid") || q.includes("how many") || q.includes("count")) {
+        const merchants = await sbGet(`merchants?select=status,business_name&current_iso_id=eq.${isoId}&limit=500`);
+        const active = merchants.filter(m => m.status === "active").length;
+        const inactive = merchants.filter(m => m.status !== "active").length;
+        const topActive = merchants.filter(m => m.status === "active").slice(0, 5).map(m => m.business_name);
+        return `**${isoName} -- Merchants**\n\nTotal Merchants: ${merchants.length}\n- Active: ${active}\n- Inactive: ${inactive}${topActive.length ? "\n\n**Sample Active Merchants:**\n" + topActive.map(n => "- " + n).join("\n") : ""}`;
+      }
+
+      // Revenue/residual question about a specific ISO
+      if (q.includes("revenue") || q.includes("residual") || q.includes("income") || q.includes("earn") || q.includes("net") || q.includes("paid")) {
+        const residuals = await sbGet(`residuals?select=report_month,paydiversenet&iso_id=eq.${isoId}&order=report_month.desc&limit=200`);
+        const byMonth = {};
+        residuals.forEach(r => { const m = r.report_month; if (!byMonth[m]) byMonth[m] = 0; byMonth[m] += (r.paydiversenet || 0); });
+        const months = Object.entries(byMonth).sort(([a],[b]) => b.localeCompare(a));
+        const total = months.reduce((s,[,v]) => s+v, 0);
+        return `**${isoName} -- Revenue**\n\nAll-Time Net: ${fmtK(total)}\nMonths with Data: ${months.length}\n\n**By Month (latest first):**\n${months.slice(0,6).map(([m,v]) => \`- \${dayjs(m).format("MMM YYYY")}: \${fmtK(v)}\`).join("\n")}`;
+      }
+
+      // Payment question about a specific ISO
+      if (q.includes("pay") || q.includes("receiv") || q.includes("owed") || q.includes("collect")) {
+        const payments = await sbGet(`iso_payments?select=report_month,expected_amount,received_amount,status&iso_id=eq.${isoId}&order=report_month.desc&limit=20`);
+        if (!payments.length) return `No payment records found for ${isoName}.`;
+        const totalExp = payments.reduce((s,p) => s+(p.expected_amount||0), 0);
+        const totalRec = payments.reduce((s,p) => s+(p.received_amount||0), 0);
+        return `**${isoName} -- Payments**\n\nTotal Expected: ${fmtK(totalExp)}\nTotal Received: ${fmtK(totalRec)}\nDifference: ${fmtK(totalRec-totalExp)}\n\n**By Month:**\n${payments.slice(0,6).map(p => \`- \${dayjs(p.report_month).format("MMM YYYY")}: expected \${fmtK(p.expected_amount)}, received \${p.received_amount != null ? fmtK(p.received_amount) : "pending"}\`).join("\n")}`;
+      }
+
+      // General ISO question
+      const [merchants, residuals] = await Promise.all([
+        sbGet(`merchants?select=status&current_iso_id=eq.${isoId}&limit=500`),
+        sbGet(`residuals?select=report_month,paydiversenet&iso_id=eq.${isoId}&order=report_month.desc&limit=200`)
+      ]);
+      const active = merchants.filter(m => m.status === "active").length;
+      const totalNet = residuals.reduce((s,r) => s+(r.paydiversenet||0), 0);
+      const months = [...new Set(residuals.map(r => r.report_month))];
+      return `**${isoName} -- Summary**\n\nMerchants: ${merchants.length} total (${active} active)\nAll-Time Net Income: ${fmtK(totalNet)}\nMonths with Data: ${months.length}`;
+    }
+
+    // No specific ISO detected -- use keyword routing
     if (q.includes("iso") || q.includes("processor")) return fetchData("iso", "");
     if (q.includes("pay") || q.includes("receiv") || q.includes("collect")) return fetchData("payments", "");
     if (q.includes("merchant") || q.includes("mid")) return fetchData("merchants", "");
     if (q.includes("revenue") || q.includes("income") || q.includes("residual") || q.includes("earn")) return fetchData("revenue", "");
     if (q.includes("overdue") || q.includes("late") || q.includes("miss")) return fetchData("overdue", "");
-    return `I couldn't find a specific answer for that question. Try one of the categories:\n\n- ISO Performance\n- Payments & Collections\n- Merchants\n- Revenue Summary\n- Overdue Alerts\n\nOr rephrase with keywords like "ISO", "payments", "merchants", "revenue", or "overdue".`;
+    return `I couldn't find a specific answer for that question. Try one of the categories:\n\n- ISO Performance\n- Payments & Collections\n- Merchants\n- Revenue Summary\n- Overdue Alerts\n\nOr mention a specific ISO name (e.g. "How many merchants does Maverick have?")`;
   }
   return "Please select a category.";
 }
