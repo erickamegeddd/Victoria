@@ -24,12 +24,24 @@ const RevenuePerMidPage = () => {
     if (data) setIsos(data);
   };
 
+  const fetchAllRows = async (baseQuery) => {
+    let all = [], from = 0;
+    while (true) {
+      const { data: batch } = await baseQuery.range(from, from + 999);
+      if (!batch || batch.length === 0) break;
+      all = all.concat(batch);
+      if (batch.length < 1000) break;
+      from += 1000;
+    }
+    return all;
+  };
+
   const fetchData = async () => {
     setLoading(true);
-    let q = supabase.from("residuals").select("*,isos(id,name)").order("paydiversenet", { ascending: false });
-    if (selectedIso) q = q.eq("iso_id", selectedIso);
-    if (selectedMonth) q = q.eq("report_month", selectedMonth);
-    const { data: rows } = await q.limit(2000);
+    let base = supabase.from("residuals").select("*,isos(id,name)").order("report_month", { ascending: true });
+    if (selectedIso) base = base.eq("iso_id", selectedIso);
+    if (selectedMonth) base = base.eq("report_month", selectedMonth);
+    const rows = await fetchAllRows(base);
 
     if (!rows) { setLoading(false); return; }
 
