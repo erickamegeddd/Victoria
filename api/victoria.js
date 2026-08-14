@@ -431,7 +431,7 @@ Rules:
       { role: "user", content: question }
     ];
 
-    const MODELS = ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama-3.1-8b-instant"];
+    const MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "gemma2-9b-it"];
     let answer = null;
     let lastError = null;
     for (const model of MODELS) {
@@ -444,7 +444,9 @@ Rules:
       if (groqData.error) {
         lastError = groqData.error.message;
         // Only retry on rate limit errors
-        if (groqData.error.message && groqData.error.message.includes("Rate limit")) continue;
+        // Retry on rate limits or decommissioned model errors, fail fast on auth/other errors
+        const retryable = groqData.error.message && (groqData.error.message.includes("Rate limit") || groqData.error.message.includes("decommissioned") || groqData.error.message.includes("model"));
+        if (retryable) continue;
         return res.status(500).json({ error: groqData.error.message });
       }
       answer = groqData.choices[0].message.content;
