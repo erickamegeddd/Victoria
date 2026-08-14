@@ -85,26 +85,25 @@ const SiderComponent = () => {
           mode="inline"
           items={allMenuItems}
         />
-        {/* Ask Victoria bubble button */}
-        <div
-          onClick={() => setAskOpen(true)}
-          style={{
-            margin:"6px 12px 16px",
-            padding:"7px 14px",
-            borderRadius:24,
-            background:"rgba(124,58,237,0.18)",
-            border:"1px solid rgba(139,92,246,0.32)",
-            cursor:"pointer",
-            display:"flex",
-            alignItems:"center",
-            gap:7,
-            transition:"all 0.18s",
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background="rgba(124,58,237,0.32)"; e.currentTarget.style.borderColor="rgba(139,92,246,0.6)"; }}
-          onMouseLeave={e => { e.currentTarget.style.background="rgba(124,58,237,0.18)"; e.currentTarget.style.borderColor="rgba(139,92,246,0.32)"; }}
-        >
-          <MessageOutlined style={{fontSize:15,color:"#c084fc"}}/>
-          <span style={{fontSize:12,fontWeight:600,color:"rgba(255,255,255,0.82)",letterSpacing:"0.2px"}}>Ask Victoria</span>
+        {/* Ask Victoria floating bubble */}
+        <div style={{display:"flex",justifyContent:"center",marginBottom:16,marginTop:4}}>
+          <div
+            onClick={() => setAskOpen(true)}
+            title="Ask Victoria"
+            style={{
+              width:46,height:46,borderRadius:"50%",
+              background:"#f59e0b",
+              boxShadow:"0 4px 14px rgba(245,158,11,0.45)",
+              cursor:"pointer",
+              display:"flex",alignItems:"center",justifyContent:"center",
+              transition:"all 0.18s",
+              flexDirection:"column",gap:1,
+            }}
+            onMouseEnter={e => { e.currentTarget.style.transform="scale(1.1)"; e.currentTarget.style.boxShadow="0 6px 20px rgba(245,158,11,0.6)"; }}
+            onMouseLeave={e => { e.currentTarget.style.transform="scale(1)"; e.currentTarget.style.boxShadow="0 4px 14px rgba(245,158,11,0.45)"; }}
+          >
+            <MessageOutlined style={{fontSize:18,color:"#fff"}}/>
+          </div>
         </div>
       </div>
       <AskVictoria open={askOpen} onClose={() => setAskOpen(false)} />
