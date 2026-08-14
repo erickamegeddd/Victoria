@@ -28,7 +28,7 @@ const CATEGORIES = [
   { key: "custom", icon: "💬", label: "Ask a question", desc: "Type your own question" },
 ];
 
-async function fetchData(category, customQ) {
+async function fetchData(category, customQ, messages = []) {
   if (category === "iso") {
     const [residuals, isos] = await Promise.all([
       sbGet("residuals?select=iso_id,report_month,paydiversenet,isos(name)&order=report_month.desc&limit=500"),
@@ -162,7 +162,7 @@ const AskVictoria = ({ open, onClose }) => {
     setStep("loading");
     setCustomQ("");
     try {
-      const result = await fetchData("custom", q);
+      const result = await fetchData("custom", q, messages);
       setMessages(prev => [...prev, { role:"victoria", text: result, time: now }]);
       setStep("answer");
     } catch(e) {
