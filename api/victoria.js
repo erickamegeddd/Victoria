@@ -269,9 +269,8 @@ export default async function handler(req, res) {
       };
 
     } else {
-      // General / revenue / time-based — fetch everything
-      let resQuery = "residuals?select=report_month,paydiversenet,gross_volume,gross_revenue,net_revenue,agent_payout,iso_id,isos(name)&order=report_month.asc&limit=2000";
-      if (monthFilter) resQuery += monthFilter.length === 1 ? `&report_month=eq.${monthFilter[0]}` : `&report_month=in.(${monthFilter.join(",")})`;
+      // General / revenue / time-based / analysis — always fetch ALL months
+      const resQuery = "residuals?select=report_month,paydiversenet,gross_volume,gross_revenue,agent_payout,business_name,mid,iso_id,isos(name)&order=report_month.asc&limit=2000";
 
       const [residuals, payments, merchants] = await Promise.all([
         sbGet(resQuery),
@@ -279,7 +278,7 @@ export default async function handler(req, res) {
         sbGet("merchants?select=status,isos(name)&limit=1000")
       ]);
 
-      const byMonth = {}, byISO = {};
+      const byMonth = {}, byISO = {}, merchantByMonth = {};
       residuals.forEach(r => {
         if (!byMonth[r.report_month]) byMonth[r.report_month] = { paydiversenet: 0, gross_volume: 0, gross_revenue: 0, agent_payout: 0 };
         byMonth[r.report_month].paydiversenet += (r.paydiversenet||0);
@@ -287,14 +286,47 @@ export default async function handler(req, res) {
         byMonth[r.report_month].gross_revenue += (r.gross_revenue||0);
         byMonth[r.report_month].agent_payout += (r.agent_payout||0);
         const n = r.isos?.name||"Unknown";
-        if (!byISO[n]) byISO[n] = { net: 0, gross_volume: 0 };
-        byISO[n].net += (r.paydiversenet||0);
-        byISO[n].gross_volume += (r.gross_volume||0);
+        if (!byISO[n]) byISO[n] = {};
+        if (!byISO[n][r.report_month]) byISO[n][r.report_month] = 0;
+        byISO[n][r.report_month] += (r.paydiversenet||0);
+        // Track merchant presence by month
+        const mKey = r.business_name || r.mid || "Unknown";
+        if (!merchantByMonth[mKey]) merchantByMonth[mKey] = {};
+        merchantByMonth[mKey][r.report_month] = (merchantByMonth[mKey][r.report_month]||0) + (r.paydiversenet||0);
       });
 
       const totalNet = Object.values(byMonth).reduce((s,v)=>s+v.paydiversenet,0);
       const totalGrossVol = Object.values(byMonth).reduce((s,v)=>s+v.gross_volume,0);
       const overdue = payments.filter(p=>{ const exp=p.notes?.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/)?.[1]; return !p.received_amount&&exp&&exp<today; });
+
+      // Month-over-month analysis (all ISOs combined)
+      const monthKeys = Object.keys(byMonth).sort();
+      const monthOverMonth = [];
+      for (let i = 1; i < monthKeys.length; i++) {
+        const prev = monthKeys[i-1], curr = monthKeys[i];
+        const netChange = (byMonth[curr]?.paydiversenet||0) - (byMonth[prev]?.paydiversenet||0);
+        // ISO-level changes
+        const isoChanges = Object.entries(byISO).map(([name, months]) => ({
+          iso: name,
+          prev: months[prev]||0,
+          curr: months[curr]||0,
+          change: (months[curr]||0) - (months[prev]||0)
+        })).filter(x => x.prev > 0 || x.curr > 0).sort((a,b)=>a.change-b.change);
+        // Merchant churn
+        const prevMs = new Set(Object.keys(merchantByMonth).filter(k=>merchantByMonth[k][prev]!=null));
+        const currMs = new Set(Object.keys(merchantByMonth).filter(k=>merchantByMonth[k][curr]!=null));
+        const left = [...prevMs].filter(k=>!currMs.has(k)).map(k=>({ name: k, prev_residual: fmtK(merchantByMonth[k][prev]) }));
+        const joined = [...currMs].filter(k=>!prevMs.has(k)).map(k=>({ name: k, new_residual: fmtK(merchantByMonth[k][curr]) }));
+        monthOverMonth.push({
+          from: fmtMonth(prev), to: fmtMonth(curr),
+          paydiversenet_change: fmtK(netChange),
+          direction: netChange >= 0 ? "UP" : "DOWN",
+          biggest_iso_drops: isoChanges.filter(x=>x.change<0).slice(0,5).map(x=>({ iso: x.iso, change: fmtK(x.change), prev: fmtK(x.prev), curr: fmtK(x.curr) })),
+          biggest_iso_gains: isoChanges.filter(x=>x.change>0).slice(-5).reverse().map(x=>({ iso: x.iso, change: fmtK(x.change) })),
+          merchants_left: left.slice(0,10),
+          merchants_joined: joined.slice(0,10)
+        });
+      }
 
       contextData.summary = {
         total_isos: isos.length,
@@ -304,8 +336,9 @@ export default async function handler(req, res) {
         all_time_gross_volume: fmtK(totalGrossVol),
         overdue_payment_count: overdue.length,
         overdue_amount: fmtK(overdue.reduce((s,p)=>s+(p.expected_amount||0),0)),
-        revenue_by_month: Object.entries(byMonth).map(([m,v])=>({ month: fmtMonth(m), paydiversenet: fmtK(v.paydiversenet), gross_volume: fmtK(v.gross_volume), gross_revenue: fmtK(v.gross_revenue), agent_payout: v.agent_payout ? fmtK(v.agent_payout) : null })),
-        top_isos: Object.entries(byISO).sort((a,b)=>b[1].net-a[1].net).map(([n,v])=>({ iso: n, paydiversenet: fmtK(v.net), gross_volume: fmtK(v.gross_volume) }))
+        revenue_by_month: Object.entries(byMonth).map(([m,v])=>({ month: fmtMonth(m), paydiversenet: fmtK(v.paydiversenet), gross_volume: fmtK(v.gross_volume), gross_revenue: fmtK(v.gross_revenue) })),
+        top_isos_all_time: Object.entries(byISO).map(([n,months])=>({ iso: n, total: fmtK(Object.values(months).reduce((s,v)=>s+v,0)) })).sort((a,b)=>parseFloat(b.total.replace(/[$KM,]/g,""))-parseFloat(a.total.replace(/[$KM,]/g,""))).slice(0,10),
+        month_over_month_analysis: monthOverMonth
       };
     }
 
