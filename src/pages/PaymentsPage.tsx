@@ -17,7 +17,7 @@ const PaymentsPage = () => {
   const [isos, setIsos] = useState([]);
   const [residuals, setResiduals] = useState([]);
   const [payments, setPayments] = useState([]);
-  const [selectedMonth, setSelectedMonth] = useState(dayjs().startOf('month').format('YYYY-MM-DD'));
+  const [selectedMonth, setSelectedMonth] = useState('2026-06-01'); // last month with residuals data
   const [paymentModal, setPaymentModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
   const [paymentForm, setPaymentForm] = useState({received_amount:'',payment_date:'',expected_date:'',payment_method:'',notes:''});
@@ -81,7 +81,7 @@ const PaymentsPage = () => {
   const totalReceived=payments.reduce((s,p)=>s+(p.received_amount||0),0);
   const matched=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return p&&getStatus(i.expected,p.received_amount)==='paid';}).length;
   const shortPaid=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return p&&getStatus(i.expected,p.received_amount)==='short_paid';}).length;
-  const pending=expectedByISO.filter(i=>!getPaymentForISO(i.isoId)).length;
+  const pending=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return !p||p.received_amount==null;}).length;
   const overpaid=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return p&&getStatus(i.expected,p.received_amount)==='overpaid';}).length;
 
   const filteredISOs=activeStatusFilter?expectedByISO.filter(r=>{const p=getPaymentForISO(r.isoId);return getStatus(r.expected,p?.received_amount)===activeStatusFilter;}):expectedByISO;
