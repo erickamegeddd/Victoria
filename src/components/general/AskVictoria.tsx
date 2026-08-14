@@ -140,7 +140,7 @@ async function fetchData(category, customQ) {
         residuals.forEach(r => { const m = r.report_month; if (!byMonth[m]) byMonth[m] = 0; byMonth[m] += (r.paydiversenet || 0); });
         const months = Object.entries(byMonth).sort(([a],[b]) => b.localeCompare(a));
         const total = months.reduce((s,[,v]) => s+v, 0);
-        return `**${isoName} -- Revenue**\n\nAll-Time Net: ${fmtK(total)}\nMonths with Data: ${months.length}\n\n**By Month (latest first):**\n${months.slice(0,6).map(([m,v]) => \`- \${dayjs(m).format("MMM YYYY")}: \${fmtK(v)}\`).join("\n")}`;
+        return `**${isoName} -- Revenue**\n\nAll-Time Net: ${fmtK(total)}\nMonths with Data: ${months.length}\n\n**By Month (latest first):**\n${months.slice(0,6).map(([m,v]) => "- " + dayjs(m).format("MMM YYYY") + ": " + fmtK(v)).join("\n")}`;
       }
 
       // Payment question about a specific ISO
@@ -149,7 +149,7 @@ async function fetchData(category, customQ) {
         if (!payments.length) return `No payment records found for ${isoName}.`;
         const totalExp = payments.reduce((s,p) => s+(p.expected_amount||0), 0);
         const totalRec = payments.reduce((s,p) => s+(p.received_amount||0), 0);
-        return `**${isoName} -- Payments**\n\nTotal Expected: ${fmtK(totalExp)}\nTotal Received: ${fmtK(totalRec)}\nDifference: ${fmtK(totalRec-totalExp)}\n\n**By Month:**\n${payments.slice(0,6).map(p => \`- \${dayjs(p.report_month).format("MMM YYYY")}: expected \${fmtK(p.expected_amount)}, received \${p.received_amount != null ? fmtK(p.received_amount) : "pending"}\`).join("\n")}`;
+        return `**${isoName} -- Payments**\n\nTotal Expected: ${fmtK(totalExp)}\nTotal Received: ${fmtK(totalRec)}\nDifference: ${fmtK(totalRec-totalExp)}\n\n**By Month:**\n${payments.slice(0,6).map(p => "- " + dayjs(p.report_month).format("MMM YYYY") + ": expected " + fmtK(p.expected_amount) + ", received " + (p.received_amount != null ? fmtK(p.received_amount) : "pending")).join("\n")}`;
       }
 
       // General ISO question
