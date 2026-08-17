@@ -416,7 +416,7 @@ Key field definitions:
 - expected_amount: What we expect the ISO to pay us for that month's residuals
 
 Data:
-${JSON.stringify(contextData, null, 2)}
+${JSON.stringify(contextData)}
 
 Rules:
 1. Answer ONLY from the data above. Never fabricate numbers.
@@ -452,7 +452,7 @@ Rules:
         lastError = groqData.error.message;
         // Only retry on confirmed rate limit or decommissioned model errors
         const msg = groqData.error.message || "";
-        const skipToNext = msg.includes("Rate limit") || msg.includes("decommissioned") || msg.includes("does not exist") || msg.includes("do not have access");
+        const skipToNext = msg.includes("Rate limit") || msg.includes("decommissioned") || msg.includes("does not exist") || msg.includes("do not have access") || msg.includes("Entity Too Large") || msg.includes("context_length") || msg.includes("context length") || msg.includes("too long") || groqRes.status === 413;
         if (skipToNext) { lastError = (lastError ? lastError + ' | ' : '') + `${model}: ${msg.slice(0,100)}`; continue; }
         // Auth or other non-skippable error — fail fast
         return res.status(500).json({ error: `Groq error: ${msg}` });
