@@ -384,6 +384,8 @@ export default async function handler(req, res) {
 
       contextData.summary = {
         total_isos: isos.length,
+        active_isos: isos.filter(i => i.status === "active").length,
+        inactive_isos: isos.filter(i => i.status !== "active").length,
         total_merchants: merchants.length,
         active_merchants: merchants.filter(m=>m.status==="active").length,
         all_time_paydiversenet: fmtK(totalNet),
