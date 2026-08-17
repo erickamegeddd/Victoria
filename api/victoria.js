@@ -431,7 +431,7 @@ Rules:
       { role: "user", content: question }
     ];
 
-    const MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "gemma2-9b-it"];
+    const MODELS = ["llama-3.1-8b-instant", "gemma2-9b-it", "llama3-70b-8192", "llama-3.3-70b-versatile"];
     let answer = null;
     let lastError = null;
     for (const model of MODELS) {
@@ -444,11 +444,11 @@ Rules:
       if (groqData.error) {
         lastError = groqData.error.message;
         // Only retry on confirmed rate limit or decommissioned model errors
-        const isRateLimit = groqData.error.message && groqData.error.message.includes("Rate limit");
-        const isDecommissioned = groqData.error.message && groqData.error.message.includes("decommissioned");
-        if (isRateLimit || isDecommissioned) continue;
-        // Any other error (auth, invalid key, etc.) — fail immediately with real message
-        return res.status(500).json({ error: `Groq (${model}): ${groqData.error.message}` });
+        const msg = groqData.error.message || "";
+        const skipToNext = msg.includes("Rate limit") || msg.includes("decommissioned") || msg.includes("does not exist") || msg.includes("do not have access");
+        if (skipToNext) { lastError = `${model}: ${msg.slice(0,120)}`; continue; }
+        // Auth or other non-skippable error — fail fast
+        return res.status(500).json({ error: `Groq error: ${msg}` });
       }
       answer = groqData.choices[0].message.content;
       break;
