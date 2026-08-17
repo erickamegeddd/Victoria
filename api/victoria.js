@@ -430,7 +430,11 @@ Rules:
 
     const groqMessages = [
       { role: "system", content: systemPrompt },
-      ...history.slice(-8),
+      ...history.slice(-6).map(m =>
+        m.role === "assistant" && m.content && m.content.length > 600
+          ? { ...m, content: m.content.slice(0, 600) + "…" }
+          : m
+      ),
       { role: "user", content: question }
     ];
 
