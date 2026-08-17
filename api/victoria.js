@@ -446,14 +446,14 @@ Rules:
         // Only retry on confirmed rate limit or decommissioned model errors
         const msg = groqData.error.message || "";
         const skipToNext = msg.includes("Rate limit") || msg.includes("decommissioned") || msg.includes("does not exist") || msg.includes("do not have access");
-        if (skipToNext) { lastError = `${model}: ${msg.slice(0,120)}`; continue; }
+        if (skipToNext) { lastError = (lastError ? lastError + ' | ' : '') + `${model}: ${msg.slice(0,100)}`; continue; }
         // Auth or other non-skippable error — fail fast
         return res.status(500).json({ error: `Groq error: ${msg}` });
       }
       answer = groqData.choices[0].message.content;
       break;
     }
-    if (!answer) return res.status(500).json({ error: `All models rate limited. Last: ${lastError}` });
+    if (!answer) return res.status(500).json({ error: `All models failed: ${lastError}` });
     return res.json({ answer });
 
   } catch (err) {
