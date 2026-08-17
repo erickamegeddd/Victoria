@@ -461,6 +461,14 @@ Rules:
       break;
     }
     if (!answer) return res.status(500).json({ error: `All models failed: ${lastError}` });
+    // Strip markdown the model may emit despite instructions
+    answer = answer
+      .replace(/\*\*(.*?)\*\*/gs, '$1')   // **bold** → plain
+      .replace(/\*(.*?)\*/gs, '$1')        // *italic* → plain
+      .replace(/^#{1,6}\s+/gm, '')         // # headers → removed
+      .replace(/^\|.*\|.*$/gm, '')         // | table rows | → removed
+      .replace(/\n{3,}/g, '\n\n')          // collapse excess blank lines
+      .trim();
     return res.json({ answer });
 
   } catch (err) {
