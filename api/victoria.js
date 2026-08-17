@@ -1,4 +1,4 @@
-// Victoria AI — Groq backend (v5 — full data coverage, key rotated)
+// Victoria AI — Groq backend (v5 — full data coverage, key rotated Aug 17)
 const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
 const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ1cWZsb2Z1emh5YnV0a2t6cm9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwNDE3NTYsImV4cCI6MjEwMTYxNzc1Nn0.46kKCy_3cY7oKuONb9e2e18yKVNui3oSOzySK33fMFE";
 
