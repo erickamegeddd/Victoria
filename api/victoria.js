@@ -186,8 +186,8 @@ export default async function handler(req, res) {
         total_merchants: merchants.length,
         active_count: active.length,
         inactive_count: inactive.length,
-        active_merchants: active.slice(0,25).map(m => ({ name: m.business_name, mid: m.mid })),
-        inactive_merchants: inactive.slice(0,10).map(m => ({ name: m.business_name, mid: m.mid })),
+        active_merchants: active.slice(0,25).map(m => ({ name: m.business_name, mid: m.mid, vertical: m.vertical, is_startup: m.is_startup, notes: m.notes })),
+        inactive_merchants: inactive.slice(0,10).map(m => ({ name: m.business_name, mid: m.mid, notes: m.notes })),
         all_time_paydiversenet: fmtK(allTimeNet),
         months_with_data: Object.keys(byMonth).map(fmtMonth),
         revenue_by_month: Object.entries(byMonth).map(([m,v]) => ({
@@ -202,7 +202,7 @@ export default async function handler(req, res) {
           rank: i+1, merchant: name, mid: d.mid, total_paydiversenet: fmtK(d.net),
           total_gross_volume: fmtK(d.gross_volume), months_active: d.months.size
         })),
-        month_over_month_analysis: monthOverMonth.slice(0,3),
+        month_over_month_analysis: monthOverMonth,
         payments: payments.map(p => ({
           month: fmtMonth(p.report_month),
           expected: fmtK(p.expected_amount),
@@ -440,7 +440,7 @@ Rules:
       const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: { "Authorization": `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model, messages: groqMessages, temperature: 0.1, max_tokens: 800 })
+        body: JSON.stringify({ model, messages: groqMessages, temperature: 0.1, max_tokens: 1500 })
       });
       const groqData = await groqRes.json();
       if (groqData.error) {
