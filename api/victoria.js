@@ -425,7 +425,8 @@ Rules:
 4. "paydiversenet" is PayDiverse's earnings — use this for revenue/income questions.
 5. If asked about a specific month and data exists, show it.
 6. Be concise and direct. No filler phrases.
-7. If asked about something not in the data (e.g. Jul–Dec 2026 residuals), say the data is not yet available.`;
+7. If asked about something not in the data (e.g. Jul–Dec 2026 residuals), say the data is not yet available.
+8. FORMATTING — plain text only: use "- item" bullet points, never markdown tables (no | pipes |), never **bold** or *italic* stars, never # headers. Write numbers and labels inline (e.g. "Finns: -$12.97K").`;
 
     const groqMessages = [
       { role: "system", content: systemPrompt },
