@@ -426,13 +426,13 @@ Rules:
 5. If asked about a specific month and data exists, show it.
 6. Be concise and direct. No filler phrases.
 7. If asked about something not in the data (e.g. Jul–Dec 2026 residuals), say the data is not yet available.
-8. FORMATTING — plain text only: use "- item" bullet points, never markdown tables (no | pipes |), never **bold** or *italic* stars, never # headers. Write numbers and labels inline (e.g. "Finns: -$12.97K").`;
+8. CRITICAL FORMATTING: plain text only. Do NOT write ** or * around any word. Do NOT use | pipe characters. Do NOT write # headers. Use only "- " for bullet points. Write names and numbers inline like "Finns: -$12.97K", not in a table or bold.`;
 
     const groqMessages = [
       { role: "system", content: systemPrompt },
-      ...history.slice(-6).map(m =>
-        m.role === "assistant" && m.content && m.content.length > 600
-          ? { ...m, content: m.content.slice(0, 600) + "…" }
+      ...history.slice(-4).map(m =>
+        m.role === "assistant" && m.content && m.content.length > 400
+          ? { ...m, content: m.content.slice(0, 400) + "…" }
           : m
       ),
       { role: "user", content: question }
