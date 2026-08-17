@@ -443,16 +443,17 @@ Rules:
       const groqData = await groqRes.json();
       if (groqData.error) {
         lastError = groqData.error.message;
-        // Only retry on rate limit errors
-        // Retry on rate limits or decommissioned model errors, fail fast on auth/other errors
-        const retryable = groqData.error.message && (groqData.error.message.includes("Rate limit") || groqData.error.message.includes("decommissioned") || groqData.error.message.includes("model"));
-        if (retryable) continue;
-        return res.status(500).json({ error: groqData.error.message });
+        // Only retry on confirmed rate limit or decommissioned model errors
+        const isRateLimit = groqData.error.message && groqData.error.message.includes("Rate limit");
+        const isDecommissioned = groqData.error.message && groqData.error.message.includes("decommissioned");
+        if (isRateLimit || isDecommissioned) continue;
+        // Any other error (auth, invalid key, etc.) — fail immediately with real message
+        return res.status(500).json({ error: `Groq (${model}): ${groqData.error.message}` });
       }
       answer = groqData.choices[0].message.content;
       break;
     }
-    if (!answer) return res.status(500).json({ error: "All AI models are rate limited. Please try again in a few minutes." });
+    if (!answer) return res.status(500).json({ error: `All models rate limited. Last: ${lastError}` });
     return res.json({ answer });
 
   } catch (err) {
