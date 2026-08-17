@@ -438,7 +438,7 @@ Rules:
       { role: "user", content: question }
     ];
 
-    const MODELS = ["openai/gpt-oss-120b", "groq/compound", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"];
+    const MODELS = ["openai/gpt-oss-120b", "groq/compound", "openai/gpt-oss-20b"];
     let answer = null;
     let lastError = null;
     for (const model of MODELS) {
@@ -461,6 +461,8 @@ Rules:
       break;
     }
     if (!answer) return res.status(500).json({ error: `All models failed: ${lastError}` });
+    // Strip thinking blocks (Qwen 3 and other reasoning models expose <think>...</think>)
+    answer = answer.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
     // Strip markdown the model may emit despite instructions
     answer = answer
       .replace(/\*\*(.*?)\*\*/gs, '$1')   // **bold** → plain
