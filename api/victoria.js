@@ -83,7 +83,9 @@ export default async function handler(req, res) {
 
   const today = new Date().toISOString().split("T")[0];
   const fullContext = [...history.map(m => m.content || ""), question].join(" ").toLowerCase();
-  const monthFilter = detectMonthFilter(fullContext);
+  // Check current question first for month — history may contain months from prior questions
+  // that would incorrectly override the current intent (e.g. "How much Feb?" → "How much March?")
+  const monthFilter = detectMonthFilter(question.toLowerCase()) || detectMonthFilter(fullContext);
   // For analysis/comparison questions, ignore month filter so we can compare across months
   const isAnalysisQ = /why|how come|reason|went down|went up|decrease|increase|drop|chang|trend|compar|differ|less than|more than|previous|last month|versus|vs\./.test(fullContext);
 
