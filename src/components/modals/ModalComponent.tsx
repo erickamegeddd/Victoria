@@ -283,7 +283,10 @@ const ModalComponent: React.FC<ModalComponentProps> = ({
     return true;
   };
 
-  if (isoError || corpError || agentError || operatingPartnerError) message.error("Error fetching data");
+  // Error reporting moved to useEffect to avoid side effect during render
+  useEffect(() => {
+    if (isoError || corpError || agentError || operatingPartnerError) message.error("Error fetching data");
+  }, [isoError, corpError, agentError, operatingPartnerError]);
 
   return (
     <>
