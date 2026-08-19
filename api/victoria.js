@@ -40,6 +40,122 @@ function fmtMonth(m) {
   const d = new Date(m + (m.length === 7 ? "-01" : ""));
   return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
+// ── Agent commission map (mirrors api/_agentMap.js) ──────────────────────────
+const AGENT_MAP = {
+  "Brian Miller": [
+    { mid: "6322970303054495", pct: 25 },
+    { mid: "201100029389",     pct: 25 },
+    { mid: "301128356190",     pct: 25 },
+    { mid: "970100005349",     pct: 25 },
+  ],
+  "Drew Ukapbi": [
+    { mid: "85543291507",      pct: 25 },
+    { mid: "016233303005",     pct: 25 },
+    { mid: "086993303104",     pct: 25 },
+    { mid: "201100313023",     pct: 25 },
+    { mid: "201100313015",     pct: 25 },
+    { mid: "937500000052639",  pct: 25 },
+    { mid: "937500000052621",  pct: 25 },
+    { mid: "8739759987787143", pct: 25 },
+    { mid: "8739785911030320", pct: 25 },
+    { mid: "002081335951",     pct: 25 },
+  ],
+  "Michelle W Breier": [
+    { mid: "134751",           pct: 25    },
+    { mid: "30110847657",      pct: 25    },
+    { mid: "40110375519",      pct: 25    },
+    { mid: "40110423921",      pct: 25    },
+    { mid: "40111744200",      pct: 18    },
+    { mid: "50110094839",      pct: 18.75 },
+    { mid: "50110214619",      pct: 25    },
+    { mid: "520003548246",     pct: 33.33 },
+    { mid: "941000137678",     pct: 18    },
+    { mid: "926700017431398",  pct: 33.33 },
+    { mid: "926700149318205",  pct: 33.33 },
+    { mid: "926700416741292",  pct: 90    },
+    { mid: "998300034884",     pct: 33.33 },
+    { mid: "700257",           pct: 33.33 },
+    { mid: "580400000002212",  pct: 33.33 },
+    { mid: "633200000177278",  pct: 33.33 },
+    { mid: "8034751340",       pct: 33.33 },
+    { mid: "998300008813",     pct: 25    },
+    { mid: "998300028357",     pct: 18, until: "2026-04-01" },
+  ],
+  "Claudia Perez": [],
+  "Tiffany Hoffman": [
+    { mid: "30119824509", pct: 10 },
+  ],
+  "Meghan Anderson": [
+    { mid: "567000000860502", pct: 25 },
+    { mid: "5160041877686",   pct: 25 },
+    { mid: "941000137750",    pct: 25 },
+  ],
+  "Pedro Teixeira Payinsight": [
+    { mid: "002327562203", pct: 30 },
+  ],
+};
+
+// Compute per-agent payouts for one or more months (YYYY-MM-01 strings)
+async function computeAgentPayouts(months) {
+  const monthArr = Array.isArray(months) ? months : [months];
+  // Collect all unique MIDs active in any of the requested months
+  const allMids = new Set();
+  const agentConfig = {};
+  for (const [agentName, merchants] of Object.entries(AGENT_MAP)) {
+    agentConfig[agentName] = {};
+    for (const m of monthArr) {
+      agentConfig[agentName][m] = merchants.filter(e => !e.until || e.until >= m);
+      agentConfig[agentName][m].forEach(e => allMids.add(e.mid));
+    }
+  }
+  if (allMids.size === 0) return [];
+
+  // Fetch residuals for all MIDs across all requested months in one pass
+  const midList = [...allMids].join(",");
+  const monthFilter = monthArr.length === 1
+    ? `&report_month=eq.${monthArr[0]}`
+    : `&report_month=in.(${monthArr.join(",")})`;
+  const rows = await sbGet(
+    `residuals?select=mid,paydiversenet,business_name,report_month&mid=in.(${midList})${monthFilter}&limit=5000`
+  );
+  if (!Array.isArray(rows)) return [];
+
+  // Build mid → { month → net } and mid → name maps
+  const netByMidMonth = {};
+  const nameByMid = {};
+  rows.forEach(r => {
+    if (!netByMidMonth[r.mid]) netByMidMonth[r.mid] = {};
+    netByMidMonth[r.mid][r.report_month] = (netByMidMonth[r.mid][r.report_month] || 0) + (r.paydiversenet || 0);
+    if (!nameByMid[r.mid] && r.business_name) nameByMid[r.mid] = r.business_name;
+  });
+
+  // Compute per-agent totals
+  return Object.entries(AGENT_MAP).map(([agentName, merchants]) => {
+    let totalPayout = 0;
+    const breakdown = [];
+    for (const m of monthArr) {
+      const active = merchants.filter(e => !e.until || e.until >= m);
+      active.forEach(({ mid, pct }) => {
+        const net = (netByMidMonth[mid] && netByMidMonth[mid][m]) || 0;
+        const earning = net * pct / 100;
+        totalPayout += earning;
+        if (net > 0) {
+          breakdown.push({
+            month: fmtMonth(m),
+            mid,
+            merchant: nameByMid[mid] || mid,
+            paydiversenet: fmtK(net),
+            pct: `${pct}%`,
+            agent_earning: fmtK(earning)
+          });
+        }
+      });
+    }
+    return { agent: agentName, total_payout: fmtK(totalPayout), _raw: totalPayout, merchant_breakdown: breakdown };
+  }).sort((a, b) => b._raw - a._raw);
+}
+
+
 
 // Map quarter/month keywords to YYYY-MM-DD report_month values
 function detectMonthFilter(ctx) {
@@ -88,6 +204,8 @@ export default async function handler(req, res) {
   const monthFilter = detectMonthFilter(question.toLowerCase()) || detectMonthFilter(fullContext);
   // For analysis/comparison questions, ignore month filter so we can compare across months
   const isAnalysisQ = /why|how come|reason|went down|went up|decrease|increase|drop|chang|trend|compar|differ|less than|more than|previous|last month|versus|vs\./.test(fullContext);
+  const agentNames = Object.keys(AGENT_MAP).map(n => n.toLowerCase());
+  const isAgentQuestion = (fullContext.includes("agent") || agentNames.some(n => fullContext.includes(n.split(" ")[0]) && n.split(" ")[0].length > 3)) && (fullContext.includes("paid") || fullContext.includes("payout") || fullContext.includes("earn") || fullContext.includes("commission") || fullContext.includes("highest") || fullContext.includes("most") || fullContext.includes("who") || fullContext.includes("how much") || fullContext.includes("top") || fullContext.includes("amount") || fullContext.includes("residual") || fullContext.includes("total") || fullContext.includes("rank"));
 
   try {
     const isos = await sbGet("isos?select=id,name,status&limit=100");
@@ -101,7 +219,7 @@ export default async function handler(req, res) {
     let contextData = {
       iso_list: isos.map(i => i.name).join(", "),
       today,
-      data_available: "Residuals: January 2026 through July 2026. Payments: Jan 2026 through Aug 2026.",
+      data_available: "Residuals: Jan 2026 through Jul 2026. Payments: Jan 2026 through Aug 2026. Agents: Brian Miller, Drew Ukapbi, Michelle W Breier, Meghan Anderson, Tiffany Hoffman, Claudia Perez, Pedro Teixeira Payinsight — payouts computed from residuals × commission %.",
       field_guide: {
         gross_volume: "Total transaction $ volume processed by the merchant",
         gross_revenue: "Processor revenue (fees charged to merchant)",
@@ -324,6 +442,29 @@ export default async function handler(req, res) {
         }))
       };
 
+    } else if (isAgentQuestion) {
+      // ── Agent payout computation ──────────────────────────────────────────
+      const targetMonths = (monthFilter && monthFilter.length > 0 && !isAnalysisQ)
+        ? monthFilter
+        : ["2026-07-01"]; // default to latest available month
+      const payouts = await computeAgentPayouts(targetMonths);
+      const period = targetMonths.map(fmtMonth).join(", ");
+
+      // Check if a specific agent is named
+      const namedAgent = Object.keys(AGENT_MAP).find(n =>
+        fullContext.includes(n.toLowerCase()) ||
+        fullContext.includes(n.split(" ")[0].toLowerCase())
+      );
+
+      contextData.agent_payouts = {
+        period,
+        note: "Payout = (commission %) × (PayDiverse net residual for that MID). Data reflects residuals in the Supabase residuals table for those months.",
+        ranked_agents: payouts.map(({ _raw, ...rest }) => rest),
+        highlighted_agent: namedAgent
+          ? payouts.find(p => p.agent === namedAgent)
+          : undefined
+      };
+
     } else {
       // General / revenue / time-based / analysis — always fetch ALL months
       const resQuery = "residuals?select=report_month,paydiversenet,gross_volume,gross_revenue,agent_payout,business_name,mid,iso_id,isos(name)&order=report_month.asc";
@@ -407,7 +548,7 @@ export default async function handler(req, res) {
     const systemPrompt = `You are Victoria, an intelligent data assistant for PayDiverse — a payment facilitator that manages ISO residuals and merchant accounts.
 
 Today: ${today}
-Data coverage: Residuals Jan 2026–Jul 2026 | Payments Jan 2026–Aug 2026 | Merchants: 478 total
+Data coverage: Residuals Jan 2026–Jul 2026 | Payments Jan 2026–Aug 2026 | Merchants: 478 total | Agents: 7 agents with commission-based payouts
 
 Key field definitions:
 - gross_volume: Total $ transaction volume processed by merchant
@@ -416,6 +557,7 @@ Key field definitions:
 - paydiversenet: PayDiverse's net income (what we actually earn)
 - agent_payout: Amount paid to referring agent
 - expected_amount: What we expect the ISO to pay us for that month's residuals
+- agent_payout in context: Computed as (agent commission %) × (paydiversenet for their MIDs). Agents: Brian Miller, Drew Ukapbi, Michelle W Breier, Meghan Anderson, Tiffany Hoffman, Claudia Perez (no active MIDs), Pedro Teixeira Payinsight.
 
 Data:
 ${JSON.stringify(contextData)}
