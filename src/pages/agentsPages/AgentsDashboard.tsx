@@ -126,6 +126,9 @@ const AgentsDashboard = () => {
             onChange={onChange}
             picker="month"
             defaultValue={dayjs()}
+            size="large"
+            style={{ width: 220 }}
+            format="MMMM YYYY"
           />
         </Col>
       </Row>
