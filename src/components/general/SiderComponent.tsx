@@ -68,12 +68,12 @@ const SiderComponent = () => {
   const isInAdmin = adminPaths.some(p => currentPath.startsWith(p));
 
   return (
-    <div style={{paddingTop:8,height:"100%",display:"flex",flexDirection:"column",position:"relative"}}>
+    <div style={{height:"100%",display:"flex",flexDirection:"column",justifyContent:"center",position:"relative"}}>
 
         <Menu
           onClick={onClick}
           theme="dark"
-          style={{background:"transparent",border:"none",flex:1,overflowY:"auto"}}
+          style={{background:"transparent",border:"none",overflowY:"auto"}}
           selectedKeys={[matchKey(currentPath)||currentPath]}
           defaultOpenKeys={isInAdmin ? ["admin"] : []}
           mode="inline"
