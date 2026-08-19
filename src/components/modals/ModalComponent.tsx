@@ -365,7 +365,7 @@ const ModalComponent: React.FC<ModalComponentProps> = ({
                 value={editField}
                 onChange={(v) => {
                   setEditField(v);
-                  setEditNewValue((editRow?6[v] as number) ?? 0);
+                  setEditNewValue((editRow?.[v] as number) ?? 0);
                 }}
                 options={ADJUSTABLE_FIELDS}
                 style={{ width: "100%" }}
