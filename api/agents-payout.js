@@ -16,13 +16,14 @@ async function computeAgentPayout(agentName, merchants, date) {
   const active = merchants.filter((m) => !m.until || m.until >= date);
   if (active.length === 0) return 0;
 
-  // Fetch deleted-row markers for this agent/month
-  const deletedRes = await sbGet(
-    `agent_adjustments?select=mid&agent_name=eq.${encodeURIComponent(agentName)}&report_month=eq.${date}&field_name=eq.deleted_row&limit=500`
-  );
-  const deletedMids = new Set(
-    Array.isArray(deletedRes) ? deletedRes.map((r) => r.mid).filter(Boolean) : []
-  );
+  // Fetch deleted-row markers — wrapped in try/catch so failures don't block payout calc
+  let deletedMids = new Set();
+  try {
+    const deletedRes = await sbGet(
+      `agent_adjustments?select=mid&agent_name=eq.${encodeURIComponent(agentName)}&report_month=eq.${date}&field_name=eq.deleted_row&limit=500`
+    );
+    deletedMids = new Set(Array.isArray(deletedRes) ? deletedRes.map((r) => r.mid).filter(Boolean) : []);
+  } catch { /* table may not exist yet or SELECT policy missing — skip */ }
 
   // Exclude deleted MIDs
   const filteredActive = active.filter((m) => !deletedMids.has(m.mid));
@@ -55,13 +56,19 @@ export default async function handler(req, res) {
   if (!date) return res.status(400).json({ error: "date is required" });
 
   // Run per-agent queries in parallel so each agent uses only its own MIDs.
-  // This guarantees the total matches the detail view (each-agent-data endpoint).
-  const results = await Promise.all(
-    Object.entries(AGENT_MAP).map(async ([agent_name, merchants]) => {
-      const total_payout = await computeAgentPayout(agent_name, merchants, date);
-      return { agent_name, total_payout: Math.round(total_payout * 100) / 100 };
-    })
-  );
-
-  return res.json(results);
+  try {
+    const results = await Promise.all(
+      Object.entries(AGENT_MAP).map(async ([agent_name, merchants]) => {
+        try {
+          const total_payout = await computeAgentPayout(agent_name, merchants, date);
+          return { agent_name, total_payout: Math.round(total_payout * 100) / 100 };
+        } catch {
+          return { agent_name, total_payout: 0 };
+        }
+      })
+    );
+    return res.json(results);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
 }
