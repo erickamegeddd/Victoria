@@ -21,9 +21,8 @@ const AgentsDashboard = () => {
     dayjs().format("YYYY-MM-01")
   );
 
-  const onChange: DatePickerProps["onChange"] = (_, dateString) => {
-    const formattedDate = `${dateString}-01`;
-    setDate(formattedDate);
+  const onChange: DatePickerProps["onChange"] = (dayjsObj) => {
+    if (dayjsObj) setDate(dayjsObj.format("YYYY-MM-01"));
   };
 
   const fetchAgentData = async (
