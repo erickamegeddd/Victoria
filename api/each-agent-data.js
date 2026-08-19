@@ -24,7 +24,19 @@ export default async function handler(req, res) {
   );
   if (merchants.length === 0) return res.json([]);
 
-  const mids = merchants.map((m) => m.mid);
+  // Fetch deleted-row markers for this agent/month
+  const deletedRes = await sbGet(
+    `agent_adjustments?select=mid&agent_name=eq.${encodeURIComponent(agent_name)}&report_month=eq.${date}&field_name=eq.deleted_row&limit=500`
+  );
+  const deletedMids = new Set(
+    Array.isArray(deletedRes) ? deletedRes.map((r) => r.mid).filter(Boolean) : []
+  );
+
+  // Exclude deleted MIDs
+  const activeMerchants = merchants.filter((m) => !deletedMids.has(m.mid));
+  if (activeMerchants.length === 0) return res.json([]);
+
+  const mids = activeMerchants.map((m) => m.mid);
   const rows = await sbGet(
     `residuals?select=mid,business_name,gross_revenue,paydiversenet,isos(name)&mid=in.(${mids.join(",")})&report_month=eq.${date}&limit=5000`
   );
