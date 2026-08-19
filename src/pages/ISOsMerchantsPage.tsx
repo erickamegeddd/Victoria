@@ -180,7 +180,7 @@ const ISOsMerchantsPage = () => {
         ? row.merchants.filter(m => filter === "active" ? m.status === "active" : m.status !== "active")
         : row.merchants;
       return (
-        <div style={{ padding: "14px 16px", background: "#f8fafc", borderTop: "1px solid var(--line-color)" }}>
+        <div style={{ padding: "14px 16px", background: "#fffbeb", borderTop: "3px solid #f59e0b", borderLeft: "3px solid #f59e0b" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
             <Text style={{ fontSize: 12, color: "var(--muted-color)", marginRight: 4 }}>Filter:</Text>
             {[
