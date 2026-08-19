@@ -1,11 +1,10 @@
-import { Col, Row, DatePicker } from "antd";
+import { DatePicker } from "antd";
 import type { DatePickerProps } from "antd";
 import { useState } from "react";
 import dayjs from "dayjs";
 import AgentsPayoutBarChart from "../components/charts/AgentsPayoutBarChart";
 import AgentsCardsComponent from "../components/cards/AgentsCardsComponent";
 import RevenuePerAgentTable from "../components/tables/RevenuePerAgentTable";
-// import AgentsMidList from "../components/AgentsMidList";
 
 const AgentsPage = () => {
   const [date, setDate] = useState<string | string[]>(
@@ -16,36 +15,28 @@ const AgentsPage = () => {
     const formattedDate = `${dateString}-01`;
     setDate(formattedDate);
   };
+
   return (
     <>
-      <Row justify="end">
-        <Col xs={24} sm={24} md={12} lg={6}>
-          <DatePicker
-            onChange={onChange}
-            picker="month"
-            defaultValue={dayjs().subtract(2, "months")}
-          />
-        </Col>
-      </Row>
+      {/* Date picker — large, flush to the right */}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
+        <DatePicker
+          onChange={onChange}
+          picker="month"
+          defaultValue={dayjs().subtract(2, "months")}
+          size="large"
+          style={{ width: 220 }}
+          format="MMMM YYYY"
+        />
+      </div>
+
       <AgentsCardsComponent date={date} />
-      <Row>
-        <Col>
-          <h2>Revenue Per Agent</h2>
-        </Col>
-      </Row>
+
+      <h2 style={{ marginTop: 24 }}>Revenue Per Agent</h2>
       <RevenuePerAgentTable date={date} />
-      <Row>
-        <Col>
-          <h2>Agents Total Payout</h2>
-        </Col>
-      </Row>
+
+      <h2 style={{ marginTop: 24 }}>Agents Total Payout</h2>
       <AgentsPayoutBarChart date={date} />
-      {/* <Row>
-        <Col>
-          <h2>Agents MIDs List</h2>
-        </Col>
-      </Row>
-      <AgentsMidList /> */}
     </>
   );
 };
