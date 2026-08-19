@@ -6,6 +6,7 @@ import {
   InputNumber,
   message,
   Modal,
+  Popconfirm,
   Row,
   Select,
   Switch,
@@ -23,7 +24,7 @@ import {
   isoColumns,
   operatingPartnerColumns,
 } from "./ModalComponentColumns";
-import { DownloadOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
+import { DeleteOutlined, DownloadOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
 import * as XLSX from "xlsx";
 import dayjs from "dayjs";
 import { FilterValue, SorterResult } from "antd/es/table/interface";
@@ -81,6 +82,7 @@ const ModalComponent: React.FC<ModalComponentProps> = ({
   const [addRowOpen, setAddRowOpen] = useState(false);
   const [addingRow, setAddingRow] = useState(false);
   const [customRows, setCustomRows] = useState<any[]>([]);
+  const [hiddenApiKeys, setHiddenApiKeys] = useState<Set<string>>(new Set());
   const [newRowData, setNewRowData] = useState({
     iso: "", operating_partner: "", dba: "", corporation: "", mid: "",
     paydiverse_residual: 0, total_residual: 0, agent_percentage: "0", agent_payout: 0,
@@ -123,7 +125,11 @@ const ModalComponent: React.FC<ModalComponentProps> = ({
     const rowOverrides = overrides[row.mid];
     return rowOverrides ? { ...row, ...rowOverrides } : row;
   });
-  const combinedAgentData = [...(agentDisplayData || []), ...customRows];
+  const getApiRowKey = (r: any) => `${r.mid || ""}||${r.iso || ""}`;
+  const combinedAgentData = [
+    ...(agentDisplayData || []).filter(r => !hiddenApiKeys.has(getApiRowKey(r))),
+    ...customRows,
+  ];
 
   // Load custom rows added manually
   const loadCustomRows = async () => {
@@ -180,13 +186,24 @@ const ModalComponent: React.FC<ModalComponentProps> = ({
   };
 
   const editActionColumn = {
-    key: "edit_action", title: "", width: "50px",
+    key: "edit_action", title: "", width: "80px",
     render: (_: any, record: any) => (
-      record.__custom ? null : (
-        <Button size="small" type="text" icon={<EditOutlined style={{ color: "#1890ff" }} />}
-          onClick={() => { setEditRow(record); setEditField("paydiverse_residual"); setEditNewValue(record.paydiverse_residual ?? 0); setEditNoteText(""); }}
-        />
-      )
+      <div style={{ display: "flex", gap: 2 }}>
+        {!record.__custom && (
+          <Button size="small" type="text" icon={<EditOutlined style={{ color: "#1890ff" }} />}
+            onClick={() => { setEditRow(record); setEditField("paydiverse_residual"); setEditNewValue(record.paydiverse_residual ?? 0); setEditNoteText(""); }}
+          />
+        )}
+        <Popconfirm
+          title={record.__custom ? "Delete this row?" : "Remove from view?"}
+          description={record.__custom ? "Permanently removes this custom row." : "Hides this row for this session."}
+          onConfirm={() => handleDeleteRow(record)}
+          okText="Yes" cancelText="No"
+          okButtonProps={{ danger: true }}
+        >
+          <Button size="small" type="text" icon={<DeleteOutlined style={{ color: "#ff4d4f" }} />} />
+        </Popconfirm>
+      </div>
     ),
   };
   const agentTableColumns = [...agentColumns, editActionColumn];
