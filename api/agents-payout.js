@@ -10,6 +10,29 @@ async function sbGet(path) {
   return res.json();
 }
 
+// Computes payout for a single agent using the same query approach as each-agent-data.
+// This guarantees the overview and detail totals match exactly.
+async function computeAgentPayout(agentName, merchants, date) {
+  const active = merchants.filter((m) => !m.until || m.until >= date);
+  if (active.length === 0) return 0;
+
+  const mids = [...new Set(active.map((m) => m.mid))];
+  const rows = await sbGet(
+    `residuals?select=mid,paydiversenet&mid=in.(${mids.join(",")})&report_month=eq.${date}&limit=5000`
+  );
+  if (!Array.isArray(rows)) return 0;
+
+  const netByMid = {};
+  rows.forEach((r) => {
+    netByMid[r.mid] = (netByMid[r.mid] || 0) + (r.paydiversenet || 0);
+  });
+
+  return active.reduce(
+    (sum, { mid, pct }) => sum + (netByMid[mid] || 0) * pct / 100,
+    0
+  );
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
@@ -19,31 +42,14 @@ export default async function handler(req, res) {
   const { date } = req.query;
   if (!date) return res.status(400).json({ error: "date is required" });
 
-  // Collect all MIDs active for this date across all agents
-  const allMids = [...new Set(
-    Object.values(AGENT_MAP).flat()
-      .filter((m) => !m.until || m.until >= date)
-      .map((m) => m.mid)
-  )];
-
-  if (allMids.length === 0) return res.json([]);
-
-  const rows = await sbGet(
-    `residuals?select=mid,paydiversenet&mid=in.(${allMids.join(",")})&report_month=eq.${date}&limit=5000`
+  // Run per-agent queries in parallel so each agent uses only its own MIDs.
+  // This guarantees the total matches the detail view (each-agent-data endpoint).
+  const results = await Promise.all(
+    Object.entries(AGENT_MAP).map(async ([agent_name, merchants]) => {
+      const total_payout = await computeAgentPayout(agent_name, merchants, date);
+      return { agent_name, total_payout: Math.round(total_payout * 100) / 100 };
+    })
   );
-  if (!Array.isArray(rows)) return res.status(500).json({ error: "DB error" });
 
-  const netByMid = {};
-  rows.forEach((r) => {
-    netByMid[r.mid] = (netByMid[r.mid] || 0) + (r.paydiversenet || 0);
-  });
-
-  const result = Object.entries(AGENT_MAP).map(([agent_name, merchants]) => {
-    const total_payout = merchants
-      .filter((m) => !m.until || m.until >= date)
-      .reduce((sum, { mid, pct }) => sum + (netByMid[mid] || 0) * pct / 100, 0);
-    return { agent_name, total_payout: Math.round(total_payout * 100) / 100 };
-  });
-
-  return res.json(result);
+  return res.json(results);
 }
