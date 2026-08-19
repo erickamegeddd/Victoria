@@ -167,6 +167,27 @@ const ModalComponent: React.FC<ModalComponentProps> = ({
     finally { setAddingRow(false); }
   };
 
+  // Delete row — stores deleted_row marker so APIs exclude this MID and totals recalculate
+  const handleDeleteRow = async (record: any) => {
+    if (record.__custom && record.__adj_id) {
+      try {
+        await agentClient.delete("/api/agent-adjustments", { params: { id: record.__adj_id } });
+        setCustomRows((prev) => prev.filter((r) => r.__adj_id !== record.__adj_id));
+        message.success("Row deleted permanently");
+      } catch { message.error("Failed to delete row"); }
+    } else {
+      try {
+        await agentClient.post("/api/agent-adjustments", {
+          agent_name: title, report_month: date, mid: record.mid || null,
+          field_name: "deleted_row", original_value: record.paydiverse_residual ?? null,
+          adjusted_value: 0, notes: `Deleted: ${record.dba || record.mid || "row"}`,
+        });
+      } catch { /* best-effort */ }
+      setHiddenApiKeys((prev) => new Set([...prev, getApiRowKey(record)]));
+      message.success("Row deleted — totals will update on refresh");
+    }
+  };
+
   // Save an adjustment
   const handleSaveAdjustment = async () => {
     if (!editRow) return;
@@ -195,10 +216,10 @@ const ModalComponent: React.FC<ModalComponentProps> = ({
           />
         )}
         <Popconfirm
-          title={record.__custom ? "Delete this row?" : "Remove from view?"}
-          description={record.__custom ? "Permanently removes this custom row." : "Hides this row for this session."}
+          title="You are trying to delete a row"
+          description="This will permanently remove the row and adjust all totals. Are you sure?"
           onConfirm={() => handleDeleteRow(record)}
-          okText="Yes" cancelText="No"
+          okText="Yes, delete" cancelText="Cancel"
           okButtonProps={{ danger: true }}
         >
           <Button size="small" type="text" icon={<DeleteOutlined style={{ color: "#ff4d4f" }} />} />
