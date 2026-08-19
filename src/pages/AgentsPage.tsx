@@ -52,8 +52,8 @@ const AgentsPage = () => {
   const [adjData, setAdjData] = useState<any[]>([]);
   const [adjLoading, setAdjLoading] = useState(false);
 
-  const onChange: DatePickerProps["onChange"] = (_, dateString) => {
-    setDate(`${dateString}-01`);
+  const onChange: DatePickerProps["onChange"] = (dayjsObj) => {
+    if (dayjsObj) setDate(dayjsObj.format("YYYY-MM-01"));
   };
 
   useEffect(() => {
