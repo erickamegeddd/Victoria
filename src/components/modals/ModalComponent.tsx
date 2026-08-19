@@ -254,14 +254,12 @@ const ModalComponent: React.FC<ModalComponentProps> = ({
                       <Table rowHoverable={false}
                         dataSource={((excludeZeroResiduals ? combinedAgentData?.filter((item: any) => item.paydiverse_residual !== 0 && item?.total_residual !== 0) : combinedAgentData) as any)}
                         className="modal-table" columns={agentTableColumns} scroll={{x: 768}}
-                        rowKey={(record: any) => record.__adj_id ? `custom-${record.__adj_id}` : `${record.mid || 'x'}-${record.iso || 'y'}`}
-                        onRow={(record: any) => ({ style: record.__custom ? { backgroundColor: "#f6ffed", borderLeft: "3px solid #52c41a" } : {} })}
                         onChange={(_pagination: TablePaginationConfig, _filters: Record<string, FilterValue | null>, _sorter: SorterResult<any> | SorterResult<any>[], extra: { currentDataSource?: any[] }) => { setCurrentTableData(extra.currentDataSource || []); }}
                         loading={agentLoading} pagination={{pageSize: 200}}
                         summary={(pageData) => {
                           let agentPayout = 0;
                           pageData.forEach(({ agent_payout }) => { agentPayout += agent_payout || 0; });
-                          return (combinedAgentData?.length > 0 && (
+                          return ((agentData?.length || 0) > 0 && (
                             <Table.Summary.Row className="total-row">
                               <Table.Summary.Cell index={1} colSpan={2}><strong>Total Agent Payout</strong></Table.Summary.Cell>
                               <Table.Summary.Cell index={2}/><Table.Summary.Cell index={3}/><Table.Summary.Cell index={4}/><Table.Summary.Cell index={5}/><Table.Summary.Cell index={6}/><Table.Summary.Cell index={7}/>
