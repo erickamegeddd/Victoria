@@ -24,13 +24,14 @@ export default async function handler(req, res) {
   );
   if (merchants.length === 0) return res.json([]);
 
-  // Fetch deleted-row markers for this agent/month
-  const deletedRes = await sbGet(
-    `agent_adjustments?select=mid&agent_name=eq.${encodeURIComponent(agent_name)}&report_month=eq.${date}&field_name=eq.deleted_row&limit=500`
-  );
-  const deletedMids = new Set(
-    Array.isArray(deletedRes) ? deletedRes.map((r) => r.mid).filter(Boolean) : []
-  );
+  // Fetch deleted-row markers — wrapped in try/catch so failures don't block data fetch
+  let deletedMids = new Set();
+  try {
+    const deletedRes = await sbGet(
+      `agent_adjustments?select=mid&agent_name=eq.${encodeURIComponent(agent_name)}&report_month=eq.${date}&field_name=eq.deleted_row&limit=500`
+    );
+    deletedMids = new Set(Array.isArray(deletedRes) ? deletedRes.map((r) => r.mid).filter(Boolean) : []);
+  } catch { /* skip — table may not exist or SELECT policy missing */ }
 
   // Exclude deleted MIDs
   const activeMerchants = merchants.filter((m) => !deletedMids.has(m.mid));
