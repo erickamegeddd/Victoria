@@ -81,6 +81,7 @@ const ModalComponent: React.FC<ModalComponentProps> = ({
   const [adjLoading, setAdjLoading] = useState(false);
   const [addRowOpen, setAddRowOpen] = useState(false);
   const [addingRow, setAddingRow] = useState(false);
+  const [editingCustomRow, setEditingCustomRow] = useState<any>(null);
   const [customRows, setCustomRows] = useState<any[]>([]);
   const [hiddenApiKeys, setHiddenApiKeys] = useState<Set<string>>(new Set());
   const [newRowData, setNewRowData] = useState({
@@ -152,18 +153,31 @@ const ModalComponent: React.FC<ModalComponentProps> = ({
   // Save new custom row
   const handleSaveNewRow = async () => {
     setAddingRow(true);
+    const resetForm = () => { setAddRowOpen(false); setEditingCustomRow(null); setNewRowData({ iso: "", operating_partner: "", dba: "", corporation: "", mid: "", paydiverse_residual: 0, total_residual: 0, agent_percentage: "0", agent_payout: 0 }); };
     try {
-      await agentClient.post("/api/agent-adjustments", {
-        agent_name: title, report_month: date, mid: newRowData.mid || null,
-        field_name: "new_row", original_value: null,
-        adjusted_value: newRowData.paydiverse_residual,
-        notes: JSON.stringify(newRowData),
-      });
-      setCustomRows((prev) => [...prev, { ...newRowData, __custom: true }]);
-      message.success("Row added");
-      setAddRowOpen(false);
-      setNewRowData({ iso: "", operating_partner: "", dba: "", corporation: "", mid: "", paydiverse_residual: 0, total_residual: 0, agent_percentage: "0", agent_payout: 0 });
-    } catch { message.error("Failed to add row"); }
+      if (editingCustomRow && editingCustomRow.__adj_id) {
+        // Edit: delete old record then create updated one
+        try { await agentClient.delete("/api/agent-adjustments", { params: { id: editingCustomRow.__adj_id } }); } catch { /* ignore */ }
+        await agentClient.post("/api/agent-adjustments", {
+          agent_name: title, report_month: date, mid: newRowData.mid || null,
+          field_name: "new_row", original_value: null,
+          adjusted_value: newRowData.paydiverse_residual, notes: JSON.stringify(newRowData),
+        });
+        setCustomRows((prev) => prev.map((r) =>
+          r.__adj_id === editingCustomRow.__adj_id ? { ...newRowData, __custom: true } : r
+        ));
+        message.success("Row updated");
+      } else {
+        await agentClient.post("/api/agent-adjustments", {
+          agent_name: title, report_month: date, mid: newRowData.mid || null,
+          field_name: "new_row", original_value: null,
+          adjusted_value: newRowData.paydiverse_residual, notes: JSON.stringify(newRowData),
+        });
+        setCustomRows((prev) => [...prev, { ...newRowData, __custom: true }]);
+        message.success("Row added");
+      }
+      resetForm();
+    } catch { message.error("Failed to save row"); }
     finally { setAddingRow(false); }
   };
 
@@ -210,11 +224,17 @@ const ModalComponent: React.FC<ModalComponentProps> = ({
     key: "edit_action", title: "", width: "80px",
     render: (_: any, record: any) => (
       <div style={{ display: "flex", gap: 2 }}>
-        {!record.__custom && (
-          <Button size="small" type="text" icon={<EditOutlined style={{ color: "#1890ff" }} />}
-            onClick={() => { setEditRow(record); setEditField("paydiverse_residual"); setEditNewValue(record.paydiverse_residual ?? 0); setEditNoteText(""); }}
-          />
-        )}
+        <Button size="small" type="text" icon={<EditOutlined style={{ color: "#1890ff" }} />}
+          onClick={() => {
+            if (record.__custom) {
+              setEditingCustomRow(record);
+              setNewRowData({ iso: record.iso||"", operating_partner: record.operating_partner||"", dba: record.dba||"", corporation: record.corporation||"", mid: record.mid||"", paydiverse_residual: record.paydiverse_residual||0, total_residual: record.total_residual||0, agent_percentage: record.agent_percentage||"0", agent_payout: record.agent_payout||0 });
+              setAddRowOpen(true);
+            } else {
+              setEditRow(record); setEditField("paydiverse_residual"); setEditNewValue(record.paydiverse_residual ?? 0); setEditNoteText("");
+            }
+          }}
+        />
         <Popconfirm
           title="You are trying to delete a row"
           description="This will permanently remove the row and adjust all totals. Are you sure?"
@@ -362,9 +382,9 @@ const ModalComponent: React.FC<ModalComponentProps> = ({
       )}
 
       {apiNumber === 3 && (
-        <Modal open={addRowOpen} title="Add Custom Row"
-          onCancel={() => { setAddRowOpen(false); setNewRowData({ iso: "", operating_partner: "", dba: "", corporation: "", mid: "", paydiverse_residual: 0, total_residual: 0, agent_percentage: "0", agent_payout: 0 }); }}
-          onOk={handleSaveNewRow} confirmLoading={addingRow} okText="Add Row" width={520}>
+        <Modal open={addRowOpen} title={editingCustomRow ? "Edit Custom Row" : "Add Custom Row"}
+          onCancel={() => { setAddRowOpen(false); setEditingCustomRow(null); setNewRowData({ iso: "", operating_partner: "", dba: "", corporation: "", mid: "", paydiverse_residual: 0, total_residual: 0, agent_percentage: "0", agent_payout: 0 }); }}
+          onOk={handleSaveNewRow} confirmLoading={addingRow} okText={editingCustomRow ? "Save Changes" : "Add Row"} width={520}>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <Row gutter={12}>
               <Col span={12}><div style={{marginBottom:4,fontWeight:500}}>ISO</div><Input value={newRowData.iso} onChange={e => setNewRowData(p => ({...p, iso: e.target.value}))} placeholder="e.g. Maverick" size="large"/></Col>
