@@ -1,13 +1,18 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   Button,
   Col,
+  Input,
+  InputNumber,
   message,
   Modal,
   Row,
+  Select,
   Switch,
   Table,
   TablePaginationConfig,
+  Tabs,
+  Tag,
 } from "antd";
 import client from "../../utils/axios";
 import agentClient from "../../utils/agentAxios";
@@ -18,10 +23,9 @@ import {
   isoColumns,
   operatingPartnerColumns,
 } from "./ModalComponentColumns";
-import { DownloadOutlined } from "@ant-design/icons";
+import { DownloadOutlined, EditOutlined } from "@ant-design/icons";
 import * as XLSX from "xlsx";
 import dayjs from "dayjs";
-import { useState } from "react";
 import { FilterValue, SorterResult } from "antd/es/table/interface";
 import formatCurrency from "../../utils/formatCurrency";
 
@@ -35,6 +39,23 @@ interface ModalComponentProps {
   adjustmentPrice?: number;
 }
 
+const ADJUSTABLE_FIELDS = [
+  { value: "paydiverse_residual", label: "PayDiverse Residual" },
+  { value: "total_residual", label: "Total Residual" },
+  { value: "agent_payout", label: "Agent Payout" },
+];
+
+const ADJ_HISTORY_COLUMNS: any[] = [
+  { key: "mid", title: "MID", dataIndex: "mid", width: "150px", render: (v: string) => v || <Tag color="default">All</Tag> },
+  { key: "field_name", title: "Field", dataIndex: "field_name", width: "180px",
+    render: (v: string) => ADJUSTABLE_FIELDS.find((f) => f.value === v)?.label ?? v },
+  { key: "original_value", title: "Original", dataIndex: "original_value", width: "130px", render: (v: any) => v != null ? formatCurrency(v) : "—" },
+  { key: "adjusted_value", title: "Adjusted", dataIndex: "adjusted_value", width: "130px", render: formatCurrency },
+  { key: "notes", title: "Notes", dataIndex: "notes", ellipsis: true },
+  { key: "created_at", title: "Date Changed", dataIndex: "created_at", width: "180px",
+    render: (v: string) => dayjs(v).format("MMM DD, YYYY HH:mm") },
+];
+
 const ModalComponent: React.FC<ModalComponentProps> = ({
   isOpen,
   title,
@@ -46,6 +67,18 @@ const ModalComponent: React.FC<ModalComponentProps> = ({
 }) => {
   const [currentTableData, setCurrentTableData] = useState<any[]>([]);
   const [excludeZeroResiduals, setExcludeZeroResiduals] = useState(false);
+
+  // Agent-tab state (apiNumber === 3 only)
+  const [agentActiveTab, setAgentActiveTab] = useState("data");
+  const [editRow, setEditRow] = useState<any>(null);
+  const [editField, setEditField] = useState("paydiverse_residual");
+  const [editNewValue, setEditNewValue] = useState<number>(0);
+  const [editNoteText, setEditNoteText] = useState("");
+  const [savingAdj, setSavingAdj] = useState(false);
+  const [overrides, setOverrides] = useState<Record<string, Record<string, number>>>({});
+  const [adjHistory, setAdjHistory] = useState<any[]>([]);
+  const [adjLoading, setAdjLoading] = useState(false);
+
   const fetchIsoData = async (date: string | string[], iso: string) => {
     const { data } = await client.get<IsoData[]>("/each-iso-data", {
       params: { date, iso },
@@ -76,7 +109,7 @@ const ModalComponent: React.FC<ModalComponentProps> = ({
     { enabled: !!date && apiNumber === 2 }
   );
 
-  // Agent data fetched from our Vercel API (not Heroku) so totals match the overview.
+  // Agent data fetched from Vercel API (not Heroku) so totals match the overview.
   const fetchAgentData = async (date: string | string[], agent_name: string) => {
     const { data } = await agentClient.get<AgentsData[]>("/api/each-agent-data", {
       params: { date, agent_name },
@@ -110,6 +143,76 @@ const ModalComponent: React.FC<ModalComponentProps> = ({
     else if (operatingPartnerData && apiNumber === 4) setCurrentTableData(operatingPartnerData);
   }, [apiNumber]);
 
+  // Apply local overrides on top of API agent data
+  const agentDisplayData = agentData?.map((row: any) => {
+    const rowOverrides = overrides[row.mid];
+    return rowOverrides ? { ...row, ...rowOverrides } : row;
+  });
+
+  // Load adjustment history
+  const loadAdjHistory = async () => {
+    setAdjLoading(true);
+    try {
+      const { data } = await agentClient.get("/api/agent-adjustments", {
+        params: { agent_name: title, date: date as string },
+      });
+      setAdjHistory(Array.isArray(data) ? data : []);
+    } catch {
+      setAdjHistory([]);
+    } finally {
+      setAdjLoading(false);
+    }
+  };
+
+  // Save an adjustment
+  const handleSaveAdjustment = async () => {
+    if (!editRow) return;
+    setSavingAdj(true);
+    try {
+      await agentClient.post("/api/agent-adjustments", {
+        agent_name: title,
+        report_month: date,
+        mid: editRow.mid,
+        field_name: editField,
+        original_value: editRow[editField] ?? 0,
+        adjusted_value: editNewValue,
+        notes: editNoteText || null,
+      });
+      setOverrides((prev) => ({
+        ...prev,
+        [editRow.mid]: { ...(prev[editRow.mid] || {}), [editField]: editNewValue },
+      }));
+      message.success("Adjustment saved");
+      setEditRow(null);
+      if (agentActiveTab === "adjustments") loadAdjHistory();
+    } catch {
+      message.error("Failed to save adjustment");
+    } finally {
+      setSavingAdj(true);
+    }
+  };
+
+  const editActionColumn = {
+    key: "edit_action",
+    title: "",
+    width: "50px",
+    render: (_: any, record: any) => (
+      <Button
+        size="small"
+        type="text"
+        icon={<EditOutlined style={{ color: "#1890ff" }} />}
+        onClick={() => {
+          setEditRow(record);
+          setEditField("paydiverse_residual");
+          setEditNewValue(record.paydiverse_residual ?? 0);
+          setEditNoteText("");
+        }}
+      />
+    ),
+  };
+
+  const agentTableColumns = [...agentColumns, editActionColumn];
+
   const handleDownload = () => {
     try {
       if (!currentTableData || currentTableData.length === 0) { message.warning("No data available to download"); return; }
@@ -122,7 +225,7 @@ const ModalComponent: React.FC<ModalComponentProps> = ({
         .map((item: any) => {
           if (apiNumber === 1) return { "Operating Partner": item?.operating_partner || "Not Provided", MID: item?.mid || "Not Provided", Corporation: item?.corporation || "Not Provided", DBA: item?.dba || "Not Provided", "Total Residual": item?.total_residual ? Number(item?.total_residual) : 0.0, "PayDiverse Residual": item?.paydiverse_residual ? Number(item?.paydiverse_residual) : 0.0, "Agent 1 Name": item?.agent1_name || "No Agent", "Agent 1 Payout": item?.agent1_payout ? Number(item.agent1_payout) : 0.0, "Agent 1 Percentage": item?.agent1_percentage ? `${item.agent1_percentage} %` : "0.00 %", "Agent 2 Name": item?.agent2_name || "No Agent", "Agent 2 Payout": item?.agent2_payout ? Number(item.agent2_payout) : 0.0, "Agent 2 Percentage": item?.agent2_percentage ? `${item.agent2_percentage} %` : "0.00 %" };
           else if (apiNumber === 2) return { MID: item?.mid || "Not Provided", ISO: item?.iso || "Not Provided", DBA: item?.dba || "Not Provided", Volume: item?.volume ? Number(item?.volume) : 0.0, "Total Residual": item?.total_residual ? Number(item?.total_residual) : 0.0, "PayDiverse Residual": item?.paydiverse_residual ? Number(item?.paydiverse_residual) : 0.0 };
-          else if (apiNumber === 3) return { ISO: item?.iso || "Not Provided", Corporation: item?.corporation || "Not Provided", DBA: item?.dba || "Not Provided", MID: item?.mid || "Not Provided", "Total Residual": item?.total_residual ? Number(item?.total_residual) : 0.0, "PayDiverse Residual": item?.paydiverse_residual ? Number(item?.paydiverse_residual) : 0.0, "Agent Percentage": item?.agent_percentage ? `${item.agent_percentage}%` : "0.00%", "Agent Payout": item?.agent_payout ? item.agent_payout : 0.0 };
+          else if (apiNumber === 3) return { ISO: item?.iso||"Not Provided", Corporation: item?.corporation||"Not Provided", DBA: item?.dba||"Not Provided", MID: item?.mid||"Not Provided", "Total Residual": item?.total_residual?Number(item?.total_residual):0.0, "PayDiverse Residual": item?.paydiverse_residual?Number(item?.paydiverse_residual):0.0, "Agent Percentage": item?.agent_percentage?`${item.agent_percentage}%`:"0.00%", "Agent Payout": item?.agent_payout?item.agent_payout:0.0 };
           else if (apiNumber === 4) return { MID: item?.mid || "Not Provided", ISO: item?.iso || "Not Provided", DBA: item?.dba || "Not Provided", Corporation: item?.corporation || "Not Provided", Volume: item?.volume || "Not Provided", "Total Residual": item?.total_residual ? Number(item?.total_residual) : 0.0, "PayDiverse Residual": item?.paydiverse_residual ? Number(item?.paydiverse_residual) : 0.0 };
           return item;
         });
@@ -149,38 +252,154 @@ const ModalComponent: React.FC<ModalComponentProps> = ({
   return (
     <>
       <Modal open={isOpen} width={"90%"} className="modal" title={title + " | " + dayjs(date as string).format("MMMM-YYYY")} onCancel={onCancel} footer={[<Button onClick={onCancel} type="primary">Cancel</Button>]}>
-        <Row justify="space-between">
-          <Col span={8}>
-            {(apiNumber == 1 || apiNumber == 3) && (<><Switch checked={excludeZeroResiduals} onChange={(checked) => setExcludeZeroResiduals(checked)} checkedChildren="Yes" unCheckedChildren="No"/><span style={{marginLeft:"8px",fontSize:"16px",montWeight:"bold"}}>Exclude zero residuals</span></>)}
-          </Col>
-          <Col span={8} style={{display:"flex",justifyContent:"flex-end"}}>
-            <Button className="download-btn" type="primary" onClick={handleDownload} disabled={isDownloadDisabled()}>Download as XLSX <DownloadOutlined/></Button>
-          </Col>
-        </Row>
-        {apiNumber === 3 && <span style={{backgroundColor:"rgb(231,230,230)",fontWeight:600,fontSize:22,padding:5,borderRadius:6}}>Agent Total Payout: {formatCurrency(paydiverseResidual as number)}</span>}
-        {apiNumber === 1 && <h2 style={{marginBottom:7}}>PayDiverse Residual:{" "}{formatCurrency((paydiverseResidual ?? 0) - (adjustmentPrice ?? 0))}</h2>}
-        {apiNumber === 1 && adjustmentPrice != 0.0 && <h3>Adjustments: {formatCurrency(adjustmentPrice as number)}</h3>}
-        <Table rowHoverable={false}
-          dataSource={(apiNumber === 1 ? excludeZeroResiduals ? isoData?.filter((item) => item.paydiverse_residual !== 0) : isoData : apiNumber === 2 ? corpData : apiNumber === 3 ? excludeZeroResiduals ? agentData?.filter((item) => item.paydiverse_residual !== 0 && item?.total_residual !== 0) : agentData : apiNumber === 4 ? operatingPartnerData : []) as any}
-          className="modal-table"
-          columns={apiNumber === 1 ? isoColumns : apiNumber === 2 ? corporationColumns : apiNumber === 3 ? agentColumns : apiNumber === 4 ? operatingPartnerColumns : null}
-          scroll={{x: apiNumber == 1 || apiNumber === 3 ? 768 : 0}}
-          onChange={(_pagination: TablePaginationConfig, _filters: Record<string, FilterValue | null>, _sorter: SorterResult<any> | SorterResult<any>[], extra: { currentDataSource?: any[] }) => { setCurrentTableData(extra.currentDataSource || []); }}
-          loading={isoLoading || corpLoading || agentLoading || operatingPartnerLoading}
-          pagination={{pageSize: 200}}
-          summary={(pageData) => {
-            let agentPayout = 0;
-            pageData.forEach(({ agent_payout }) => { agentPayout += agent_payout; });
-            return (agentData && agentData?.length > 0 && (
-              <Table.Summary.Row className="total-row">
-                <Table.Summary.Cell index={1} colSpan={2}><strong>Total Agent Payout</strong></Table.Summary.Cell>
-                <Table.Summary.Cell index={2}/><Table.Summary.Cell index={3}/><Table.Summary.Cell index={4}/><Table.Summary.Cell index={5}/><Table.Summary.Cell index={6}/><Table.Summary.Cell index={7}/>
-                <Table.Summary.Cell index={8}><strong>{formatCurrency(agentPayout)}</strong></Table.Summary.Cell>
-              </Table.Summary.Row>
-            ));
-          }}
-        />
+
+        {apiNumber === 3 ? (
+          <>
+            <span style={{backgroundColor:"rgb(231,230,230)",fontWeight:600,fontSize:22,padding:5,borderRadius:6,display:"inline-block",marginBottom:12}}>
+              Agent Total Payout: {formatCurrency(paydiverseResidual as number)}
+            </span>
+            <Tabs
+              activeKey={agentActiveTab}
+              onChange={(key) => {
+                setAgentActiveTab(key);
+                if (key === "adjustments") loadAdjHistory();
+              }}
+              style={{ marginTop: 8 }}
+              items={[
+                {
+                  key: "data",
+                  label: "Agent Data",
+                  children: (
+                    <>
+                      <Row justify="space-between" style={{marginBottom:8}}>
+                        <Col span={8}>
+                          <Switch checked={excludeZeroResiduals} onChange={(checked) => setExcludeZeroResiduals(checked)} checkedChildren="Yes" unCheckedChildren="No"/>
+                          <span style={{marginLeft:"8px",montWeight:"bold"}}>Exclude zero residuals</span>
+                        </Col>
+                        <Col span={8} style={{display:"flex",justifyContent:"flex-end"}}>
+                          <Button className="download-btn" type="primary" onClick={handleDownload} disabled={isDownloadDisabled()}>Download as XLSX <DownloadOutlined/></Button>
+                        </Col>
+                      </Row>
+                      <Table rowHoverable={false}
+                        dataSource={((excludeZeroResiduals ? agentDisplayData?.filter((item: any) => item.paydiverse_residual !== 0 && item?.total_residual !== 0) : agentDisplayData) as any) }
+                        className="modal-table"
+                        columns={agentTableColumns}
+                        scroll={{x: 768}}
+                        onChange={(_pagination: TablePaginationConfig, _filters: Record<string, FilterValue | null>, _sorter: SorterResult<any> | SorterResult<any>[], extra: { currentDataSource?: any[] }) => { setCurrentTableData(extra.currentDataSource || []); }}
+                        loading={agentLoading}
+                        pagination={{pageSize: 200}}
+                        summary={(pageData) => {
+                          let agentPayout = 0;
+                          pageData.forEach(({ agent_payout }) => { agentPayout += agent_payout; });
+                          return (agentData && agentData?.length > 0 && (
+                            <Table.Summary.Row className="total-row">
+                              <Table.Summary.Cell index={1} colSpan={2}><strong>Total Agent Payout</strong></Table.Summary.Cell>
+                              <Table.Summary.Cell index={2}/><Table.Summary.Cell index={3}/><Table.Summary.Cell index={4}/><Table.Summary.Cell index={5}/><Table.Summary.Cell index={6}/><Table.Summary.Cell index={7}/>
+                              <Table.Summary.Cell index={8}><strong>{formatCurrency(agentPayout)}</strong></Table.Summary.Cell>
+                              <Table.Summary.Cell index={9}/>
+                            </Table.Summary.Row>
+                          ));
+                        }}
+                      />
+                    </>
+                  ),
+                },
+                {
+                  key: "adjustments",
+                  label: "Adjustments History",
+                  children: (
+                    <Table
+                      loading={adjLoading}
+                      dataSource={adjHistory}
+                      rowKey="id"
+                      columns={ADJ_HISTORY_COLUMNS}
+                      pagination={{ pageSize: 50 }}
+                      locale={{ emptyText: "No adjustments recorded for this agent/month." }}
+                      scroll={{ x: 900 }}
+                    />
+                  ),
+                },
+              ]}
+            />
+          </>
+        ) : (
+          <>
+            <Row justify="space-between">
+              <Col span={8}>
+                {(apiNumber == 1) && (<><Switch checked={excludeZeroResiduals} onChange={(checked) => setExcludeZeroResiduals(checked)} checkedChildren="Yes" unCheckedChildren="No"/><span style={{marginLeft:"8px",fontSize:"16px",montWeight:"bold"}}>Exclude zero residuals</span></>)}
+              </Col>
+              <Col span={8} style={{display:"flex",justifyContent:"flex-end"}}>
+                <Button className="download-btn" type="primary" onClick={handleDownload} disabled={isDownloadDisabled()}>Download as XLSX <DownloadOutlined/></Button>
+              </Col>
+            </Row>
+            {apiNumber === 1 && <h2 style={{marginBottom:7}}>PayDiverse Residual:{" "}{formatCurrency((paydiverseResidual ?? 0) - (adjustmentPrice ?? 0))}</h2>}
+            {apiNumber === 1 && adjustmentPrice != 0.0 && <h3>Adjustments: {formatCurrency(adjustmentPrice as number)}</h3>}
+            <Table rowHoverable={false}
+              dataSource={(apiNumber === 1 ? excludeZeroResiduals ? isoData?.filter((item) => item.paydiverse_residual !== 0) : isoData : apiNumber === 2 ? corpData : apiNumber === 4 ? operatingPartnerData : []) as any}
+              className="modal-table"
+              columns={apiNumber === 1 ? isoColumns : apiNumber === 2 ? corporationColumns : apiNumber === 4 ? operatingPartnerColumns : null}
+              scroll={{x: apiNumber == 1 ? 768 : 0}}
+              onChange={(_pagination: TablePaginationConfig, _filters: Record<string, FilterValue | null>, _sorter: SorterResult<any> | SorterResult<any>[], extra: { currentDataSource?: any[] }) => { setCurrentTableData(extra.currentDataSource || []); }}
+              loading={isoLoading || corpLoading || operatingPartnerLoading}
+              pagination={{pageSize: 200}}
+            />
+          </>
+        )}
       </Modal>
+
+      {/* Edit adjustment mini-modal */}
+      {apiNumber === 3 && (
+        <Modal
+          open={!!editRow}
+          title={`Adjust — ${editRow?.dba || editRow?.mid || ""}`}
+          onCancel={() => setEditRow(null)}
+          onOk={handleSaveAdjustment}
+          confirmLoading={savingAdj}
+          okText="Save Adjustment"
+          width={420}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div>
+              <div style={{ marginBottom: 6, fontWeight: 500 }}>Field to adjust</div>
+              <Select
+                value={editField}
+                onChange={(v) => {
+                  setEditField(v);
+                  setEditNewValue((editRow?6[v] as number) ?? 0);
+                }}
+                options={ADJUSTABLE_FIELDS}
+                style={{ width: "100%" }}
+                size="large"
+              />
+            </div>
+            <div>
+              <div style={{ marginBottom: 4, color: "#888" }}>
+                Current value: {formatCurrency((editRow?.[editField] as number) ?? 0)}
+              </div>
+              <div style={{ marginBottom: 6, fontWeight: 500 }}>New value</div>
+              <InputNumber
+                value={editNewValue}
+                onChange={(v) => setEditNewValue(v ?? 0)}
+                style={{ width: "100%" }}
+                precision={2}
+                prefix="$"
+                size="large"
+              />
+            </div>
+            <div>
+              <div style={{ marginBottom: 6, fontWeight: 500 }}>
+                Notes <span style={{ color: "#aaa", fontWeight: 400 }}>(optional)</span>
+              </div>
+              <Input.TextArea
+                value={editNoteText}
+                onChange={(e) => setEditNoteText(e.target.value)}
+                rows={2}
+                placeholder="Reason for adjustment..."
+              />
+            </div>
+          </div>
+        </Modal>
+      )}
     </>
   );
 };
