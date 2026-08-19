@@ -1,7 +1,12 @@
 // @ts-nocheck
 import React, { useState, useEffect } from "react";
-import { Avatar, Badge, Dropdown, Tooltip } from "antd";
-import { MenuUnfoldOutlined, MenuFoldOutlined, UserOutlined, LogoutOutlined, BellOutlined } from "@ant-design/icons";
+import { Avatar, Badge, Dropdown, Menu, Tooltip } from "antd";
+import { UserOutlined, LogoutOutlined, BellOutlined, BarChartOutlined, SnippetsOutlined, ImportOutlined, DiffOutlined, SettingOutlined } from "@ant-design/icons";
+import { DollarOutlined, AreaChartOutlined, BulbOutlined, BankOutlined } from "@ant-design/icons";
+import { LuUsers } from "react-icons/lu";
+import { LiaFileInvoiceDollarSolid } from "react-icons/lia";
+import { MdPayment } from "react-icons/md";
+import { TbLayoutDashboard } from "react-icons/tb";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../utils/supabase";
 import { getUserFromLocalStorage } from "../../utils/getUser";
@@ -13,9 +18,30 @@ import dayjs from "dayjs";
 const parseExpDate = (notes) => { if (!notes) return null; const m = notes.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/); return m ? m[1] : null; };
 const fmtMoney = (n) => n != null ? `$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : "--";
 
-const HeaderComponent = ({ collapsed, handleToggle }) => {
+const navItems = [
+  { key: "/home",             label: "Overview",        icon: <TbLayoutDashboard /> },
+  { key: "/home/iso-merchants",label: "ISOs",           icon: <BankOutlined /> },
+  { key: "/home/merchants",   label: "Merchants",        icon: <DiffOutlined /> },
+  { key: "/home/revenue-mid", label: "Revenue/MID",     icon: <DollarOutlined /> },
+  { key: "/home/payments",    label: "Payments",         icon: <MdPayment /> },
+  { key: "/home/insights",    label: "Insights",         icon: <BulbOutlined /> },
+  { key: "/home/industry",    label: "Industry",         icon: <AreaChartOutlined /> },
+  {
+    key: "admin", label: "Administrator", icon: <SettingOutlined />,
+    children: [
+      { key: "/home/users",       label: "Users",        icon: <LuUsers /> },
+      { key: "/home/adjustments", label: "Adjustments",  icon: <LiaFileInvoiceDollarSolid /> },
+      { key: "/home/agents",      label: "Agents Data",  icon: <BarChartOutlined /> },
+      { key: "/home/logs",        label: "Logs",         icon: <SnippetsOutlined /> },
+      { key: "/home/import-data", label: "Import Data",  icon: <ImportOutlined /> },
+    ]
+  },
+];
+
+const HeaderComponent = () => {
   const user = getUserFromLocalStorage();
   const navigate = useNavigate();
+  const currentPath = window.location.pathname;
   const [isModalVisible, setModalVisible] = useState(false);
   const [overduePayments, setOverduePayments] = useState([]);
   const [bellOpen, setBellOpen] = useState(false);
@@ -64,16 +90,33 @@ const HeaderComponent = ({ collapsed, handleToggle }) => {
     </div>
   );
 
+  const getSelectedKey = () => {
+    const adminPaths = ["/home/users","/home/adjustments","/home/agents","/home/logs","/home/import-data"];
+    if (adminPaths.some(p => currentPath.startsWith(p))) return currentPath;
+    if (currentPath.startsWith("/home/merchants")) return "/home/merchants";
+    return currentPath;
+  };
+
   return (
     <>
-      <header style={{ color: "#333", height: 90, backgroundColor: "var(--panel-color)", borderBottom: "2px solid var(--line-color)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", boxShadow: "0 2px 12px rgba(29,78,216,0.07)" }}>
-        <div style={{ display: "flex", alignItems: "center" }}>
-          <Tooltip title="Click to toggle the Sidebar" color="black">
-            {collapsed ? <MenuUnfoldOutlined style={{ fontSize: 22, color: "var(--muted-color)" }} onClick={handleToggle} /> : <MenuFoldOutlined style={{ fontSize: 22, color: "var(--muted-color)" }} onClick={handleToggle} />}
-          </Tooltip>
-          <img src="/paydiverse-logo.webp" alt="PayDiverse" style={{ height: 52, marginLeft: 12, objectFit: "contain", maxWidth: 220 }} />
+      <header style={{ backgroundColor: "var(--panel-color)", borderBottom: "2px solid var(--line-color)", boxShadow: "0 2px 12px rgba(29,78,216,0.07)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", height: 64, position: "sticky", top: 0, zIndex: 100 }}>
+        {/* Logo */}
+        <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+          <img src="/paydiverse-logo.webp" alt="PayDiverse" style={{ height: 44, objectFit: "contain", maxWidth: 180 }} />
         </div>
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "20px" }}>
+
+        {/* Horizontal Nav */}
+        <Menu
+          mode="horizontal"
+          selectedKeys={[getSelectedKey()]}
+          onClick={({ key }) => { if (key !== "admin") navigate(key); }}
+          items={navItems}
+          style={{ flex: 1, background: "transparent", border: "none", minWidth: 0, margin: "0 24px", color: "var(--muted-color)" }}
+          theme="light"
+        />
+
+        {/* Right: bell + user */}
+        <div style={{ display: "flex", alignItems: "center", gap: 20, flexShrink: 0 }}>
           <Dropdown open={bellOpen} onOpenChange={setBellOpen} dropdownRender={() => bellContent} trigger={["click"]} placement="bottomRight">
             <div style={{ cursor: "pointer", padding: "4px 6px", borderRadius: 8 }}>
               <Badge count={overduePayments.length} size="small" color="#dc2626">
@@ -81,12 +124,12 @@ const HeaderComponent = ({ collapsed, handleToggle }) => {
               </Badge>
             </div>
           </Dropdown>
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
-            <span style={{ fontSize: "16px", fontWeight: "600" }}>{user?.name || "PayDiverse"}</span>
-            <span>{user?.role == "super_admin" ? "Admin" : "Dashboard"}</span>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+            <span style={{ fontSize: "14px", fontWeight: "600" }}>{user?.name || "PayDiverse"}</span>
+            <span style={{ fontSize: 12, color: "var(--muted-color)" }}>{user?.role == "super_admin" ? "Admin" : "Dashboard"}</span>
           </div>
           <Dropdown placement="bottomLeft" trigger={["hover", "click"]} menu={{ items: userMenuItems }}>
-            <Avatar size="large" style={{ backgroundColor: "var(--primary-color)" }} icon={<UserOutlined />} />
+            <Avatar size="large" style={{ backgroundColor: "var(--primary-color)", cursor: "pointer" }} icon={<UserOutlined />} />
           </Dropdown>
         </div>
       </header>
