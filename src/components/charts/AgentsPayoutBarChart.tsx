@@ -38,11 +38,14 @@ const AgentsPayoutBarChart: React.FC<AgentsPayoutBarChartProps> = ({
     message.error("Error Fetching data");
   }
 
+  // Guard against all-zero data which causes Recharts to crash (NaN axis range)
+  const hasNonZero = (data || []).some((d: any) => d.total_payout > 0);
+
   return (
     <>
       <Row justify="center">
         <Col>
-          {data.length > 0 ? (
+          {data.length > 0 && hasNonZero ? (
             <ResponsiveContainer width={1000} height={500}>
               <BarChart
                 data={data}
