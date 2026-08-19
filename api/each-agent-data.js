@@ -47,9 +47,9 @@ export default async function handler(req, res) {
       dba: m.dba,
       corporation: m.dba,
       mid: m.mid,
-      agent_percentage: `${pct}%`,
+      agent_percentage: `${pct}`,
       agent_payout: Math.round(m.paydiversenet * pct / 100 * 100) / 100,
-      paydiversenet: Math.round(m.paydiversenet * 100) / 100,
+      paydiverse_residual: Math.round(m.paydiversenet * 100) / 100,
       total_residual: Math.round(m.total_residual * 100) / 100,
     };
   });
