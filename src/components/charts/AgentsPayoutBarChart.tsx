@@ -8,7 +8,7 @@ import {
   BarChart,
   Bar,
 } from "recharts";
-import client from "../../utils/axios";
+import agentClient from "../../utils/agentAxios";
 import { useQuery } from "react-query";
 import { Col, Empty, message, Row } from "antd";
 
@@ -20,7 +20,7 @@ const AgentsPayoutBarChart: React.FC<AgentsPayoutBarChartProps> = ({
   date,
 }) => {
   const fetchAgentsPayout = async (date: string | string[]) => {
-    const { data } = await client.get(`/agents-payout`, {
+    const { data } = await agentClient.get(`/api/agents-payout`, {
       params: { date },
     });
     return data;
