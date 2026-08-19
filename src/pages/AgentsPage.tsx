@@ -47,7 +47,7 @@ const adjColumns: any[] = [
 
 const AgentsPage = () => {
   const [date, setDate] = useState<string | string[]>(
-    dayjs().subtract(2, "months").format("YYYY-MM-01")
+    dayjs().format("YYYY-MM-01")
   );
   const [adjData, setAdjData] = useState<any[]>([]);
   const [adjLoading, setAdjLoading] = useState(false);
@@ -79,7 +79,7 @@ const AgentsPage = () => {
         <DatePicker
           onChange={onChange}
           picker="month"
-          defaultValue={dayjs().subtract(2, "months")}
+          defaultValue={dayjs()}
           size="large"
           style={{ width: 220 }}
           format="MMMM YYYY"
