@@ -22,10 +22,10 @@ export const AGENT_MAP = {
     { mid: "002081335951",     pct: 25 },
   ],
   "Michelle W Breier": [
-    { mid: "134751", pct: 0 },  // APD Pass LLC - Seamless Chex (active; commission % TBD)
+    { mid: "134751", pct: 25 },  // APD Pass LLC - Seamless Chex
   ],
   "Claudia Perez": [
-    // MID 998300028357 (Doc by Phone / Nuvei) is inactive - pending updated MID
+    // No active MIDs at this time
   ],
   "Tiffany Hoffman": [
     { mid: "30119824509", pct: 10 },
@@ -36,7 +36,7 @@ export const AGENT_MAP = {
     { mid: "941000137750",    pct: 25 },  // The Credit Pros - MerchantE-Synovous
   ],
   "Pedro Teixeira Payinsight": [
-    // MID pending confirmation
+    { mid: "002327562203", pct: 30 },  // styraapp.com - Nexio | CMS
   ],
 };
 
