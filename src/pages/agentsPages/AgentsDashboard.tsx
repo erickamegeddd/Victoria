@@ -1,5 +1,5 @@
 import { useState } from "react";
-import client from "../../utils/axios";
+import agentClient from "../../utils/agentAxios";
 import { message, Table, Input, Row, Col, DatePicker, Button } from "antd";
 import type { DatePickerProps, TablePaginationConfig } from "antd";
 import { DownloadOutlined } from "@ant-design/icons";
@@ -30,7 +30,7 @@ const AgentsDashboard = () => {
     date: string | string[],
     agent_name: string
   ) => {
-    const { data } = await client.get<AgentsData[]>("/each-agent-data", {
+    const { data } = await agentClient.get<AgentsData[]>("/api/each-agent-data", {
       params: { date, agent_name },
     });
     setCurrentTableData(data);
