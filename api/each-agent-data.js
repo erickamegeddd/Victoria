@@ -19,39 +19,35 @@ export default async function handler(req, res) {
   const { date, agent_name } = req.query;
   if (!date || !agent_name) return res.status(400).json({ error: "date and agent_name are required" });
 
-  const merchants = AGENT_MAP[agent_name];
-  if (!merchants || merchants.length === 0) return res.json([]);
+  const merchants = (AGENT_MAP[agent_name] || []).filter(
+    (m) => !m.until || m.until >= date
+  );
+  if (merchants.length === 0) return res.json([]);
 
   const mids = merchants.map((m) => m.mid);
   const rows = await sbGet(
-    `residuals?select=mid,business_name,gross_revenue,paydiversenet,isos(name)&mid=in.(${mids.join(",")})&report_month=eq.${date}&limit=2000`
+    `residuals?select=mid,business_name,gross_revenue,paydiversenet,isos(name)&mid=in.(${mids.join(",")})&report_month=eq.${date}&limit=5000`
   );
   if (!Array.isArray(rows)) return res.status(500).json({ error: "DB error" });
 
   const byMid = {};
   rows.forEach((r) => {
     if (!byMid[r.mid]) {
-      byMid[r.mid] = {
-        mid: r.mid,
-        dba: r.business_name || "",
-        iso: r.isos?.name || "",
-        paydiversenet: 0,
-        total_residual: 0,
-      };
+      byMid[r.mid] = { mid: r.mid, dba: r.business_name || "", iso: r.isos?.name || "", paydiversenet: 0, total_residual: 0 };
     }
     byMid[r.mid].paydiversenet += r.paydiversenet || 0;
     byMid[r.mid].total_residual += r.gross_revenue || 0;
   });
 
   const data = Object.values(byMid).map((m) => {
-    const pct = getPct(agent_name, m.mid);
+    const pct = getPct(agent_name, m.mid, date);
     return {
       iso: m.iso,
       operating_partner: null,
       dba: m.dba,
       corporation: m.dba,
       mid: m.mid,
-      agent_percentage: `${pct}.00%`,
+      agent_percentage: `${pct}%`,
       agent_payout: Math.round(m.paydiversenet * pct / 100 * 100) / 100,
       paydiversenet: Math.round(m.paydiversenet * 100) / 100,
       total_residual: Math.round(m.total_residual * 100) / 100,

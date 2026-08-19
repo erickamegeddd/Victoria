@@ -1,4 +1,4 @@
-import { AGENT_MAP, getPct } from "./_agentMap.js";
+import { AGENT_MAP } from "./_agentMap.js";
 
 const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
 
@@ -19,24 +19,29 @@ export default async function handler(req, res) {
   const { date } = req.query;
   if (!date) return res.status(400).json({ error: "date is required" });
 
+  // Collect all MIDs active for this date across all agents
   const allMids = [...new Set(
-    Object.values(AGENT_MAP).flat().map((m) => m.mid)
+    Object.values(AGENT_MAP).flat()
+      .filter((m) => !m.until || m.until >= date)
+      .map((m) => m.mid)
   )];
 
+  if (allMids.length === 0) return res.json([]);
+
   const rows = await sbGet(
-    `residuals?select=mid,paydiversenet&mid=in.(${allMids.join(",")})&report_month=eq.${date}&limit=2000`
+    `residuals?select=mid,paydiversenet&mid=in.(${allMids.join(",")})&report_month=eq.${date}&limit=5000`
   );
   if (!Array.isArray(rows)) return res.status(500).json({ error: "DB error" });
 
-  const payoutByMid = {};
+  const netByMid = {};
   rows.forEach((r) => {
-    payoutByMid[r.mid] = (payoutByMid[r.mid] || 0) + (r.paydiversenet || 0);
+    netByMid[r.mid] = (netByMid[r.mid] || 0) + (r.paydiversenet || 0);
   });
 
   const result = Object.entries(AGENT_MAP).map(([agent_name, merchants]) => {
-    const total_payout = merchants.reduce((sum, { mid, pct }) => {
-      return sum + (payoutByMid[mid] || 0) * pct / 100;
-    }, 0);
+    const total_payout = merchants
+      .filter((m) => !m.until || m.until >= date)
+      .reduce((sum, { mid, pct }) => sum + (netByMid[mid] || 0) * pct / 100, 0);
     return { agent_name, total_payout: Math.round(total_payout * 100) / 100 };
   });
 

@@ -21,22 +21,24 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "start_date, end_date, and agent_name are required" });
   }
 
-  const merchants = AGENT_MAP[agent_name];
-  if (!merchants || merchants.length === 0) return res.json([]);
+  const merchants = AGENT_MAP[agent_name] || [];
+  const possibleMids = [...new Set(
+    merchants.filter((m) => !m.until || m.until >= start_date).map((m) => m.mid)
+  )];
+  if (possibleMids.length === 0) return res.json([]);
 
-  const mids = merchants.map((m) => m.mid);
   const rows = await sbGet(
-    `residuals?select=mid,report_month,paydiversenet&mid=in.(${mids.join(",")})&report_month=gte.${start_date}&report_month=lte.${end_date}&order=report_month.asc&limit=2000`
+    `residuals?select=mid,report_month,paydiversenet&mid=in.(${possibleMids.join(",")})&report_month=gte.${start_date}&report_month=lte.${end_date}&order=report_month.asc&limit=5000`
   );
   if (!Array.isArray(rows)) return res.status(500).json({ error: "DB error" });
 
   const byMonth = {};
   rows.forEach((r) => {
-    const m = r.report_month;
-    if (!byMonth[m]) byMonth[m] = { month: m, paydiversenet: 0, agent_payout: 0 };
-    const pct = getPct(agent_name, r.mid);
-    byMonth[m].paydiversenet += r.paydiversenet || 0;
-    byMonth[m].agent_payout += (r.paydiversenet || 0) * pct / 100;
+    const month = r.report_month;
+    const pct = getPct(agent_name, r.mid, month);
+    if (!byMonth[month]) byMonth[month] = { month, paydiversenet: 0, agent_payout: 0 };
+    byMonth[month].paydiversenet += r.paydiversenet || 0;
+    byMonth[month].agent_payout += (r.paydiversenet || 0) * pct / 100;
   });
 
   return res.json(Object.values(byMonth).map((m) => ({
