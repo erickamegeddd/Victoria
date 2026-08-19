@@ -1,8 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect } from "react";
-import { Avatar, Badge, Dropdown, Menu, Tooltip } from "antd";
-import { UserOutlined, LogoutOutlined, BellOutlined, BarChartOutlined, SnippetsOutlined, ImportOutlined, DiffOutlined, SettingOutlined } from "@ant-design/icons";
-import { DollarOutlined, AreaChartOutlined, BulbOutlined, BankOutlined } from "@ant-design/icons";
+import { Avatar, Badge, Dropdown, Menu } from "antd";
+import { UserOutlined, LogoutOutlined, BellOutlined, BarChartOutlined, SnippetsOutlined, ImportOutlined, DiffOutlined, SettingOutlined, DollarOutlined, AreaChartOutlined, BulbOutlined, BankOutlined } from "@ant-design/icons";
 import { LuUsers } from "react-icons/lu";
 import { LiaFileInvoiceDollarSolid } from "react-icons/lia";
 import { MdPayment } from "react-icons/md";
@@ -19,21 +18,21 @@ const parseExpDate = (notes) => { if (!notes) return null; const m = notes.match
 const fmtMoney = (n) => n != null ? `$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : "--";
 
 const navItems = [
-  { key: "/home",             label: "Overview",        icon: <TbLayoutDashboard /> },
-  { key: "/home/iso-merchants",label: "ISOs",           icon: <BankOutlined /> },
-  { key: "/home/merchants",   label: "Merchants",        icon: <DiffOutlined /> },
-  { key: "/home/revenue-mid", label: "Revenue/MID",     icon: <DollarOutlined /> },
-  { key: "/home/payments",    label: "Payments",         icon: <MdPayment /> },
-  { key: "/home/insights",    label: "Insights",         icon: <BulbOutlined /> },
-  { key: "/home/industry",    label: "Industry",         icon: <AreaChartOutlined /> },
+  { key: "/home",              label: "Overview",      icon: <TbLayoutDashboard /> },
+  { key: "/home/iso-merchants",label: "ISOs",          icon: <BankOutlined /> },
+  { key: "/home/merchants",    label: "Merchants",      icon: <DiffOutlined /> },
+  { key: "/home/revenue-mid",  label: "Revenue/MID",   icon: <DollarOutlined /> },
+  { key: "/home/payments",     label: "Payments",       icon: <MdPayment /> },
+  { key: "/home/insights",     label: "Insights",       icon: <BulbOutlined /> },
+  { key: "/home/industry",     label: "Industry",       icon: <AreaChartOutlined /> },
   {
     key: "admin", label: "Administrator", icon: <SettingOutlined />,
     children: [
-      { key: "/home/users",       label: "Users",        icon: <LuUsers /> },
-      { key: "/home/adjustments", label: "Adjustments",  icon: <LiaFileInvoiceDollarSolid /> },
-      { key: "/home/agents",      label: "Agents Data",  icon: <BarChartOutlined /> },
-      { key: "/home/logs",        label: "Logs",         icon: <SnippetsOutlined /> },
-      { key: "/home/import-data", label: "Import Data",  icon: <ImportOutlined /> },
+      { key: "/home/users",       label: "Users",       icon: <LuUsers /> },
+      { key: "/home/adjustments", label: "Adjustments", icon: <LiaFileInvoiceDollarSolid /> },
+      { key: "/home/agents",      label: "Agents Data", icon: <BarChartOutlined /> },
+      { key: "/home/logs",        label: "Logs",        icon: <SnippetsOutlined /> },
+      { key: "/home/import-data", label: "Import Data", icon: <ImportOutlined /> },
     ]
   },
 ];
@@ -60,7 +59,7 @@ const HeaderComponent = () => {
 
   const userMenuItems = [
     { key: "1", label: (<span style={{ display: "flex", alignItems: "center" }} onClick={() => setModalVisible(true)}><ResetPassWordIcon />Reset Password</span>) },
-    { key: "2", label: (<span onClick={(e) => { e.stopPropagation(); handleLogout(navigate); }} style={{ color: "var(--red-color)", width: "100%" }}><LogoutOutlined style={{ marginRight: "10px" }} />Logout</span>) },
+    { key: "2", label: (<span onClick={(e) => { e.stopPropagation(); handleLogout(navigate); }} style={{ color: "#f87171", width: "100%" }}><LogoutOutlined style={{ marginRight: "10px" }} />Logout</span>) },
   ];
 
   const bellContent = (
@@ -99,10 +98,35 @@ const HeaderComponent = () => {
 
   return (
     <>
-      <header style={{ backgroundColor: "#0f2040", borderBottom: "2px solid rgba(255,255,255,0.08)", boxShadow: "0 2px 12px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", height: 64, position: "sticky", top: 0, zIndex: 100 }}>
-        {/* Logo */}
+      {/* Fix Administrator dropdown popup visibility */}
+      <style>{`
+        .ant-menu-submenu-popup > ul {
+          background-color: #1a3a6e !important;
+          border: 1px solid rgba(255,255,255,0.15) !important;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important;
+          border-radius: 8px !important;
+          padding: 4px 0 !important;
+        }
+        .ant-menu-submenu-popup .ant-menu-item {
+          color: rgba(255,255,255,0.9) !important;
+        }
+        .ant-menu-submenu-popup .ant-menu-item:hover {
+          background-color: rgba(255,255,255,0.12) !important;
+          color: #fff !important;
+        }
+        .ant-menu-submenu-popup .ant-menu-item-selected {
+          background-color: rgba(255,255,255,0.18) !important;
+          color: #fff !important;
+        }
+      `}</style>
+
+      <header style={{ backgroundColor: "#0f2040", borderBottom: "2px solid rgba(255,255,255,0.08)", boxShadow: "0 2px 16px rgba(0,0,0,0.25)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", height: 80, position: "sticky", top: 0, zIndex: 100 }}>
+
+        {/* Logo — white pill so white background looks intentional */}
         <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-          <img src="/paydiverse-logo.webp" alt="PayDiverse" style={{ height: 44, objectFit: "contain", maxWidth: 180 }} />
+          <div style={{ background: "#fff", borderRadius: 10, padding: "6px 14px", display: "inline-flex", alignItems: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.2)" }}>
+            <img src="/paydiverse-logo.webp" alt="PayDiverse" style={{ height: 42, objectFit: "contain", maxWidth: 170 }} />
+          </div>
         </div>
 
         {/* Horizontal Nav */}
@@ -111,8 +135,8 @@ const HeaderComponent = () => {
           selectedKeys={[getSelectedKey()]}
           onClick={({ key }) => { if (key !== "admin") navigate(key); }}
           items={navItems}
-          style={{ flex: 1, background: "transparent", border: "none", minWidth: 0, margin: "0 24px" }}
           theme="dark"
+          style={{ flex: 1, background: "transparent", border: "none", minWidth: 0, margin: "0 28px", fontSize: 14 }}
         />
 
         {/* Right: bell + user */}
@@ -129,7 +153,7 @@ const HeaderComponent = () => {
             <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{user?.role == "super_admin" ? "Admin" : "Dashboard"}</span>
           </div>
           <Dropdown placement="bottomLeft" trigger={["hover", "click"]} menu={{ items: userMenuItems }}>
-            <Avatar size="large" style={{ backgroundColor: "var(--primary-color)", cursor: "pointer" }} icon={<UserOutlined />} />
+            <Avatar size="large" style={{ backgroundColor: "rgba(255,255,255,0.2)", cursor: "pointer", border: "2px solid rgba(255,255,255,0.3)" }} icon={<UserOutlined />} />
           </Dropdown>
         </div>
       </header>
