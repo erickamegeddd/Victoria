@@ -158,17 +158,24 @@ async function computeAgentPayouts(months) {
 
 
 // Map quarter/month keywords to YYYY-MM-DD report_month values
+const ALL_MONTHS_2026 = [
+  "2026-01-01","2026-02-01","2026-03-01","2026-04-01","2026-05-01","2026-06-01",
+  "2026-07-01","2026-08-01","2026-09-01","2026-10-01","2026-11-01","2026-12-01"
+];
+const AVAILABLE_MONTHS = ALL_MONTHS_2026.slice(0, 7); // Jan–Jul 2026 (residuals available)
+
+const MONTH_MAP = {
+  january: "2026-01-01", february: "2026-02-01", march: "2026-03-01",
+  april: "2026-04-01", may: "2026-05-01", june: "2026-06-01",
+  july: "2026-07-01", august: "2026-08-01", september: "2026-09-01",
+  october: "2026-10-01", november: "2026-11-01", december: "2026-12-01",
+  jan: "2026-01-01", feb: "2026-02-01", mar: "2026-03-01",
+  apr: "2026-04-01", jun: "2026-06-01", jul: "2026-07-01",
+  aug: "2026-08-01", sep: "2026-09-01", oct: "2026-10-01",
+  nov: "2026-11-01", dec: "2026-12-01"
+};
+
 function detectMonthFilter(ctx) {
-  const monthMap = {
-    january: "2026-01-01", february: "2026-02-01", march: "2026-03-01",
-    april: "2026-04-01", may: "2026-05-01", june: "2026-06-01",
-    july: "2026-07-01", august: "2026-08-01", september: "2026-09-01",
-    october: "2026-10-01", november: "2026-11-01", december: "2026-12-01",
-    jan: "2026-01-01", feb: "2026-02-01", mar: "2026-03-01",
-    apr: "2026-04-01", jun: "2026-06-01", jul: "2026-07-01",
-    aug: "2026-08-01", sep: "2026-09-01", oct: "2026-10-01",
-    nov: "2026-11-01", dec: "2026-12-01"
-  };
   const quarters = {
     "q1": ["2026-01-01","2026-02-01","2026-03-01"],
     "q2": ["2026-04-01","2026-05-01","2026-06-01"],
@@ -178,7 +185,27 @@ function detectMonthFilter(ctx) {
   for (const [q, months] of Object.entries(quarters)) {
     if (ctx.includes(q)) return months;
   }
-  for (const [name, val] of Object.entries(monthMap)) {
+
+  // Detect range: "january to july", "jan through jun", "from feb to may", "january - july"
+  const monthNames = Object.keys(MONTH_MAP).join("|");
+  const rangeRe = new RegExp(
+    `\b(${monthNames})\b[\s\S]{0,20}?\b(?:to|through|–|-)\b[\s\S]{0,10}?\b(${monthNames})\b`
+  );
+  const rangeMatch = ctx.match(rangeRe);
+  if (rangeMatch) {
+    const startVal = MONTH_MAP[rangeMatch[1]];
+    const endVal   = MONTH_MAP[rangeMatch[2]];
+    if (startVal && endVal) {
+      const si = ALL_MONTHS_2026.indexOf(startVal);
+      const ei = ALL_MONTHS_2026.indexOf(endVal);
+      if (si !== -1 && ei !== -1 && si <= ei) {
+        return ALL_MONTHS_2026.slice(si, ei + 1);
+      }
+    }
+  }
+
+  // Single month
+  for (const [name, val] of Object.entries(MONTH_MAP)) {
     if (ctx.includes(name)) return [val];
   }
   return null;
@@ -444,9 +471,10 @@ export default async function handler(req, res) {
 
     } else if (isAgentQuestion) {
       // ── Agent payout computation ──────────────────────────────────────────
+      // Use specified months, or ALL available months when no specific month is requested
       const targetMonths = (monthFilter && monthFilter.length > 0 && !isAnalysisQ)
         ? monthFilter
-        : ["2026-07-01"]; // default to latest available month
+        : AVAILABLE_MONTHS; // no month specified → all Jan–Jul 2026
       const payouts = await computeAgentPayouts(targetMonths);
       const period = targetMonths.map(fmtMonth).join(", ");
 
