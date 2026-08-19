@@ -99,7 +99,7 @@ const HeaderComponent = () => {
 
   return (
     <>
-      <header style={{ backgroundColor: "var(--panel-color)", borderBottom: "2px solid var(--line-color)", boxShadow: "0 2px 12px rgba(29,78,216,0.07)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", height: 64, position: "sticky", top: 0, zIndex: 100 }}>
+      <header style={{ backgroundColor: "#0f2040", borderBottom: "2px solid rgba(255,255,255,0.08)", boxShadow: "0 2px 12px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", height: 64, position: "sticky", top: 0, zIndex: 100 }}>
         {/* Logo */}
         <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
           <img src="/paydiverse-logo.webp" alt="PayDiverse" style={{ height: 44, objectFit: "contain", maxWidth: 180 }} />
@@ -111,8 +111,8 @@ const HeaderComponent = () => {
           selectedKeys={[getSelectedKey()]}
           onClick={({ key }) => { if (key !== "admin") navigate(key); }}
           items={navItems}
-          style={{ flex: 1, background: "transparent", border: "none", minWidth: 0, margin: "0 24px", color: "var(--muted-color)" }}
-          theme="light"
+          style={{ flex: 1, background: "transparent", border: "none", minWidth: 0, margin: "0 24px" }}
+          theme="dark"
         />
 
         {/* Right: bell + user */}
@@ -120,13 +120,13 @@ const HeaderComponent = () => {
           <Dropdown open={bellOpen} onOpenChange={setBellOpen} dropdownRender={() => bellContent} trigger={["click"]} placement="bottomRight">
             <div style={{ cursor: "pointer", padding: "4px 6px", borderRadius: 8 }}>
               <Badge count={overduePayments.length} size="small" color="#dc2626">
-                <BellOutlined style={{ fontSize: 22, color: overduePayments.length > 0 ? "#dc2626" : "var(--muted-color)" }} />
+                <BellOutlined style={{ fontSize: 22, color: overduePayments.length > 0 ? "#fca5a5" : "rgba(255,255,255,0.8)" }} />
               </Badge>
             </div>
           </Dropdown>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-            <span style={{ fontSize: "14px", fontWeight: "600" }}>{user?.name || "PayDiverse"}</span>
-            <span style={{ fontSize: 12, color: "var(--muted-color)" }}>{user?.role == "super_admin" ? "Admin" : "Dashboard"}</span>
+            <span style={{ fontSize: "14px", fontWeight: "600", color: "#fff" }}>{user?.name || "PayDiverse"}</span>
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{user?.role == "super_admin" ? "Admin" : "Dashboard"}</span>
           </div>
           <Dropdown placement="bottomLeft" trigger={["hover", "click"]} menu={{ items: userMenuItems }}>
             <Avatar size="large" style={{ backgroundColor: "var(--primary-color)", cursor: "pointer" }} icon={<UserOutlined />} />
