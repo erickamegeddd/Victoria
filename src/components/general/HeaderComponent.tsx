@@ -71,7 +71,7 @@ const HeaderComponent = ({ collapsed, handleToggle }) => {
           <Tooltip title="Click to toggle the Sidebar" color="black">
             {collapsed ? <MenuUnfoldOutlined style={{ fontSize: 22, color: "var(--muted-color)" }} onClick={handleToggle} /> : <MenuFoldOutlined style={{ fontSize: 22, color: "var(--muted-color)" }} onClick={handleToggle} />}
           </Tooltip>
-          <img src="/paydiverse-logo.svg" alt="PayDiverse" style={{ height: 90, marginLeft: 10, objectFit: "contain", maxWidth: 340 }} />
+          <img src="/paydiverse-logo.webp" alt="PayDiverse" style={{ height: 52, marginLeft: 12, objectFit: "contain", maxWidth: 220 }} />
         </div>
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "20px" }}>
           <Dropdown open={bellOpen} onOpenChange={setBellOpen} dropdownRender={() => bellContent} trigger={["click"]} placement="bottomRight">
