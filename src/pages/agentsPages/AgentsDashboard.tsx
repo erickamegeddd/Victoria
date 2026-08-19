@@ -1,7 +1,8 @@
 import { useState } from "react";
 import agentClient from "../../utils/agentAxios";
-import { message, Table, Input, Row, Col, DatePicker, Button } from "antd";
-import type { DatePickerProps, TablePaginationConfig } from "antd";
+import { message, Table, Input, Row, Col, Button } from "antd";
+import { LeftOutlined, RightOutlined } from "@ant-design/icons";
+import type { TablePaginationConfig } from "antd";
 import { DownloadOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useQuery } from "react-query";
@@ -21,9 +22,6 @@ const AgentsDashboard = () => {
     dayjs().format("YYYY-MM-01")
   );
 
-  const onChange: DatePickerProps["onChange"] = (dayjsObj) => {
-    if (dayjsObj) setDate(dayjsObj.format("YYYY-MM-01"));
-  };
 
   const fetchAgentData = async (
     date: string | string[],
@@ -126,9 +124,6 @@ const AgentsDashboard = () => {
             onChange={onChange}
             picker="month"
             defaultValue={dayjs()}
-            size="large"
-            style={{ width: 220 }}
-            format="MMMM YYYY"
           />
         </Col>
       </Row>
