@@ -10,6 +10,7 @@ import {
   TablePaginationConfig,
 } from "antd";
 import client from "../../utils/axios";
+import agentClient from "../../utils/agentAxios";
 import { useQuery } from "react-query";
 import {
   agentColumns,
@@ -75,8 +76,9 @@ const ModalComponent: React.FC<ModalComponentProps> = ({
     { enabled: !!date && apiNumber === 2 }
   );
 
+  // Agent data fetched from our Vercel API (not Heroku) so totals match the overview.
   const fetchAgentData = async (date: string | string[], agent_name: string) => {
-    const { data } = await client.get<AgentsData[]>("/each-agent-data", {
+    const { data } = await agentClient.get<AgentsData[]>("/api/each-agent-data", {
       params: { date, agent_name },
     });
     setCurrentTableData(data);
