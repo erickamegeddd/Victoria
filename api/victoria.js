@@ -101,7 +101,7 @@ export default async function handler(req, res) {
     let contextData = {
       iso_list: isos.map(i => i.name).join(", "),
       today,
-      data_available: "Residuals: January 2026 through June 2026. Payments: Jan 2026 through Aug 2026.",
+      data_available: "Residuals: January 2026 through July 2026. Payments: Jan 2026 through Aug 2026.",
       field_guide: {
         gross_volume: "Total transaction $ volume processed by the merchant",
         gross_revenue: "Processor revenue (fees charged to merchant)",
@@ -407,7 +407,7 @@ export default async function handler(req, res) {
     const systemPrompt = `You are Victoria, an intelligent data assistant for PayDiverse — a payment facilitator that manages ISO residuals and merchant accounts.
 
 Today: ${today}
-Data coverage: Residuals Jan 2026–Jun 2026 | Payments Jan 2026–Aug 2026 | Merchants: 478 total
+Data coverage: Residuals Jan 2026–Jul 2026 | Payments Jan 2026–Aug 2026 | Merchants: 478 total
 
 Key field definitions:
 - gross_volume: Total $ transaction volume processed by merchant
