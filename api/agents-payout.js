@@ -10,13 +10,25 @@ async function sbGet(path) {
   return res.json();
 }
 
-// Computes payout for a single agent using the same query approach as each-agent-data.
+// Computes payout for a single agent — identical approach as each-agent-data.
 // This guarantees the overview and detail totals match exactly.
 async function computeAgentPayout(agentName, merchants, date) {
   const active = merchants.filter((m) => !m.until || m.until >= date);
   if (active.length === 0) return 0;
 
-  const mids = [...new Set(active.map((m) => m.mid))];
+  // Fetch deleted-row markers for this agent/month
+  const deletedRes = await sbGet(
+    `agent_adjustments?select=mid&agent_name=eq.${encodeURIComponent(agentName)}&report_month=eq.${date}&field_name=eq.deleted_row&limit=500`
+  );
+  const deletedMids = new Set(
+    Array.isArray(deletedRes) ? deletedRes.map((r) => r.mid).filter(Boolean) : []
+  );
+
+  // Exclude deleted MIDs
+  const filteredActive = active.filter((m) => !deletedMids.has(m.mid));
+  if (filteredActive.length === 0) return 0;
+
+  const mids = [...new Set(filteredActive.map((m) => m.mid))];
   const rows = await sbGet(
     `residuals?select=mid,paydiversenet&mid=in.(${mids.join(",")})&report_month=eq.${date}&limit=5000`
   );
@@ -27,7 +39,7 @@ async function computeAgentPayout(agentName, merchants, date) {
     netByMid[r.mid] = (netByMid[r.mid] || 0) + (r.paydiversenet || 0);
   });
 
-  return active.reduce(
+  return filteredActive.reduce(
     (sum, { mid, pct }) => sum + (netByMid[mid] || 0) * pct / 100,
     0
   );
