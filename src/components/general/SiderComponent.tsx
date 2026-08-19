@@ -69,9 +69,7 @@ const SiderComponent = () => {
 
   return (
     <div style={{paddingTop:8,height:"100%",display:"flex",flexDirection:"column",position:"relative"}}>
-        <div style={{padding:"14px 16px 10px",borderBottom:"1px solid rgba(255,255,255,0.07)",marginBottom:4}}>
-          <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"1.5px",color:"rgba(255,255,255,0.3)"}}>Menu</span>
-        </div>
+
         <Menu
           onClick={onClick}
           theme="dark"
