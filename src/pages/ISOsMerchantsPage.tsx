@@ -115,6 +115,8 @@ const ISOsMerchantsPage = () => {
       title: "ISO Name",
       dataIndex: "isoName",
       key: "iso",
+      width: 200,
+      ellipsis: true,
       sorter: showSorter ? (a, b) => a.isoName.localeCompare(b.isoName) : false,
       defaultSortOrder: "ascend",
       render: (name) => <Text strong style={{ fontSize: 14 }}>{name}</Text>,
