@@ -30,6 +30,11 @@ export const AGENT_MAP = {
   "Tiffany Hoffman": [
     { mid: "30119824509", pct: 10 },
   ],
+  "Meghan Anderson": [
+    { mid: "567000000860502", pct: 25 },  // The Credit Pros - PayArc
+    { mid: "5160041877686",   pct: 25 },  // The Credit Pros - Cardworks
+    { mid: "941000137750",    pct: 25 },  // The Credit Pros - MerchantE-Synovous
+  ],
   "Pedro Teixeira Payinsight": [
     // MID pending confirmation
   ],
