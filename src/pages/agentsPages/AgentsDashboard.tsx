@@ -18,7 +18,7 @@ const AgentsDashboard = () => {
   const [currentTableData, setCurrentTableData] = useState<AgentsData[]>([]);
   const [searchText, setSearchText] = useState<string>("");
   const [date, setDate] = useState<string | string[]>(
-    dayjs().subtract(2, "months").format("YYYY-MM-01")
+    dayjs().format("YYYY-MM-01")
   );
 
   const onChange: DatePickerProps["onChange"] = (_, dateString) => {
@@ -126,7 +126,7 @@ const AgentsDashboard = () => {
           <DatePicker
             onChange={onChange}
             picker="month"
-            defaultValue={dayjs().subtract(2, "months")}
+            defaultValue={dayjs()}
           />
         </Col>
       </Row>
