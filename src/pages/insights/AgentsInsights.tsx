@@ -9,7 +9,7 @@ import {
   Table,
   TablePaginationConfig,
 } from "antd";
-import client from "../../utils/axios";
+import agentClient from "../../utils/agentAxios";
 import { useQuery } from "react-query";
 import Spinner from "../../components/general/Spinner";
 import dayjs from "dayjs";
@@ -38,7 +38,7 @@ const AgentInsights = () => {
   >([]);
 
   const fetchUniqueAgentsData = async () => {
-    const { data } = await client.get<any[]>("/unique-agent-name");
+    const { data } = await agentClient.get<any[]>("/api/unique-agent-name");
     return data;
   };
 
@@ -49,8 +49,8 @@ const AgentInsights = () => {
   } = useQuery("fetchUniqueAgentsData", fetchUniqueAgentsData);
 
   const fetchRevenuePerAgent = async () => {
-    const { data } = await client.get<AgentInsightsColumns[]>(
-      `/agent-insights`,
+    const { data } = await agentClient.get<AgentInsightsColumns[]>(
+      `/api/agent-insights`,
       {
         params: {
           start_date: startDate,
@@ -95,7 +95,6 @@ const AgentInsights = () => {
       "Agent Payout": formatCurrency(item.agent_payout),
     }));
 
-    // Create worksheet with the formatted data
     const worksheet = XLSX.utils.json_to_sheet(formattedData || [], {
       header: [
         "Month",
@@ -105,20 +104,17 @@ const AgentInsights = () => {
       ],
     });
 
-    // Set column widths
     const columnWidths = [
-      { wch: 20 }, // Month column
-      { wch: 20 }, // Total Residual column
-      { wch: 20 }, // Paydiverse Residual column
-      { wch: 20 }, // Paydiverse Residual column
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 20 },
     ];
     worksheet["!cols"] = columnWidths;
 
-    // Create workbook and append worksheet
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Insights Data");
 
-    // Download the file
     XLSX.writeFile(
       workbook,
       `Agent-Insights-${dayjs(startDate).format("MMMM-YYYY")}-to-${dayjs(
@@ -252,7 +248,7 @@ const AgentInsights = () => {
           _sorter: SorterResult<any> | SorterResult<any>[],
           extra: { currentDataSource?: any[] }
         ) => {
-          setCurrentTableData(extra.currentDataSource || []); // Handle optional chaining
+          setCurrentTableData(extra.currentDataSource || []);
         }}
         pagination={{
           pageSize: 1000,

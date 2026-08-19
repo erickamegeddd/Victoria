@@ -1,6 +1,6 @@
 import { Col, DatePicker, Empty, message, Row } from "antd";
 import { useState } from "react";
-import client from "../../utils/axios";
+import agentClient from "../../utils/agentAxios";
 import { useQuery } from "react-query";
 import dayjs from "dayjs";
 import {
@@ -36,7 +36,7 @@ const AgentMonthlyLineChart = () => {
     end_date: string,
     agent_name: string
   ) => {
-    const { data } = await client.get(`/revenue-per-month-each-agent`, {
+    const { data } = await agentClient.get(`/api/revenue-per-month-each-agent`, {
       params: { start_date, end_date, agent_name },
     });
     return data;

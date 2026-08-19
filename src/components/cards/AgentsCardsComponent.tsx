@@ -6,7 +6,7 @@ import {
   BankOutlined,
   WalletOutlined,
 } from "@ant-design/icons";
-import client from "../../utils/axios";
+import agentClient from "../../utils/agentAxios";
 
 interface AgentsCardProps {
   date: string | string[];
@@ -23,7 +23,7 @@ const formatter = (value: any, addPrefix: boolean = true) => (
 
 const AgentsCardsComponent: React.FC<AgentsCardProps> = ({ date }) => {
   const fetchRevenuePerMonth = async (date: string | string[]) => {
-    const { data } = await client.get(`/revenue-per-month`, {
+    const { data } = await agentClient.get(`/api/revenue-per-month`, {
       params: { date },
     });
     return data;
@@ -36,7 +36,7 @@ const AgentsCardsComponent: React.FC<AgentsCardProps> = ({ date }) => {
   );
 
   const fetchAgentsPayout = async (date: string | string[]) => {
-    const { data } = await client.get(`/agents-payout`, { params: { date } });
+    const { data } = await agentClient.get(`/api/agents-payout`, { params: { date } });
     return data;
   };
 

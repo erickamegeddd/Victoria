@@ -14,7 +14,7 @@ import { useState } from "react";
 import * as XLSX from "xlsx";
 import { FilterValue, SorterResult } from "antd/es/table/interface";
 import formatCurrency from "../../utils/formatCurrency";
-import client from "../../utils/axios";
+import agentClient from "../../utils/agentAxios";
 import ModalComponent from "../modals/ModalComponent";
 
 const { Search } = Input;
@@ -59,7 +59,7 @@ const RevenuePerAgentTable: React.FC<RevenuePerAgentTableProps> = ({
   ];
 
   const fetchAgentsPayout = async (date: string | string[]) => {
-    const { data } = await client.get(`/agents-payout`, {
+    const { data } = await agentClient.get(`/api/agents-payout`, {
       params: { date },
     });
     setCurrentTableData(data);
