@@ -313,7 +313,7 @@ const ModalComponent: React.FC<ModalComponentProps> = ({
           onCancel={() => setEditRow(null)} onOk={handleSaveAdjustment} confirmLoading={savingAdj} okText="Save Adjustment" width={420}>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div><div style={{ marginBottom: 6, fontWeight: 500 }}>Field to adjust</div>
-              <Select value={editField} onChange={(v) => { setEditField(v); setEditNewValue((editRow?.[v] as number) ?? 0); }} options={ADHUSTABLE_FIELDS} style={{ width: "100%" }} size="large"/></div>
+              <Select value={editField} onChange={(v) => { setEditField(v); setEditNewValue((editRow?.[v] as number) ?? 0); }} options={ADJUSTABLE_FIELDS} style={{ width: "100%" }} size="large"/></div>
             <div><div style={{ marginBottom: 4, color: "#888" }}>Current value: {formatCurrency((editRow?.[editField] as number) ?? 0)}</div>
               <div style={{ marginBottom: 6, fontWeight: 500 }}>New value</div>
               <InputNumber value={editNewValue} onChange={(v) => setEditNewValue(v ?? 0)} style={{ width: "100%" }} precision={2} prefix="$" size="large"/></div>
