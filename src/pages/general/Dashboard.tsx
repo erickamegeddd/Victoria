@@ -15,7 +15,8 @@ const Dashboard = () => {
   const [residuals, setResiduals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedIso, setSelectedIso] = useState(undefined);
-  const [selectedMonth, setSelectedMonth] = useState(dayjs().startOf('month').format('YYYY-MM-DD'));
+  const LATEST_MONTH = '2026-07-01'; // latest month with residual data
+  const [selectedMonth, setSelectedMonth] = useState(LATEST_MONTH);
   const [activeTab, setActiveTab] = useState('residuals');
   const [allTimeRevenue, setAllTimeRevenue] = useState(0);
   const [allTimeVolume, setAllTimeVolume] = useState(0);
