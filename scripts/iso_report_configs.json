@@ -1,0 +1,31 @@
+{
+  "_notes": "Column mappings use Excel column letters. Negatives are preserved as-is.",
+  "isos": {
+    "RAC": {
+      "verified": true,
+      "file_pattern": [
+        "RAC *.xlsx",
+        "RAC*.xlsx"
+      ],
+      "dropbox_subfolder": "Breier",
+      "col_mid": "B",
+      "col_business_name": "C",
+      "col_gross_volume": "E",
+      "col_paydiversenet": "AF",
+      "skip_header_rows": 1,
+      "_notes": "AF=SPLIT TO AGENT (PayDiverse share). File in Breier/ subfolder each month. Negatives from chargebacks must be preserved."
+    },
+    "USAG": {
+      "verified": true,
+      "file_pattern": [
+        "USAG*.xlsx"
+      ],
+      "col_mid": "C",
+      "col_business_name": "E",
+      "col_gross_volume": "P",
+      "col_paydiversenet": "L",
+      "skip_header_rows": 1,
+      "_notes": "Col L = ResidualDueOffice. May 2026+ format uses L/BF/BJ. Older format (Jan-Apr) may use AJ."
+    }
+  }
+}
