@@ -17,6 +17,8 @@ const Dashboard = () => {
   const [selectedIso, setSelectedIso] = useState(undefined);
   const [selectedMonth, setSelectedMonth] = useState(dayjs().startOf('month').format('YYYY-MM-DD'));
   const [activeTab, setActiveTab] = useState('residuals');
+  const [allTimeRevenue, setAllTimeRevenue] = useState(0);
+  const [allTimeVolume, setAllTimeVolume] = useState(0);
   const searchInput = useRef(null);
 
   const totalRevenue = residuals.reduce((s,r)=>s+(r.paydiversenet||0),0);
@@ -25,6 +27,14 @@ const Dashboard = () => {
 
   useEffect(()=>{fetchIsos();},[]);
   useEffect(()=>{fetchResiduals();},[selectedIso,selectedMonth]);
+  useEffect(()=>{
+    const fetchAllTime=async()=>{
+      const data=await fetchAllRows(supabase.from('residuals').select('paydiversenet,gross_volume'));
+      setAllTimeRevenue(data.reduce((s,r)=>s+(r.paydiversenet||0),0));
+      setAllTimeVolume(data.reduce((s,r)=>s+(r.gross_volume||0),0));
+    };
+    fetchAllTime();
+  },[]);
 
   const fetchIsos=async()=>{const{data}=await supabase.from('isos').select('*').eq('status','active').order('name');if(data)setIsos(data);};
   const fetchAllRows=async(base)=>{let all=[],from=0;while(true){const{data:batch}=await base.range(from,from+999);if(!batch||batch.length===0)break;all=all.concat(batch);if(batch.length<1000)break;from+=1000;}return all;};const fetchResiduals=async()=>{setLoading(true);let q=supabase.from('residuals').select('*,isos(id,name,slug)').order('report_month',{ascending:false});if(selectedIso)q=q.eq('iso_id',selectedIso);if(selectedMonth)q=q.eq('report_month',selectedMonth);const data=await fetchAllRows(q);setResiduals(data);setLoading(false);};
@@ -59,6 +69,21 @@ const Dashboard = () => {
         <Button size="small" onClick={()=>setSelectedMonth(dayjs().startOf('month').format('YYYY-MM-DD'))} style={{color:'var(--primary-color)',fontSize:12,fontWeight:600}}>Current Month</Button>
         {selectedMonth&&<Text style={{color:'var(--muted-color)',fontSize:12}}>Showing data for <strong>{dayjs(selectedMonth).format('MMMM YYYY')}</strong></Text>}
       </div>
+      <Card style={{marginBottom:16,background:'linear-gradient(135deg,#0f2040 0%,#1d4ed8 100%)',border:'none',borderRadius:12}} bodyStyle={{padding:'20px 28px'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:16}}>
+          <div>
+            <div style={{color:'rgba(255,255,255,0.7)',fontSize:13,fontWeight:500,marginBottom:4,textTransform:'uppercase',letterSpacing:'0.5px'}}>All Time Total Revenue</div>
+            <div style={{color:'#fff',fontSize:34,fontWeight:800,letterSpacing:'-0.5px'}}>{fmt(allTimeRevenue)}</div>
+            <div style={{color:'rgba(255,255,255,0.55)',fontSize:12,marginTop:4}}>Jan 2026 – Jul 2026 · All ISOs combined</div>
+          </div>
+          <div style={{display:'flex',gap:32,flexWrap:'wrap'}}>
+            <div style={{textAlign:'center'}}>
+              <div style={{color:'rgba(255,255,255,0.6)',fontSize:11,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:2}}>Total Processed Volume</div>
+              <div style={{color:'#fff',fontSize:20,fontWeight:700}}>{fmt(allTimeVolume)}</div>
+            </div>
+          </div>
+        </div>
+      </Card>
       <Row gutter={16} style={{marginBottom:20}}>
         {[{title:'PayDiverse Net Income',value:totalRevenue,prefix:'$',precision:2,color:'var(--primary-color)'},{title:'Total Volume (Processed)',value:totalVolume,prefix:'$',precision:2,color:'#6b7a99'},{title:'Active MIDs',value:activeMids,precision:0,color:'var(--primary-color)'}].map(({title,value,prefix,precision,color})=>(
           <Col span={8} key={title}><Card><Statistic title={title} value={value} prefix={prefix} precision={precision} valueStyle={{color,fontWeight:700}}/></Card></Col>
