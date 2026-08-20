@@ -151,7 +151,7 @@ export default async function handler(req, res) {
     && /paid|payout|earn|commission|highest|most|who|how much|total|amount|rank|residu/.test(fullCtx);
   const isPaymentQ = /payment|collected|received|overdue|past due|late|reconcil|owed/.test(fullCtx);
   const isMerchantQ = fullCtx.includes("merchant") && !isAgentQ;
-  const isISOQ = !mentionedISO && (fullCtx.includes("iso") || /performance|ranking|revenue by|compare|which.*best|top.*iso|all iso/.test(fullCtx)) && !isAgentQ && !isPaymentQ && !isMerchantQ;
+  const isISOQ = (fullCtx.includes("iso") || /performance|ranking|revenue by|compare|which.*best|top.*iso|all iso/.test(fullCtx)) && !isAgentQ && !isPaymentQ && !isMerchantQ;
 
   try {
     const isos = await sbGet("isos?select=id,name,status&limit=100");
