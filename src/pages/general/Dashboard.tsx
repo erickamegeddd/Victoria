@@ -69,7 +69,7 @@ const Dashboard = () => {
         <Button size="small" onClick={()=>setSelectedMonth(dayjs().startOf('month').format('YYYY-MM-DD'))} style={{color:'var(--primary-color)',fontSize:12,fontWeight:600}}>Current Month</Button>
         {selectedMonth&&<Text style={{color:'var(--muted-color)',fontSize:12}}>Showing data for <strong>{dayjs(selectedMonth).format('MMMM YYYY')}</strong></Text>}
       </div>
-      <Card style={{marginBottom:16,background:'linear-gradient(135deg,#0f2040 0%,#1d4ed8 100%)',border:'none',borderRadius:12}} bodyStyle={{padding:'20px 28px'}}>
+      <div style={{marginBottom:16,background:'linear-gradient(135deg,#0f2040 0%,#1d4ed8 100%)',borderRadius:12,padding:'20px 28px',boxShadow:'0 4px 20px rgba(15,32,64,0.3)'}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:16}}>
           <div>
             <div style={{color:'rgba(255,255,255,0.7)',fontSize:13,fontWeight:500,marginBottom:4,textTransform:'uppercase',letterSpacing:'0.5px'}}>All Time Total Revenue</div>
@@ -83,7 +83,7 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-      </Card>
+      </div>
       <Row gutter={16} style={{marginBottom:20}}>
         {[{title:'PayDiverse Net Income',value:totalRevenue,prefix:'$',precision:2,color:'var(--primary-color)'},{title:'Total Volume (Processed)',value:totalVolume,prefix:'$',precision:2,color:'#6b7a99'},{title:'Active MIDs',value:activeMids,precision:0,color:'var(--primary-color)'}].map(({title,value,prefix,precision,color})=>(
           <Col span={8} key={title}><Card><Statistic title={title} value={value} prefix={prefix} precision={precision} valueStyle={{color,fontWeight:700}}/></Card></Col>
