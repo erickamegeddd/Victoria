@@ -25,7 +25,9 @@ export default async function handler(req, res) {
     return res.status(400).json({ ok: false, error: "Missing required fields" });
   }
 
-  const monthLabel = new Date(month + "-01").toLocaleString("en-US", { month: "long", year: "numeric" });
+  const monthParts = (month || "").split("-");
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const monthLabel = monthParts.length >= 2 ? `${monthNames[parseInt(monthParts[1])-1]} ${monthParts[0]}` : month;
   const amt = (amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2 });
 
   try {
