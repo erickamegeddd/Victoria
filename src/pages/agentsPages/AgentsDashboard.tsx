@@ -120,11 +120,14 @@ const AgentsDashboard = () => {
           lg={8}
           style={{ display: "flex", justifyContent: "flex-end" }}
         >
-          <DatePicker
-            onChange={onChange}
-            picker="month"
-            defaultValue={dayjs()}
-          />
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Button icon={<LeftOutlined />} onClick={() => setDate(dayjs(date as string).subtract(1, "month").format("YYYY-MM-01"))} />
+            <span style={{ minWidth: 140, textAlign: "center", fontWeight: 600, fontSize: 15 }}>
+              {dayjs(date as string).format("MMMM YYYY")}
+            </span>
+            <Button icon={<RightOutlined />} onClick={() => setDate(dayjs(date as string).add(1, "month").format("YYYY-MM-01"))} />
+            <Button onClick={() => setDate(dayjs().format("YYYY-MM-01"))} size="middle">Current Month</Button>
+          </div>
         </Col>
       </Row>
       <Row gutter={[16, 16]} align="middle" justify="space-between">
