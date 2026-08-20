@@ -151,6 +151,7 @@ export default async function handler(req, res) {
     && /paid|payout|earn|commission|highest|most|who|how much|total|amount|rank|residu/.test(fullCtx);
   const isPaymentQ = /payment|collected|received|overdue|past due|late|reconcil|owed/.test(fullCtx);
   const isMerchantQ = fullCtx.includes("merchant") && !isAgentQ;
+  const isISOQ = !mentionedISO && (fullCtx.includes("iso") || /performance|ranking|revenue by|compare|which.*best|top.*iso|all iso/.test(fullCtx)) && !isAgentQ && !isPaymentQ && !isMerchantQ;
 
   try {
     const isos = await sbGet("isos?select=id,name,status&limit=100");
@@ -272,6 +273,30 @@ export default async function handler(req, res) {
       };
 
     // ── 5. General / summary ──────────────────────────────────────────────────
+    } else if (isISOQ) {
+      // Lighter ISO summary — no sbGetAll for individual rows, no merchant count, no agent calc
+      const [isoResiduals, pays] = await Promise.all([
+        sbGetAll("residuals?select=report_month,paydiversenet,gross_volume,iso_id,isos(name)&order=report_month.asc"),
+        sbGet("iso_payments?select=report_month,expected_amount,received_amount,notes,status,isos(name)&order=report_month.desc&limit=100"),
+      ]);
+      const byISO = {}, byMonth = {};
+      (Array.isArray(isoResiduals)?isoResiduals:[]).forEach(r => {
+        const iso = r.isos?.name||"?", m = r.report_month, pdn = r.paydiversenet||0;
+        if (!byISO[iso]) byISO[iso] = {};
+        byISO[iso][m] = (byISO[iso][m]||0) + pdn;
+        if (!byMonth[m]) byMonth[m] = 0;
+        byMonth[m] += pdn;
+      });
+      const pArr2 = Array.isArray(pays)?pays:[];
+      const overdue2 = pArr2.filter(p => { const e=p.notes?.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/)?.[1]; return !p.received_amount&&e&&e<today; });
+      contextData.iso_performance = {
+        note: "paydiversenet = PayDiverse net income. Sorted best to worst.",
+        monthly_totals: Object.entries(byMonth).map(([m,v])=>({ month:fmtM(m), paydiversenet:fmtK(v) })),
+        top_isos_all_time: Object.entries(byISO).map(([iso,months])=>({ iso, total:fmtK(Object.values(months).reduce((s,v)=>s+v,0)), _r:Object.values(months).reduce((s,v)=>s+v,0) })).sort((a,b)=>b._r-a._r).map(({_r,...x})=>x),
+        iso_by_month: Object.fromEntries(Object.entries(byISO).map(([iso,months])=>[iso, Object.fromEntries(Object.entries(months).map(([m,v])=>[fmtM(m),fmtK(v)]))])),
+        payments: { expected:fmtK(pArr2.reduce((s,p)=>s+(p.expected_amount||0),0)), received:fmtK(pArr2.reduce((s,p)=>s+(p.received_amount||0),0)), overdue:overdue2.length }
+      };
+
     } else {
       const [residuals, pays, merch] = await Promise.all([
         sbGetAll("residuals?select=report_month,paydiversenet,gross_volume,gross_revenue,iso_id,mid,isos(name)&order=report_month.asc"),
