@@ -25,9 +25,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ ok: false, error: "Missing required fields" });
   }
 
-  const monthParts = (month || "").split("-");
-  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  const monthLabel = monthParts.length >= 2 ? `${monthNames[parseInt(monthParts[1])-1]} ${monthParts[0]}` : month;
+  const monthLabel = new Date(month + "-01").toLocaleString("en-US", { month: "long", year: "numeric" });
   const amt = (amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2 });
 
   try {
@@ -43,7 +41,7 @@ export default async function handler(req, res) {
       subject: `Payment Reminder — ${isoName} Residuals ${monthLabel} ($${amt} past due)`,
       text: body,
       html: `<div style="font-family:Arial,sans-serif;max-width:600px;line-height:1.6">
-        <p>${body.replace(/\n/g, "<br>")}</p>
+        <p>${body.replace(/\n/g, "<br>").split("$${amt}").join("<strong>$${amt}</strong>")}</p>
       </div>`
     });
 
