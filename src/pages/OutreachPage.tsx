@@ -66,21 +66,21 @@ const OutreachPage = () => {
     finally { setLoading(false); }
   };
 
-  const saveEmail = async (isoId: string, email: string) => {
-    setSavingEmail(isoId);
-    await fetch(`${SUPABASE_URL}/rest/v1/isos?id=eq.${isoId}`, {
-      method: "PATCH",
-      headers: { ...sbHeaders, "Content-Type": "application/json", Prefer: "return=minimal" },
-      body: JSON.stringify({ email })
+  const saveEmail = async (paymentId: string, isoId: string, email: string) => {
+    setSavingEmail(paymentId);
+    await fetch("/api/update-iso-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isoId, email })
     });
     setSavingEmail(null);
-    setEditingEmail(prev => { const n = {...prev}; delete n[isoId]; return n; });
+    setEditingEmail(prev => { const n = {...prev}; delete n[paymentId]; return n; });
     fetchOverdue();
     message.success("Email saved");
   };
 
   const sendEmail = async (record: any) => {
-    const emailToUse = editingEmail[record.iso_id] ?? record.iso_email;
+    const emailToUse = editingEmail[record.id] ?? record.iso_email;
     if (!emailToUse) { message.error("Please add an email address for this ISO first"); return; }
     setSending(prev => ({ ...prev, [record.id]: true }));
     try {
@@ -141,22 +141,23 @@ const OutreachPage = () => {
       dataIndex: "iso_email",
       width: 230,
       render: (_: any, record: any) => {
-        const isEditing = editingEmail[record.iso_id] !== undefined;
-        const val = isEditing ? editingEmail[record.iso_id] : record.iso_email;
+        const isEditing = editingEmail[record.id] !== undefined;
+        const val = isEditing ? editingEmail[record.id] : (record.iso_email || "");
         return (
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <Input
               size="small"
               placeholder="Add email..."
               value={val}
-              onChange={e => setEditingEmail(prev => ({...prev, [record.iso_id]: e.target.value}))}
+              onChange={e => setEditingEmail(prev => ({...prev, [record.id]: e.target.value}))}
               style={{ flex: 1, fontSize: 12 }}
             />
             {isEditing && (
-              <Button size="small" type="primary" loading={savingEmail === record.iso_id}
-                onClick={() => saveEmail(record.iso_id, editingEmail[record.iso_id])}>
+              <Button size="small" type="primary" loading={savingEmail === record.id}
+                onClick={() => saveEmail(record.id, record.iso_id, editingEmail[record.id])}>
                 Save
               </Button>
+              <Button size="small" onClick={() => setEditingEmail(prev => { const n = {...prev}; delete n[record.id]; return n; })}>Cancel</Button>
             )}
           </div>
         );
