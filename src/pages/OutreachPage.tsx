@@ -153,11 +153,13 @@ const OutreachPage = () => {
               style={{ flex: 1, fontSize: 12 }}
             />
             {isEditing && (
-              <Button size="small" type="primary" loading={savingEmail === record.id}
-                onClick={() => saveEmail(record.id, record.iso_id, editingEmail[record.id])}>
-                Save
-              </Button>
-              <Button size="small" onClick={() => setEditingEmail(prev => { const n = {...prev}; delete n[record.id]; return n; })}>Cancel</Button>
+              <>
+                <Button size="small" type="primary" loading={savingEmail === record.id}
+                  onClick={() => saveEmail(record.id, record.iso_id, editingEmail[record.id])}>
+                  Save
+                </Button>
+                <Button size="small" onClick={() => setEditingEmail(prev => { const n = {...prev}; delete n[record.id]; return n; })}>Cancel</Button>
+              </>
             )}
           </div>
         );
