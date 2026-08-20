@@ -1,5 +1,5 @@
-import { DatePicker, Table, Tag } from "antd";
-import type { DatePickerProps } from "antd";
+import { Button, Table, Tag } from "antd";
+import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { useState, useEffect } from "react";
 import dayjs from "dayjs";
 import AgentsPayoutBarChart from "../components/charts/AgentsPayoutBarChart";
@@ -46,22 +46,18 @@ const adjColumns: any[] = [
 ];
 
 const AgentsPage = () => {
-  const [date, setDate] = useState<string | string[]>(
-    dayjs().format("YYYY-MM-01")
-  );
+  const [date, setDate] = useState<string>(dayjs().format("YYYY-MM-01"));
   const [adjData, setAdjData] = useState<any[]>([]);
   const [adjLoading, setAdjLoading] = useState(false);
 
-  const onChange: DatePickerProps["onChange"] = (dayjsObj) => {
-    if (dayjsObj) setDate(dayjsObj.format("YYYY-MM-01"));
-  };
+  const go = (months: number) => setDate(dayjs(date).add(months, "month").format("YYYY-MM-01"));
 
   useEffect(() => {
     const fetchAdj = async () => {
       setAdjLoading(true);
       try {
         const { data } = await agentClient.get("/api/agent-adjustments", {
-          params: { date: date as string },
+          params: { date },
         });
         setAdjData(Array.isArray(data) ? data : []);
       } catch {
@@ -75,15 +71,13 @@ const AgentsPage = () => {
 
   return (
     <>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
-        <DatePicker
-          onChange={onChange}
-          picker="month"
-          defaultValue={dayjs()}
-          size="large"
-          style={{ width: 220 }}
-          format="MMMM YYYY"
-        />
+      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, marginBottom: 20 }}>
+        <Button icon={<LeftOutlined />} onClick={() => go(-1)} />
+        <span style={{ minWidth: 140, textAlign: "center", fontWeight: 600, fontSize: 15 }}>
+          {dayjs(date).format("MMMM YYYY")}
+        </span>
+        <Button icon={<RightOutlined />} onClick={() => go(1)} />
+        <Button onClick={() => setDate(dayjs().format("YYYY-MM-01"))} size="middle">Current Month</Button>
       </div>
 
       <AgentsCardsComponent date={date} />
