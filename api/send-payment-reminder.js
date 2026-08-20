@@ -40,9 +40,17 @@ export default async function handler(req, res) {
       to: isoEmail,
       subject: `Payment Reminder — ${isoName} Residuals ${monthLabel} ($${amt} past due)`,
       text: body,
-      html: `<div style="font-family:Arial,sans-serif;max-width:600px;line-height:1.6">
-        <p>${body.replace(/\n/g, "<br>").split("$${amt}").join("<strong>$${amt}</strong>")}</p>
-      </div>`
+      html: (() => {
+        const htmlBody = body
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\n/g, "<br>")
+          .replace(`$${amt}`, `<strong>$${amt}</strong>`);
+        return `<div style="font-family:Arial,sans-serif;max-width:600px;line-height:1.7;color:#333">
+          <p style="margin:0">${htmlBody}</p>
+        </div>`;
+      })()
     });
 
     // Mark email_sent in iso_payments
