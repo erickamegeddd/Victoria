@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect } from "react";
 import { Avatar, Badge, Dropdown, Menu } from "antd";
-import { UserOutlined, LogoutOutlined, BellOutlined, BarChartOutlined, SnippetsOutlined, ImportOutlined, DiffOutlined, SettingOutlined, DollarOutlined, AreaChartOutlined, BulbOutlined, BankOutlined } from "@ant-design/icons";
+import { UserOutlined, LogoutOutlined, BellOutlined, BarChartOutlined, SnippetsOutlined, ImportOutlined, DiffOutlined, SettingOutlined, DollarOutlined, AreaChartOutlined, BulbOutlined, BankOutlined, MailOutlined } from "@ant-design/icons";
 import { LuUsers } from "react-icons/lu";
 import { LiaFileInvoiceDollarSolid } from "react-icons/lia";
 import { MdPayment } from "react-icons/md";
@@ -25,6 +25,7 @@ const navItems = [
   { key: "/home/payments",     label: "Payments",       icon: <MdPayment /> },
   { key: "/home/insights",     label: "Insights",       icon: <BulbOutlined /> },
   { key: "/home/industry",     label: "Industry",       icon: <AreaChartOutlined /> },
+  { key: "/home/outreach",     label: "Outreach",       icon: <MailOutlined /> },
   {
     key: "admin", label: "Administrator", icon: <SettingOutlined />,
     children: [
