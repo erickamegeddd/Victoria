@@ -33,6 +33,7 @@ const OutreachPage = () => {
   const [editingEmail, setEditingEmail] = useState<Record<string, string>>({});
   const [savingEmail, setSavingEmail] = useState<string | null>(null);
   const [previewRecord, setPreviewRecord] = useState<any>(null);
+  const [editingBody, setEditingBody] = useState<string | null>(null);
 
   useEffect(() => { fetchOverdue(); }, []);
 
@@ -164,7 +165,7 @@ const OutreachPage = () => {
       dataIndex: "body",
       render: (v: string, record: any) => (
         <Button size="small" icon={<MailOutlined />} onClick={() => setPreviewRecord(record)}>
-          Preview template
+          Preview email
         </Button>
       )
     },
@@ -176,31 +177,6 @@ const OutreachPage = () => {
         ? <Tag icon={<CheckCircleOutlined />} color="success">Sent {record.email_sent_at ? dayjs(record.email_sent_at).format("MMM D") : ""}</Tag>
         : <Tag icon={<ClockCircleOutlined />} color="warning">Pending</Tag>
     },
-    {
-      title: "",
-      width: 120,
-      render: (_: any, record: any) => (
-        <Popconfirm
-          title="Send payment reminder?"
-          description={`Send email to ${record.isos?.name}?`}
-          onConfirm={() => sendEmail(record)}
-          okText="Yes, Send"
-          cancelText="Cancel"
-          disabled={record.email_sent}
-        >
-          <Button
-            type="primary"
-            icon={<MailOutlined />}
-            size="small"
-            loading={sending[record.id]}
-            disabled={record.email_sent || (!record.iso_email && !editingEmail[record.iso_id])}
-            style={{ background: record.email_sent ? undefined : "#0f2040" }}
-          >
-            {record.email_sent ? "Sent" : "Send Now"}
-          </Button>
-        </Popconfirm>
-      )
-    }
   ];
 
   return (
@@ -228,15 +204,16 @@ const OutreachPage = () => {
 
       <Modal
         open={!!previewRecord}
-        title={`Email template — ${previewRecord?.iso_name} (${previewRecord?.report_month ? dayjs(previewRecord.report_month).format("MMM YYYY") : ""})`}
-        onCancel={() => setPreviewRecord(null)}
+        title={`Email preview — ${previewRecord?.iso_name} (${previewRecord?.report_month ? dayjs(previewRecord.report_month).format("MMM YYYY") : ""})`}
+        onCancel={() => { setPreviewRecord(null); setEditingBody(null); }}
         footer={[
-          <Button key="close" onClick={() => setPreviewRecord(null)}>Close</Button>,
+          <Button key="close" onClick={() => { setPreviewRecord(null); setEditingBody(null); }}>Close</Button>,
+          <Button key="edit" icon={<EditOutlined />} onClick={() => setEditingBody(editingBody !== null ? null : (previewRecord?.body || ""))}>{editingBody !== null ? "Cancel edit" : "Edit email"}</Button>,
           <Popconfirm
             key="send"
             title="Send this reminder?"
             description={`Send to ${previewRecord?.iso_email || "this ISO"}?`}
-            onConfirm={() => { sendEmail(previewRecord); setPreviewRecord(null); }}
+            onConfirm={() => { const r = editingBody !== null ? { ...previewRecord, body: editingBody } : previewRecord; sendEmail(r); setPreviewRecord(null); setEditingBody(null); }}
             okText="Yes, Send Now"
           >
             <Button type="primary" icon={<MailOutlined />} style={{ background: "#0f2040" }}>
@@ -246,9 +223,18 @@ const OutreachPage = () => {
         ]}
         width={600}
       >
-        <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: 13, background: "#f9fafb", padding: 16, borderRadius: 8, border: "1px solid #e5e7eb" }}>
-          {previewRecord?.body}
-        </pre>
+        {editingBody !== null ? (
+          <Input.TextArea
+            value={editingBody}
+            onChange={e => setEditingBody(e.target.value)}
+            autoSize={{ minRows: 12, maxRows: 20 }}
+            style={{ fontFamily: "inherit", fontSize: 13 }}
+          />
+        ) : (
+          <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: 13, background: "#f9fafb", padding: 16, borderRadius: 8, border: "1px solid #e5e7eb", maxHeight: 400, overflowY: "auto" }}>
+            {previewRecord?.body}
+          </pre>
+        )}
       </Modal>
     </>
   );
