@@ -14,13 +14,15 @@ function buildEmailBody(isoName: string, amount: number, month: string, dueDate:
   const amt = amount?.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return `Hi ${isoName} Team,
 
-We hope this message finds you well. This is a friendly reminder that your residual payment for ${monthLabel} in the amount of $${amt} was due on ${dayjs(dueDate).format("MMMM D, YYYY")} and has not yet been received.
+We hope you're doing well!
 
-Please arrange payment at your earliest convenience. If you have already submitted payment, kindly reply to this email with the transaction reference so we can reconcile our records.
+We just wanted to send a quick follow-up regarding your ${monthLabel} residual payment of $${amt}, which was due on ${dayjs(dueDate).format("MMMM D, YYYY")}. It looks like we haven't received the payment yet, so we wanted to kindly check in.
+
+When you have a chance, please arrange payment at your convenience. If payment has already been sent, no worries at all — simply reply to this email with the transaction reference so we can make sure our records are updated accordingly.
 
 If you have any questions or concerns, please don't hesitate to reach out — we're happy to assist.
 
-Thank you for your continued partnership.
+Thank you so much for your continued partnership.
 
 Best regards,
 PayDiverse Payments Team`;
