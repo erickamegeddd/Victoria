@@ -5,6 +5,7 @@ import RevenuePage from "../pages/RevenueVolumePage";
 import RevenuePerMidPage from "../pages/RevenuePerMidPage";
 import AgentsPage from "../pages/AgentsPage";
 import IndustryPage from "../pages/IndustryPage";
+import OutreachPage from "../pages/OutreachPage";
 import InsightsPage from "../pages/general/InsightsPage";
 import ImportDataPage from "../pages/ImportDataPage";
 import LogsPage from "../pages/LogsPage";
@@ -41,6 +42,7 @@ const HomeRoutes = () => {
       <Route path="/revenue-mid" element={<SP><RevenuePerMidPage/></SP>}/>
       <Route path="/agents" element={<SP><AgentsPage/></SP>}/>
       <Route path="/industry" element={<SP><IndustryPage/></SP>}/>
+      <Route path="/outreach" element={<SP><OutreachPage/></SP>}/>
       <Route path="/insights" element={<SP><InsightsPage/></SP>}/>
       <Route path="/merchants" element={<SP><MerchantsListPage/></SP>}/>
       <Route path="/iso-merchants" element={<SP><ISOsMerchantsPage/></SP>}/>
