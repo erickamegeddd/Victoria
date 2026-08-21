@@ -11,8 +11,7 @@ on:
         description: 'Specific ISO name (e.g. "PayArc"). Leave blank to import ALL verified ISOs.'
         required: false
         default: ''
-  schedule:
-    - cron: '0 10 5 * *'   # Runs automatically on the 5th of every month at 10 AM UTC
+ 
 
 jobs:
   import:
