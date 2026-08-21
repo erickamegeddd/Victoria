@@ -313,6 +313,9 @@ def main():
     parser.add_argument("--force", action="store_true", help="Import unverified ISOs too")
     parser.add_argument("--victoria-key", help="Victoria Supabase service key (required for writes)")
     args = parser.parse_args()
+    # Fall back to env var if --victoria-key not passed (safer for CI/CD)
+    if not args.victoria_key:
+        args.victoria_key = os.environ.get("SUPABASE_SERVICE_KEY", "")
 
     # Load config
     with open(CONFIG_FILE) as f:
