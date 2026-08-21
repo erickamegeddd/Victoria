@@ -99,7 +99,7 @@ const CompareChart = ({ items, labelA, labelB }) => {
             <text x={LW-6} y={y+10} textAnchor="end" fontSize="10" fill="#374151" fontWeight="600">{iso.isoName.length>18?iso.isoName.slice(0,18)+"..":iso.isoName}</text>
             <rect x={LW} y={y} width={Math.max(wA,2)} height={9} rx="3" fill="#bfdbfe"/>
             <rect x={LW} y={y+12} width={Math.max(wB,2)} height={9} rx="3" fill={grew?"#059669":"#dc2626"}/>
-            <text x={LW+Math.max(wB,2)+4} y={y+19} fontSize="9" fill={grew?"#059669":"#dc2626"} fontWeight="700">{wB>=1000000?`$${(iso.netB/1000000).toFixed(1)}M`:wB>=1000?`$${(iso.netB/1000).toFixed(0)}K`:`$${iso.netB.toFixed(0)}`} {grew?"up":"dn"} {Math.abs(iso.netPct).toFixed(0)}%</text>
+            <text x={LW+Math.max(wB,2)+4} y={y+19} fontSize="9" fill={grew?"#059669":"#dc2626"} fontWeight="700">{iso.netB>=1000000?`$${(iso.netB/1000000).toFixed(2)}M`:iso.netB>=1000?`$${(iso.netB/1000).toFixed(1)}K`:`$${Number(iso.netB).toLocaleString("en-US",{maximumFractionDigits:0})}`} {grew?"up":"dn"} {Math.abs(iso.netPct).toFixed(0)}%</text>
           </g>
         );
       })}
