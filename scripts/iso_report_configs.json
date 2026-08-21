@@ -55,6 +55,60 @@
       "col_paydiversenet": "M",
       "skip_header_rows": 1,
       "_notes": "M=Agent income (formatted as '$ 21.46'). C=MID, B=Merchant name. Values with $ prefix handled by f() parser."
+    },
+    "Netevia": {
+      "verified": true,
+      "file_pattern": [
+        "Netevia*.xlsx",
+        "Netevia*.xls"
+      ],
+      "col_mid": "A",
+      "col_business_name": "B",
+      "col_paydiversenet": "D",
+      "skip_header_rows": 1,
+      "_notes": "Col D header is agent name (e.g. 'Frank Sena') but always column D. Negatives = chargebacks. File in root month folder (not Breier subfolder)."
+    },
+    "Total-Apps": {
+      "verified": true,
+      "file_pattern": [
+        "Total Apps*.xlsx",
+        "Total-Apps*.xlsx",
+        "Total_Apps*.xlsx"
+      ],
+      "dropbox_subfolder": "Breier",
+      "col_mid": "A",
+      "col_business_name": "B",
+      "col_gross_volume": "D",
+      "col_paydiversenet": "H",
+      "skip_header_rows": 1,
+      "_notes": "H=ISO $ Split = PayDiverse's share as ISO. File in Breier subfolder."
+    },
+    "Payment Cloud": {
+      "verified": true,
+      "file_pattern": [
+        "Payment Cloud*.xlsx",
+        "PaymentCloud*.xlsx"
+      ],
+      "dropbox_subfolder": "Breier",
+      "col_mid": "E",
+      "col_business_name": "F",
+      "col_gross_volume": "G",
+      "col_paydiversenet": "O",
+      "skip_header_rows": 1,
+      "_notes": "O=Partner Comm = PayDiverse's commission as partner. Rows without MID in col E are skipped."
+    },
+    "Taluspay": {
+      "verified": true,
+      "file_pattern": [
+        "Taluspay*.xlsx",
+        "Taluspay*.xls"
+      ],
+      "dropbox_subfolder": "Breier",
+      "col_mid": "A",
+      "col_business_name": "B",
+      "col_paydiversenet": "W",
+      "skip_header_rows": 0,
+      "_notes": "W = final agent/reseller payout (last column). No header row \u2014 data starts at row 1."
     }
   }
 }
