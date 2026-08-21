@@ -14,6 +14,7 @@ const RevenuePerMidPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedIso, setSelectedIso] = useState(undefined);
   const [selectedMonth, setSelectedMonth] = useState(undefined);
+  const [filteredData, setFilteredData] = useState([]);
   const searchInput = useRef(null);
 
   useEffect(() => { fetchIsos(); }, []);
@@ -75,11 +76,12 @@ const RevenuePerMidPage = () => {
     })).sort((a, b) => b.total_net - a.total_net);
 
     setData(aggregated);
+    setFilteredData(aggregated);
     setLoading(false);
   };
 
-  const totalNet = data.reduce((s, r) => s + r.total_net, 0);
-  const totalVol = data.reduce((s, r) => s + r.total_volume, 0);
+  const totalNet = filteredData.reduce((s, r) => s + r.total_net, 0);
+  const totalVol = filteredData.reduce((s, r) => s + r.total_volume, 0);
 
   const getSearchProps = (dataIndex, label) => ({
     filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
@@ -127,7 +129,7 @@ const RevenuePerMidPage = () => {
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={8}><Card><Statistic title="Total Net Income" value={totalNet} prefix="$" precision={2} valueStyle={{ color: "var(--primary-color)", fontWeight: 700 }} formatter={v => Number(v).toLocaleString("en-US",{minimumFractionDigits:2})}/></Card></Col>
         <Col span={8}><Card><Statistic title="Total Volume Processed" value={totalVol} prefix="$" precision={2} valueStyle={{ color: "#6b7a99", fontWeight: 700 }} formatter={v => Number(v).toLocaleString("en-US",{minimumFractionDigits:2})}/></Card></Col>
-        <Col span={8}><Card><Statistic title="Unique MIDs" value={data.length} valueStyle={{ color: "var(--primary-color)", fontWeight: 700 }}/></Card></Col>
+        <Col span={8}><Card><Statistic title="Unique MIDs" value={filteredData.length} valueStyle={{ color: "var(--primary-color)", fontWeight: 700 }}/></Card></Col>
       </Row>
       <Card style={{ marginBottom: 12 }}>
         <Space wrap>
@@ -135,13 +137,13 @@ const RevenuePerMidPage = () => {
             {isos.map(iso => <Option key={iso.id} value={iso.id}>{iso.name}</Option>)}
           </Select>
           <DatePicker picker="month" placeholder="All months" onChange={d => setSelectedMonth(d ? d.startOf("month").format("YYYY-MM-DD") : undefined)} style={{ width: 160 }} />
-          <Text style={{ color: "var(--muted-color)", fontSize: 12 }}>{data.length} MIDs · sorted by net income</Text>
+          <Text style={{ color: "var(--muted-color)", fontSize: 12 }}>{filteredData.length} of {data.length} MIDs</Text>
         </Space>
       </Card>
       <Card>
         <Table dataSource={data} columns={columns} rowKey="mid" loading={loading}
           pagination={{ pageSize: 50, showTotal: t => `${t} MIDs` }}
-          size="small" scroll={{x:900,y:'calc(100vh - 420px)'}} />
+          size="small" scroll={{x:900,y:'calc(100vh - 420px)'}} onChange={(_, __, ___, { currentDataSource }) => setFilteredData(currentDataSource)} />
       </Card>
     </div>
   );
