@@ -89,7 +89,7 @@ const AgentsPage = () => {
       <AgentsPayoutBarChart date={date} />
 
       <h2 style={{ marginTop: 32 }}>Adjustments Log</h2>
-      <Table scroll={{x:'max-content',y:'calc(100vh - 300px)'}}
+      <Table
         loading={adjLoading}
         dataSource={adjData}
         rowKey="id"
@@ -97,7 +97,7 @@ const AgentsPage = () => {
         columns={adjColumns}
         pagination={{ pageSize: 10, showSizeChanger: false }}
         locale={{ emptyText: "No adjustments or custom rows recorded for this month." }}
-        scroll={{ x: 900 }}
+        scroll={{x:900,y:'calc(100vh - 300px)'}}
         rowClassName={(record: any) => record.field_name === "new_row" ? "" : ""}
       />
     </>
