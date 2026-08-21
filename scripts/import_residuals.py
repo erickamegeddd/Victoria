@@ -132,8 +132,14 @@ def parse_xlsx(path):
     return rows_data
 
 def f(v):
+    """Parse numeric cell value — handles negatives stored as (500.00) accounting format."""
+    if v is None or v == "":
+        return 0.0
     try:
-        return float(v) if v else 0.0
+        s = str(v).strip().replace(",", "").replace("$", "").replace(" ", "")
+        if s.startswith("(") and s.endswith(")"):
+            return -float(s[1:-1])  # (500.00) → -500.0
+        return float(s) if s else 0.0
     except:
         return 0.0
 
