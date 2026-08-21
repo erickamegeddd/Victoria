@@ -88,12 +88,22 @@ const PaymentsPage = () => {
   const filteredISOs=activeStatusFilter?expectedByISO.filter(r=>{const p=getPaymentForISO(r.isoId);return getStatus(r.expected,p?.received_amount)===activeStatusFilter;}):expectedByISO;
 
   const reconCols=[
-    {title:'ISO',key:'iso',render:(_,r)=><Text strong>{r.isoName}</Text>},
-    {title:'Expected',key:'exp',align:'right',render:(_,r)=><Text strong style={{color:'var(--primary-color)'}}>{fmt(r.expected)}</Text>},
-    {title:'Received',key:'rec',align:'right',render:(_,r)=>{const p=getPaymentForISO(r.isoId);return p?.received_amount!=null?<Text strong style={{color:'#059669'}}>{fmt(p.received_amount)}</Text>:<Text style={{color:'var(--muted-color)'}}>--</Text>;}},
-    {title:'Difference',key:'diff',align:'right',render:(_,r)=>{const p=getPaymentForISO(r.isoId);if(p?.received_amount==null)return<Text style={{color:'var(--muted-color)'}}>--</Text>;const diff=(p?.received_amount||0)-r.expected;return<Text strong style={{color:Math.abs(diff)<0.01?'#059669':diff<0?'#dc2626':'#2563eb'}}>{diff>=0?'+':''}{fmt(diff)}</Text>;}},
-    {title:'Status',key:'status',render:(_,r)=>{const p=getPaymentForISO(r.isoId);const s=p?getStatus(r.expected,p.received_amount):'pending';const cfg=STATUS_CONFIG[s];return<Tag color={cfg.color}>{cfg.label}</Tag>;}},
-    {title:'Payment Expected By',key:'expdate',width:150,render:(_,r)=>{
+    {title:'ISO',key:'iso',
+      filters: expectedByISO.map(r=>({text:r.isoName,value:r.isoId})),
+      onFilter:(val,r)=>r.isoId===val,
+      filterSearch:true,
+      render:(_,r)=><Text strong>{r.isoName}</Text>},
+    {title:'Expected',key:'exp',align:'right',sorter:(a,b)=>a.expected-b.expected,render:(_,r)=><Text strong style={{color:'var(--primary-color)'}}>{fmt(r.expected)}</Text>},
+    {title:'Received',key:'rec',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return(pa?.received_amount||0)-(pb?.received_amount||0);},render:(_,r)=>{const p=getPaymentForISO(r.isoId);return p?.received_amount!=null?<Text strong style={{color:'#059669'}}>{fmt(p.received_amount)}</Text>:<Text style={{color:'var(--muted-color)'}}>--</Text>;}},
+    {title:'Difference',key:'diff',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return((pa?.received_amount||0)-a.expected)-((pb?.received_amount||0)-b.expected);},render:(_,r)=>{const p=getPaymentForISO(r.isoId);if(p?.received_amount==null)return<Text style={{color:'var(--muted-color)'}}>--</Text>;const diff=(p?.received_amount||0)-r.expected;return<Text strong style={{color:Math.abs(diff)<0.01?'#059669':diff<0?'#dc2626':'#2563eb'}}>{diff>=0?'+':''}{fmt(diff)}</Text>;}},
+    {title:'Status',key:'status',
+      filters:[{text:'Paid',value:'paid'},{text:'Short Paid',value:'short_paid'},{text:'Pending',value:'pending'},{text:'Overpaid',value:'overpaid'}],
+      onFilter:(val,r)=>{const p=getPaymentForISO(r.isoId);return getStatus(r.expected,p?.received_amount)===val;},
+      render:(_,r)=>{const p=getPaymentForISO(r.isoId);const s=p?getStatus(r.expected,p.received_amount):'pending';const cfg=STATUS_CONFIG[s];return<Tag color={cfg.color}>{cfg.label}</Tag>;}},
+    {title:'Payment Expected By',key:'expdate',width:150,
+      filters:[{text:'Overdue',value:'overdue'},{text:'Has Due Date',value:'has_date'},{text:'No Date Set',value:'no_date'}],
+      onFilter:(val,r)=>{const p=getPaymentForISO(r.isoId);const expDate=parseExpDate(p?.notes);if(val==='no_date')return!expDate;if(val==='has_date')return!!expDate;if(val==='overdue')return expDate&&expDate<today&&p?.received_amount==null;return true;},
+      render:(_,r)=>{
       const p=getPaymentForISO(r.isoId);
       const expDate=parseExpDate(p?.notes);
       if(!expDate)return<Text style={{color:'var(--muted-color)',fontSize:12}}>--</Text>;
@@ -102,7 +112,7 @@ const PaymentsPage = () => {
         ?<Tag color="red" style={{fontWeight:600}}> Overdue - {dayjs(expDate).format('MMM D')}</Tag>
         :<Text style={{fontSize:12,color:p?.received_amount==null?'#d97706':'var(--muted-color)'}}>{dayjs(expDate).format('MMM D, YYYY')}</Text>;
     }},
-    {title:'Payment Date',key:'date',render:(_,r)=>{const p=getPaymentForISO(r.isoId);return p?.payment_date?<Text style={{fontSize:12,color:'var(--muted-color)'}}>{dayjs(p.payment_date).format('MMM D, YYYY')}</Text>:<Text style={{color:'var(--muted-color)'}}>--</Text>;}},
+    {title:'Payment Date',key:'date',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return(pa?.payment_date||'')<(pb?.payment_date||'')?-1:1;},render:(_,r)=>{const p=getPaymentForISO(r.isoId);return p?.payment_date?<Text style={{fontSize:12,color:'var(--muted-color)'}}>{dayjs(p.payment_date).format('MMM D, YYYY')}</Text>:<Text style={{color:'var(--muted-color)'}}>--</Text>;}},
     {title:'Notes',key:'notes',ellipsis:true,render:(_,r)=>{const p=getPaymentForISO(r.isoId);const n=parseActualNotes(p?.notes);return n?<Text style={{fontSize:12,color:'var(--muted-color)'}}>{n}</Text>:null;}},
     {title:'',key:'action',width:140,render:(_,r)=>{const p=getPaymentForISO(r.isoId);return<Button size="small" type={p?'default':'primary'} onClick={()=>openPaymentModal(r.isoId,r.isoName,r.expected)}>{p?'Edit':'Record Payment'}</Button>;}},
   ];
