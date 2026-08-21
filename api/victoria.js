@@ -360,7 +360,7 @@ Rules: Answer only from data above. Never fabricate. For agent range questions, 
       { role:"user", content:question }
     ];
 
-    const MODELS = ["llama-3.3-70b-versatile","llama3-70b-8192","llama3-8b-8192","mixtral-8x7b-32768","gemma2-9b-it","llama-3.1-8b-instant"];
+    const MODELS = ["meta-llama/llama-4-scout-17b-16e-instruct","meta-llama/llama-4-maverick-17b-128e-instruct","compound-beta","compound-beta-mini","llama-3.3-70b-versatile","llama3-70b-8192"];
     let answer=null, lastErr=null;
     for (const model of MODELS) {
       const r = await fetch("https://api.groq.com/openai/v1/chat/completions",{
