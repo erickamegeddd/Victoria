@@ -222,7 +222,7 @@ const FilesImportedComponent = () => {
           />
         </Col>
       </Row>
-      <Table
+      <Table sticky
         dataSource={uniqueIsos?.filter((item: { iso: string }) => {
           const iso = item.iso || "";
           return iso?.toLowerCase().includes(searchText?.toLowerCase());
