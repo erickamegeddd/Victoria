@@ -103,7 +103,7 @@ const MerchantsListPage = () => {
       )}
 
       <Card>
-        <Table dataSource={filteredMerchants} columns={columns} rowKey="id" loading={loading}
+        <Table sticky dataSource={filteredMerchants} columns={columns} rowKey="id" loading={loading}
           pagination={{ pageSize: 50, showTotal: t => `${t} merchants` }} size="small" />
       </Card>
     </div>
