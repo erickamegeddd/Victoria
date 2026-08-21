@@ -292,7 +292,7 @@ const MidsNotUploaded = () => {
         </Col>
       </Row>
 
-      <Table sticky
+      <Table scroll={{x:'max-content',y:'calc(100vh - 380px)'}}
         loading={isLoading || isFetching}
         columns={columns}
         dataSource={data?.merchants || []}
