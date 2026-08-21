@@ -263,16 +263,25 @@ export default async function handler(req, res) {
         byMid[k].net+=(r.paydiversenet||0); byMid[k].gv+=(r.gross_volume||0); byMid[k].months.add(r.report_month);
         if (r.report_month < byMid[k].first_seen) byMid[k].first_seen = r.report_month;
       });
+      // Compute which merchants appear for the first time each month
+      const newByMonth = {};
+      Object.entries(byMid).forEach(([name,d]) => {
+        const mo = fmtM(d.first_seen);
+        if (!newByMonth[mo]) newByMonth[mo] = [];
+        newByMonth[mo].push(name);
+      });
       const ranked = Object.entries(byMid).sort((a,b)=>b[1].net-a[1].net);
       const mArr = Array.isArray(merch)?merch:[];
       const byISO={};
       mArr.forEach(m=>{ const n=m.isos?.name||"?"; if(!byISO[n]) byISO[n]={a:0,i:0}; if(m.status==="active") byISO[n].a++; else byISO[n].i++; });
-      const targetMonthLabel = months?.length===1 ? fmtM(months[0]) : null;
+      const reqMo = months?.length===1 ? fmtM(months[0]) : null;
       contextData.merchants = {
         total: mArr.length, active: mArr.filter(m=>m.status==="active").length,
         top_15_by_residual: ranked.slice(0,15).map(([name,d],i)=>({ rank:i+1, merchant:name, iso:d.iso, paydiversenet:fmtK(d.net), months:d.months.size, first_seen:fmtM(d.first_seen) })),
-        new_merchants_in_month: targetMonthLabel ? { month:targetMonthLabel, merchants:(newByMonth[targetMonthLabel]||[]).map(m=>m.merchant), count:(newByMonth[targetMonthLabel]||[]).length } : Object.entries(newByMonth).map(([mo,ms])=>({ month:mo, count:ms.length, merchants:ms.map(m=>m.merchant).slice(0,10) })),
-        note: "new_merchants_in_month = merchants appearing in residuals for the FIRST time in that month (not present in any earlier month).",
+        new_merchants_in_month: reqMo
+          ? { month:reqMo, count:(newByMonth[reqMo]||[]).length, merchants:newByMonth[reqMo]||[] }
+          : Object.entries(newByMonth).map(([mo,ms])=>({ month:mo, count:ms.length, merchants:ms.slice(0,8) })),
+        note:"new_merchants_in_month lists merchants whose first residual entry was in that month (brand new, not present before).",
       };
 
     // ── 5. General / summary ──────────────────────────────────────────────────
