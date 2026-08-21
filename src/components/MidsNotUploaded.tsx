@@ -292,7 +292,7 @@ const MidsNotUploaded = () => {
         </Col>
       </Row>
 
-      <Table scroll={{x:'max-content',y:'calc(100vh - 380px)'}}
+      <Table sticky
         loading={isLoading || isFetching}
         columns={columns}
         dataSource={data?.merchants || []}
@@ -316,7 +316,7 @@ const MidsNotUploaded = () => {
             setPageSize(size);
           },
         }}
-        scroll={{ x: 768 }}
+        scroll={{x:768,y:'calc(100vh - 380px)'}}
       />
     </>
   );
