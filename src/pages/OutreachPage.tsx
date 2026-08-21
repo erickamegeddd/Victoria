@@ -218,7 +218,7 @@ const OutreachPage = () => {
         <Button onClick={fetchOverdue} size="small">Refresh</Button>
       </div>
 
-      <Table sticky
+      <Table scroll={{x:'max-content',y:'calc(100vh - 300px)'}}
         columns={columns}
         dataSource={records}
         rowKey="id"
