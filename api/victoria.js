@@ -9,7 +9,8 @@ async function sbGet(path) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` }
   });
-  return res.json();
+  const text = await res.text();
+  try { return JSON.parse(text); } catch { return []; }
 }
 async function sbGetAll(path) {
   let offset = 0, all = [];
@@ -359,14 +360,15 @@ Rules: Answer only from data above. Never fabricate. For agent range questions, 
       { role:"user", content:question }
     ];
 
-    const MODELS = ["openai/gpt-oss-120b","groq/compound","openai/gpt-oss-20b"];
+    const MODELS = ["llama-3.3-70b-versatile","llama-3.1-70b-versatile","llama-3.1-8b-instant"];
     let answer=null, lastErr=null;
     for (const model of MODELS) {
       const r = await fetch("https://api.groq.com/openai/v1/chat/completions",{
         method:"POST", headers:{"Authorization":`Bearer ${GROQ_KEY}`,"Content-Type":"application/json"},
         body:JSON.stringify({ model, messages:msgs, temperature:0.1, max_tokens:1200 })
       });
-      const d = await r.json();
+      const rtext = await r.text();
+      let d; try { d = JSON.parse(rtext); } catch { lastErr=`${model}: non-JSON response`; continue; }
       if(d.error){
         const msg=d.error.message||"";
         const skip=msg.includes("Rate limit")||msg.includes("decommission")||msg.includes("does not exist")||msg.includes("do not have access")||msg.includes("Entity Too Large")||msg.includes("context_length")||msg.includes("too long")||r.status===413;
