@@ -210,7 +210,7 @@ const ISOsMerchantsPage = () => {
               </Button>
             )}
           </div>
-          <Table sticky
+          <Table scroll={{x:'max-content',y:'calc(100vh - 320px)'}}
             dataSource={filtered}
             columns={merchantColumns}
             rowKey="id"
@@ -237,7 +237,7 @@ const ISOsMerchantsPage = () => {
 
       {/* ISOs section */}
       <Card bodyStyle={{ padding: 0 }}>
-        <Table sticky
+        <Table scroll={{x:'max-content',y:'calc(100vh - 320px)'}}
           dataSource={regularRows}
           columns={buildIsoColumns(true)}
           rowKey="isoId"
@@ -254,7 +254,7 @@ const ISOsMerchantsPage = () => {
         <>
           <SectionHeader label="Gateway" color="#7c3aed" />
           <Card bodyStyle={{ padding: 0 }}>
-            <Table sticky
+            <Table scroll={{x:'max-content',y:'calc(100vh - 320px)'}}
               dataSource={gatewayRows}
               columns={buildIsoColumns(true)}
               rowKey="isoId"
