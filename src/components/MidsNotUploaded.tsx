@@ -292,7 +292,7 @@ const MidsNotUploaded = () => {
         </Col>
       </Row>
 
-      <Table
+      <Table sticky
         loading={isLoading || isFetching}
         columns={columns}
         dataSource={data?.merchants || []}
