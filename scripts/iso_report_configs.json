@@ -109,6 +109,245 @@
       "col_paydiversenet": "W",
       "skip_header_rows": 0,
       "_notes": "W = final agent/reseller payout (last column). No header row \u2014 data starts at row 1."
+    },
+    "CCBill": {
+      "verified": true,
+      "file_pattern": [
+        "CC Bill*.xlsx",
+        "CCBill*.xlsx"
+      ],
+      "col_mid": "F",
+      "col_business_name": "I",
+      "col_gross_volume": "J",
+      "col_paydiversenet": "L",
+      "skip_header_rows": 10,
+      "_notes": "L=Partner Commission. 10 rows of logo/title before data. F=Merchant Account ID, I=Company Name."
+    },
+    "Finns": {
+      "verified": true,
+      "file_pattern": [
+        "Finns*.xlsx"
+      ],
+      "col_mid": "B",
+      "col_business_name": "B",
+      "col_gross_volume": "D",
+      "col_paydiversenet": "K",
+      "skip_header_rows": 1,
+      "_notes": "K=Finns ISO income. No separate MID column \u2014 col B (Merchant name) used for both."
+    },
+    "HiRisk": {
+      "verified": true,
+      "file_pattern": [
+        "The HiRisk*.xlsx",
+        "HiRisk*.xlsx"
+      ],
+      "col_mid": "A",
+      "col_business_name": "A",
+      "col_paydiversenet": "B",
+      "skip_header_rows": 4,
+      "_notes": "B=Commission Due. 4 preamble rows before data. No gross volume column. Single MID per report."
+    },
+    "Cardworks": {
+      "verified": true,
+      "file_pattern": [
+        "Cardworks*.xlsx"
+      ],
+      "col_mid": "D",
+      "col_business_name": "E",
+      "col_gross_volume": "F",
+      "col_paydiversenet": "J",
+      "skip_header_rows": 1,
+      "_notes": "J=Residual (Income minus Expense = net PayDiverse earns)."
+    },
+    "Expitrans": {
+      "verified": true,
+      "file_pattern": [
+        "Expitrans*.xlsx"
+      ],
+      "col_mid": "A",
+      "col_business_name": "B",
+      "col_gross_volume": "G",
+      "col_paydiversenet": "K",
+      "skip_header_rows": 1,
+      "_notes": "K=NetProfit (total net before agent split). G=volume formatted as dollar string."
+    },
+    "E-Fitness Today": {
+      "verified": true,
+      "file_pattern": [
+        "E-Fitness*.xlsx"
+      ],
+      "col_mid": "B",
+      "col_business_name": "C",
+      "col_gross_volume": "I",
+      "col_paydiversenet": "H",
+      "skip_header_rows": 1,
+      "_notes": "H=Commission (summary row only, not per-campaign row). Single-merchant campaign-level report."
+    },
+    "Merchant Industry": {
+      "verified": true,
+      "file_pattern": [
+        "Merchant Industry*.xlsx"
+      ],
+      "sheet_name": "Agent Main Data",
+      "col_mid": "A",
+      "col_business_name": "B",
+      "col_gross_volume": "F",
+      "col_paydiversenet": "K",
+      "skip_header_rows": 1,
+      "_notes": "K=Net (Income-Expense). Data on sheet 'Agent Main Data'. Skip rows with no MID in col A."
+    },
+    "Revitpay": {
+      "verified": true,
+      "file_pattern": [
+        "Revitpay*.xlsx"
+      ],
+      "col_mid": "A",
+      "col_business_name": "B",
+      "col_gross_volume": "G",
+      "col_paydiversenet": "M",
+      "skip_header_rows": 6,
+      "_notes": "M=Agent Net (70% of net). 6 title/metadata rows before header. Data starts at row 7."
+    },
+    "Midmetrics": {
+      "verified": false,
+      "file_pattern": [
+        "Midmetrics*.xlsx"
+      ],
+      "col_mid": "A",
+      "col_business_name": "A",
+      "col_paydiversenet": "E",
+      "skip_header_rows": 1,
+      "_notes": "E=PayDiverse net share (35% of gross profit). Non-standard grouped layout \u2014 needs custom parser. Marked unverified until parser supports it."
+    },
+    "Seamless Chex": {
+      "verified": true,
+      "file_pattern": [
+        "Seamless Chex*.xlsx",
+        "Seamless_Chex*.xlsx"
+      ],
+      "col_mid": "D",
+      "col_business_name": "E",
+      "col_gross_volume": "G",
+      "col_paydiversenet": "M",
+      "skip_header_rows": 4,
+      "_notes": "M=Payout Total (agent net). 4 summary rows before header. Data starts at row 6."
+    },
+    "Payliance": {
+      "verified": true,
+      "file_pattern": [
+        "Payliance*.xlsx"
+      ],
+      "col_mid": "A",
+      "col_business_name": "B",
+      "col_gross_volume": "D",
+      "col_paydiversenet": "E",
+      "skip_header_rows": 2,
+      "_notes": "E=CommissionsAmount. Row 0=metadata, Row 1=header, data from row 2."
+    },
+    "AltoPay": {
+      "verified": false,
+      "file_pattern": [
+        "AltoPay*.xlsx"
+      ],
+      "col_mid": "A",
+      "col_business_name": "A",
+      "col_gross_volume": "B",
+      "col_paydiversenet": "C",
+      "skip_header_rows": 1,
+      "_notes": "Non-standard block layout (one merchant per block, not per row). C=agent payout per block. Needs custom parser \u2014 marked unverified."
+    },
+    "NMI": {
+      "verified": true,
+      "file_pattern": [
+        "NMI*.xlsx"
+      ],
+      "dropbox_subfolder": "Breier",
+      "col_mid": "C",
+      "col_business_name": "D",
+      "col_gross_volume": "N",
+      "col_paydiversenet": "R",
+      "skip_header_rows": 1,
+      "_notes": "R=Total Commission. Multiple rows per MID (one per fee type) \u2014 sum by MID. File in Breier subfolder."
+    },
+    "GET": {
+      "verified": true,
+      "file_pattern": [
+        "GET*.xlsx"
+      ],
+      "dropbox_subfolder": "Breier",
+      "col_mid": "A",
+      "col_business_name": "B",
+      "col_gross_volume": "J",
+      "col_paydiversenet": "AL",
+      "skip_header_rows": 1,
+      "_notes": "AL=CommissionAmount (agent payout). J=TotalVolumeSales. File in Breier subfolder."
+    },
+    "Celero": {
+      "verified": true,
+      "file_pattern": [
+        "Celero*.xlsx"
+      ],
+      "dropbox_subfolder": "Breier",
+      "col_mid": "E",
+      "col_business_name": "F",
+      "col_gross_volume": "H",
+      "col_paydiversenet": "L",
+      "skip_header_rows": 1,
+      "_notes": "L=Payout (agent payout = PayDiverse income). H=TotalVolume. File in Breier subfolder."
+    },
+    "Authorize.Net": {
+      "verified": true,
+      "file_pattern": [
+        "Authorize.Net*.xlsx",
+        "Authorize_Net*.xlsx"
+      ],
+      "dropbox_subfolder": "Breier",
+      "col_mid": "B",
+      "col_business_name": "C",
+      "col_paydiversenet": "M",
+      "skip_header_rows": 1,
+      "_notes": "M=Collection Attempts (sum of all fees per merchant). File in Breier subfolder."
+    },
+    "MerchantE Synovous": {
+      "verified": true,
+      "file_pattern": [
+        "Merchant E Synovous*.xlsx",
+        "MerchantE Synovous*.xlsx"
+      ],
+      "dropbox_subfolder": "Breier",
+      "col_mid": "B",
+      "col_business_name": "A",
+      "col_paydiversenet": "L",
+      "skip_header_rows": 1,
+      "_notes": "L=Net P/L (net profit/loss after all expenses). A=Organization (DBA), B=Org Id (MID). File in Breier subfolder."
+    },
+    "First Direct Financial": {
+      "verified": true,
+      "file_pattern": [
+        "First Direct Financial*.xlsx",
+        "First_Direct*.xlsx"
+      ],
+      "dropbox_subfolder": "Breier",
+      "col_mid": "A",
+      "col_business_name": "B",
+      "col_gross_volume": "G",
+      "col_paydiversenet": "M",
+      "skip_header_rows": 7,
+      "_notes": "M=Agent Net (PayDiverse payout). 7 rows before data (6 blank/title + 1 header). File in Breier subfolder."
+    },
+    "Worldpay": {
+      "verified": true,
+      "file_pattern": [
+        "Worldpay*.xlsx",
+        "Worldpay Vantiv*.xlsx"
+      ],
+      "dropbox_subfolder": "Breier",
+      "col_mid": "L",
+      "col_business_name": "O",
+      "col_gross_volume": "R",
+      "col_paydiversenet": "Y",
+      "skip_header_rows": 1,
+      "_notes": "Y=TOTAL_ADJ_RESID (net adjusted residual). L=MERCH_NBR (MID), O=MERCHANT_NAME, R=TOTAL_SALES_VOLUME. File in Breier subfolder."
     }
   }
 }
