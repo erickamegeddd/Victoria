@@ -139,9 +139,9 @@ const RevenuePerMidPage = () => {
         </Space>
       </Card>
       <Card>
-        <Table scroll={{x:'max-content',y:'calc(100vh - 420px)'}} dataSource={data} columns={columns} rowKey="mid" loading={loading}
+        <Table dataSource={data} columns={columns} rowKey="mid" loading={loading}
           pagination={{ pageSize: 50, showTotal: t => `${t} MIDs` }}
-          size="small" scroll={{ x: 900 }} />
+          size="small" scroll={{x:900,y:'calc(100vh - 420px)'}} />
       </Card>
     </div>
   );
