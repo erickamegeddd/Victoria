@@ -415,7 +415,7 @@ const InsightsPage=()=>{
               <Col span={8} key={title}>
                 <Card onClick={()=>filter&&setComparisonFilter(comparisonFilter===filter?null:filter)} style={{cursor:filter?"pointer":"default",border:comparisonFilter===filter&&filter?`2px solid ${color}`:"1px solid var(--line-color)",transition:"all 0.18s",transform:comparisonFilter===filter&&filter?"translateY(-2px)":"none"}}>
                   <Statistic title={title} value={doFmt?Math.abs(value):value} prefix={doFmt?prefix:undefined} formatter={doFmt?v=>`$${Number(v).toLocaleString("en-US",{minimumFractionDigits:2})}`:undefined} valueStyle={{color,fontWeight:700}}/>
-                  {pct!=null&&<Text style={{fontSize:13,fontWeight:700,color,display:"block",marginTop:2}}>{pct>=0?"+":""}{pct.toFixed(1)}%</Text>}
+                  {pct!=null&&<Tag color={color==="#059669"?"green":"red"} style={{fontSize:12,marginTop:8}}>{pct>=0?"▲":"▼"} {Math.abs(pct).toFixed(1)}%</Tag>}
                   {filter&&<Text style={{fontSize:10,color:comparisonFilter===filter?color:"#94a3b8",display:"block",marginTop:4}}>{comparisonFilter===filter?"▼ filtered":"→ click to filter"}</Text>}
                 </Card>
               </Col>
