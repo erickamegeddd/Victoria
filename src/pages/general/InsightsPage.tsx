@@ -329,6 +329,7 @@ const InsightsPage=()=>{
                 <Card onClick={()=>filter&&setActiveFilter(activeFilter===filter?null:filter)}
                   style={{cursor:filter?"pointer":"default",border:activeFilter===filter&&filter?`2px solid ${color}`:"1px solid var(--line-color)",transition:"all 0.18s",transform:activeFilter===filter&&filter?"translateY(-2px)":"none"}}>
                   <Statistic title={title} value={doFmt?Math.abs(value):value} prefix={doFmt?prefix:undefined} formatter={doFmt?v=>`$${Number(v).toLocaleString("en-US",{minimumFractionDigits:2})}`:undefined} valueStyle={{color,fontWeight:700}}/>
+                  {pct!=null&&<Tag color={color==="#059669"?"green":"red"} style={{fontSize:12,marginTop:8}}>{pct>=0?"▲":"▼"} {Math.abs(pct).toFixed(1)}%</Tag>}
                   {filter&&<Text style={{fontSize:10,color:activeFilter===filter?color:"#94a3b8",display:"block",marginTop:4}}>{activeFilter===filter?"▼ filtered":"→ click to filter"}</Text>}
                 </Card>
               </Col>
