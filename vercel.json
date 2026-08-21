@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/webhook-coastal-pay",
+      "destination": "/api/webhook?iso=coastal-pay"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },
@@ -10,7 +14,40 @@
     }
   ],
   "functions": {
-    "api/*.js": {
+    "api/webhook.js": {
+      "maxDuration": 60
+    },
+    "api/victoria.js": {
+      "maxDuration": 60
+    },
+    "api/send-payment-reminder.js": {
+      "maxDuration": 60
+    },
+    "api/sync-iso-payments.js": {
+      "maxDuration": 60
+    },
+    "api/sync-from-sheet.js": {
+      "maxDuration": 60
+    },
+    "api/agents-payout.js": {
+      "maxDuration": 60
+    },
+    "api/agent-adjustments.js": {
+      "maxDuration": 60
+    },
+    "api/agent-insights.js": {
+      "maxDuration": 60
+    },
+    "api/agents-mid-list.js": {
+      "maxDuration": 60
+    },
+    "api/each-agent-data.js": {
+      "maxDuration": 60
+    },
+    "api/revenue-per-month.js": {
+      "maxDuration": 60
+    },
+    "api/revenue-per-month-each-agent.js": {
       "maxDuration": 60
     }
   }
