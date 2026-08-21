@@ -211,6 +211,7 @@ const InsightsPage=()=>{
   const [compareB,setCompareB]=useState(null);
   const [comparison,setComparison]=useState(null);
   const [runningComparison,setRunningComparison]=useState(false);
+  const [comparisonFilter,setComparisonFilter]=useState(null);
   const [monthlyTrend,setMonthlyTrend]=useState([]);
 
   useEffect(()=>{loadOverview();loadTrend();setActiveFilter(null);},[overviewPeriod]);
@@ -319,11 +320,11 @@ const InsightsPage=()=>{
           </Text>
           <Row gutter={16} style={{marginBottom:16}}>
             {[
-              {title:"Net Income Change",value:overviewData.overall.netChange,color:overviewData.overall.netChange>=0?"#059669":"#dc2626",doFmt:true,prefix:overviewData.overall.netChange>=0?"▲":"▼",filter:null},
+              {title:"Net Income Change",value:overviewData.overall.netChange,color:overviewData.overall.netChange>=0?"#059669":"#dc2626",doFmt:true,prefix:overviewData.overall.netChange>=0?"▲":"▼",filter:null,pct:overviewData.overall.netPct},
               {title:"ISOs with Drop",value:overviewData.drops,color:"#dc2626",filter:"drops"},
               {title:"ISOs with Growth",value:overviewData.gains,color:"#059669",filter:"gains"},
               {title:"Merchants Left",value:overviewData.overall.lostMerchants,color:"#f59e0b",filter:"left"},
-            ].map(({title,value,color,prefix,doFmt,filter})=>(
+            ].map(({title,value,color,prefix,doFmt,filter,pct})=>(
               <Col span={6} key={title}>
                 <Card onClick={()=>filter&&setActiveFilter(activeFilter===filter?null:filter)}
                   style={{cursor:filter?"pointer":"default",border:activeFilter===filter&&filter?`2px solid ${color}`:"1px solid var(--line-color)",transition:"all 0.18s",transform:activeFilter===filter&&filter?"translateY(-2px)":"none"}}>
@@ -409,8 +410,14 @@ const InsightsPage=()=>{
       {comparison&&!runningComparison&&(
         <>
           <Row gutter={16} style={{marginBottom:16}}>
-            {[{title:"Net Income Δ",value:comparison.overall.netChange,color:comparison.overall.netChange>=0?"#059669":"#dc2626",doFmt:true,prefix:comparison.overall.netChange>=0?"▲":"▼"},{title:"ISOs with Drop",value:comparison.drops,color:"#dc2626"},{title:"ISOs with Growth",value:comparison.gains,color:"#059669"}].map(({title,value,color,prefix,doFmt})=>(
-              <Col span={8} key={title}><Card><Statistic title={title} value={doFmt?Math.abs(value):value} prefix={doFmt?prefix:undefined} formatter={doFmt?v=>`$${Number(v).toLocaleString("en-US",{minimumFractionDigits:2})}`:undefined} valueStyle={{color,fontWeight:700}}/></Card></Col>
+            {[{title:"Net Income Δ",value:comparison.overall.netChange,color:comparison.overall.netChange>=0?"#059669":"#dc2626",doFmt:true,prefix:comparison.overall.netChange>=0?"▲":"▼",pct:comparison.overall.netPct},{title:"ISOs with Drop",value:comparison.drops,color:"#dc2626",filter:"drops"},{title:"ISOs with Growth",value:comparison.gains,color:"#059669",filter:"gains"}].map(({title,value,color,prefix,doFmt,pct,filter})=>(
+              <Col span={8} key={title}>
+                <Card onClick={()=>filter&&setComparisonFilter(comparisonFilter===filter?null:filter)} style={{cursor:filter?"pointer":"default",border:comparisonFilter===filter&&filter?`2px solid ${color}`:"1px solid var(--line-color)",transition:"all 0.18s",transform:comparisonFilter===filter&&filter?"translateY(-2px)":"none"}}>
+                  <Statistic title={title} value={doFmt?Math.abs(value):value} prefix={doFmt?prefix:undefined} formatter={doFmt?v=>`$${Number(v).toLocaleString("en-US",{minimumFractionDigits:2})}`:undefined} valueStyle={{color,fontWeight:700}}/>
+                  {pct!=null&&<Text style={{fontSize:13,fontWeight:700,color,display:"block",marginTop:2}}>{pct>=0?"+":""}{pct.toFixed(1)}%</Text>}
+                  {filter&&<Text style={{fontSize:10,color:comparisonFilter===filter?color:"#94a3b8",display:"block",marginTop:4}}>{comparisonFilter===filter?"▼ filtered":"→ click to filter"}</Text>}
+                </Card>
+              </Col>
             ))}
           </Row>
           {monthlyTrend.length>=2&&(
@@ -426,7 +433,7 @@ const InsightsPage=()=>{
             </Card>
           )}
           <Text style={{color:"var(--muted-color)",fontSize:12,display:"block",marginBottom:12}}>{comparison.labelA} → {comparison.labelB} · {compareBy==="merchant"?`${comparison.merchants.length} merchants`:compareBy==="iso"?`${comparison.isos.length} ISOs`:"overall"} compared</Text>
-          {compareBy==="iso"&&comparison.isos.map(iso=><ISOCard key={iso.isoId} iso={iso} labelA={comparison.labelA} labelB={comparison.labelB}/>)}
+          {compareBy==="iso"&&comparison.isos.filter(iso=>!comparisonFilter||(comparisonFilter==="drops"?iso.netChange<-50:iso.netChange>50)).map(iso=><ISOCard key={iso.isoId} iso={iso} labelA={comparison.labelA} labelB={comparison.labelB}/>)}
           {compareBy==="merchant"&&(
             <div>
               {comparison.merchants.length===0?(
