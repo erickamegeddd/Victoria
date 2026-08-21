@@ -360,7 +360,7 @@ Rules: Answer only from data above. Never fabricate. For agent range questions, 
       { role:"user", content:question }
     ];
 
-    const MODELS = ["llama-3.3-70b-versatile","llama-3.1-70b-versatile","llama-3.1-8b-instant"];
+    const MODELS = ["llama-3.3-70b-versatile","llama3-70b-8192","llama3-8b-8192","mixtral-8x7b-32768","gemma2-9b-it","llama-3.1-8b-instant"];
     let answer=null, lastErr=null;
     for (const model of MODELS) {
       const r = await fetch("https://api.groq.com/openai/v1/chat/completions",{
@@ -368,16 +368,18 @@ Rules: Answer only from data above. Never fabricate. For agent range questions, 
         body:JSON.stringify({ model, messages:msgs, temperature:0.1, max_tokens:1200 })
       });
       const rtext = await r.text();
-      let d; try { d = JSON.parse(rtext); } catch { lastErr=`${model}: non-JSON response`; continue; }
+      let d; try { d = JSON.parse(rtext); } catch { lastErr=`${model}: non-JSON response (${r.status})`; continue; }
+      console.log(`[Victoria] model=${model} status=${r.status} err=${d.error?.message?.slice(0,80)||"ok"}`);
       if(d.error){
         const msg=d.error.message||"";
         const skip=msg.includes("Rate limit")||msg.includes("decommission")||msg.includes("does not exist")||msg.includes("do not have access")||msg.includes("Entity Too Large")||msg.includes("context_length")||msg.includes("too long")||r.status===413;
-        if(skip){lastErr=`${model}: ${msg.slice(0,100)}`; continue;}
+        lastErr=`${model}: ${msg.slice(0,120)}`;
+        if(skip){ continue; }
         return res.status(500).json({error:`Groq error: ${msg}`});
       }
       answer=d.choices[0].message.content; break;
     }
-    if(!answer) return res.status(500).json({error:`All models failed: ${lastErr}`});
+    if(!answer) return res.status(500).json({error:`All models failed. Last error: ${lastErr}. Check Groq API key at console.groq.com`});
 
     answer=answer.replace(/<think>[\s\S]*?<\/think>/g,"").trim()
       .replace(/\*\*(.*?)\*\*/gs,"$1").replace(/\*(.*?)\*/gs,"$1")
