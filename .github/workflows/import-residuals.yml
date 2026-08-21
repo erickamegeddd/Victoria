@@ -1,0 +1,44 @@
+name: Import Residuals
+
+on:
+  workflow_dispatch:
+    inputs:
+      month:
+        description: 'Month to import (YYYY-MM). Leave blank to re-import ALL months Jan–Jul 2026.'
+        required: false
+        default: ''
+      iso:
+        description: 'Specific ISO name (e.g. "PayArc"). Leave blank to import ALL verified ISOs.'
+        required: false
+        default: ''
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run import
+        env:
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          cd scripts
+          if [ -n "${{ github.event.inputs.iso }}" ]; then
+            ISO_FLAG="--iso \"${{ github.event.inputs.iso }}\""
+          else
+            ISO_FLAG="--all"
+          fi
+          if [ -n "${{ github.event.inputs.month }}" ]; then
+            python import_residuals.py --month "${{ github.event.inputs.month }}" $ISO_FLAG
+          else
+            for MONTH in 2026-01 2026-02 2026-03 2026-04 2026-05 2026-06 2026-07; do
+              echo "=== Importing $MONTH ==="
+              python import_residuals.py --month "$MONTH" $ISO_FLAG || true
+            done
+          fi
