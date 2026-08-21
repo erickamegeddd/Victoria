@@ -210,13 +210,13 @@ const ISOsMerchantsPage = () => {
               </Button>
             )}
           </div>
-          <Table scroll={{x:'max-content',y:'calc(100vh - 320px)'}}
+          <Table
             dataSource={filtered}
             columns={merchantColumns}
             rowKey="id"
             size="small"
             pagination={{ pageSize: 20, showTotal: t => `${t} merchants` }}
-            scroll={{ x: 800 }}
+            scroll={{x:800,y:'calc(100vh - 320px)'}}
           />
         </div>
       );
@@ -237,13 +237,13 @@ const ISOsMerchantsPage = () => {
 
       {/* ISOs section */}
       <Card bodyStyle={{ padding: 0 }}>
-        <Table scroll={{x:'max-content',y:'calc(100vh - 320px)'}}
+        <Table
           dataSource={regularRows}
           columns={buildIsoColumns(true)}
           rowKey="isoId"
           size="middle"
           pagination={false}
-          scroll={{ x: 700 }}
+          scroll={{x:700,y:'calc(100vh - 320px)'}}
           expandable={expandableConfig}
           onRow={() => ({ style: { cursor: "pointer" } })}
         />
@@ -254,13 +254,13 @@ const ISOsMerchantsPage = () => {
         <>
           <SectionHeader label="Gateway" color="#7c3aed" />
           <Card bodyStyle={{ padding: 0 }}>
-            <Table scroll={{x:'max-content',y:'calc(100vh - 320px)'}}
+            <Table
               dataSource={gatewayRows}
               columns={buildIsoColumns(true)}
               rowKey="isoId"
               size="middle"
               pagination={false}
-              scroll={{ x: 700 }}
+              scroll={{x:700,y:'calc(100vh - 320px)'}}
               expandable={expandableConfig}
               onRow={() => ({ style: { cursor: "pointer" } })}
             />
