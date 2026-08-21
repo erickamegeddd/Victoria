@@ -89,7 +89,7 @@ const AgentsPage = () => {
       <AgentsPayoutBarChart date={date} />
 
       <h2 style={{ marginTop: 32 }}>Adjustments Log</h2>
-      <Table sticky
+      <Table scroll={{x:'max-content',y:'calc(100vh - 300px)'}}
         loading={adjLoading}
         dataSource={adjData}
         rowKey="id"
