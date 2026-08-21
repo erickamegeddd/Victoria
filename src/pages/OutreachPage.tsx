@@ -218,14 +218,14 @@ const OutreachPage = () => {
         <Button onClick={fetchOverdue} size="small">Refresh</Button>
       </div>
 
-      <Table scroll={{x:'max-content',y:'calc(100vh - 300px)'}}
+      <Table
         columns={columns}
         dataSource={records}
         rowKey="id"
         loading={loading}
         size="small"
         pagination={{ pageSize: 25, showSizeChanger: false }}
-        scroll={{ x: 1000 }}
+        scroll={{x:1000,y:'calc(100vh - 300px)'}}
         locale={{ emptyText: "No past-due payments — great!" }}
       />
 
