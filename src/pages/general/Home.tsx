@@ -9,7 +9,7 @@ const { Content } = Layout;
 const Home = () => {
   const [askOpen, setAskOpen] = useState(false);
   return (
-    <><Layout style={{ overflow: "hidden", width: "100%", minHeight: "100vh" }} className="main">
+    <><Layout style={{ overflowX: "hidden", width: "100%", minHeight: "100vh" }} className="main">
       <HeaderComponent />
       <Card style={{ width: "100%", margin: 20 }} bordered={false}>
         <Content style={{ padding: "10px 14px", height: "100%" }}><HomeRoutes /></Content>
