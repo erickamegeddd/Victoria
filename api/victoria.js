@@ -269,8 +269,8 @@ export default async function handler(req, res) {
       mArr.forEach(m=>{ const n=m.isos?.name||"?"; if(!byISO[n]) byISO[n]={a:0,i:0}; if(m.status==="active") byISO[n].a++; else byISO[n].i++; });
       contextData.merchants = {
         total: mArr.length, active: mArr.filter(m=>m.status==="active").length,
-        by_iso: Object.entries(byISO).sort((a,b)=>(b[1].a+b[1].i)-(a[1].a+a[1].i)).map(([n,d])=>({ iso:n, active:d.a, inactive:d.i })),
-        top_25_by_residual: ranked.slice(0,25).map(([name,d],i)=>({ rank:i+1, merchant:name, iso:d.iso, paydiversenet:fmtK(d.net), gross_volume:fmtK(d.gv), months:d.months.size })),
+        top_15_by_residual: ranked.slice(0,15).map(([name,d],i)=>({ rank:i+1, merchant:name, iso:d.iso, paydiversenet:fmtK(d.net), months:d.months.size })),
+        by_iso: Object.entries(byISO).sort((a,b)=>(b[1].a+b[1].i)-(a[1].a+a[1].i)).slice(0,10).map(([n,d])=>({ iso:n, active:d.a, inactive:d.i })),
       };
 
     // ── 5. General / summary ──────────────────────────────────────────────────
@@ -322,21 +322,16 @@ export default async function handler(req, res) {
       const overdue=pArr.filter(p=>{ const e=p.notes?.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/)?.[1]; return !p.received_amount&&e&&e<today; });
       const mArr=Array.isArray(merch)?merch:[];
 
+      const isoTotals = Object.entries(byISO)
+        .map(([iso,ms])=>({ iso, total:fmtK(Object.values(ms).reduce((s,v)=>s+v,0)), _r:Object.values(ms).reduce((s,v)=>s+v,0) }))
+        .sort((a,b)=>b._r-a._r).slice(0,10).map(({_r,...x})=>x);
       contextData.summary = {
         total_paydiversenet_all_time: fmtK(Object.values(byMonth).reduce((s,v)=>s+v.pdn,0)),
         revenue_by_month: Object.entries(byMonth).map(([m,v])=>({ month:fmtM(m), paydiversenet:fmtK(v.pdn), gross_volume:fmtK(v.gv) })),
-        iso_monthly_paydiversenet: Object.fromEntries(
-          Object.entries(byISO).map(([iso,months]) => [iso, Object.fromEntries(
-            Object.entries(months).map(([m,v])=>[fmtM(m), fmtK(v)])
-          )])
-        ),
-        top_isos_all_time: Object.entries(byISO)
-          .map(([iso,ms])=>({ iso, total:fmtK(Object.values(ms).reduce((s,v)=>s+v,0)) }))
-          .sort((a,b)=>Object.values(byISO[b.iso]).reduce((s,v)=>s+v,0)-Object.values(byISO[a.iso]).reduce((s,v)=>s+v,0))
-          .slice(0,10),
+        top_isos_all_time: isoTotals,
         merchants: { total:mArr.length, active:mArr.filter(m=>m.status==="active").length },
         payments: { total_expected:fmtK(pArr.reduce((s,p)=>s+(p.expected_amount||0),0)), total_received:fmtK(pArr.reduce((s,p)=>s+(p.received_amount||0),0)), overdue_count:overdue.length },
-        agent_all_time_totals: agentSummary,
+        agent_all_time_totals: agentSummary.slice(0,7),
       };
     }
 
@@ -360,7 +355,7 @@ Rules: Answer only from data above. Never fabricate. For agent range questions, 
       { role:"user", content:question }
     ];
 
-    const MODELS = ["meta-llama/llama-4-scout-17b-16e-instruct","meta-llama/llama-4-maverick-17b-128e-instruct","compound-beta","compound-beta-mini","llama-3.3-70b-versatile","llama3-70b-8192"];
+    const MODELS = ["meta-llama/llama-4-scout-17b-16e-instruct","meta-llama/llama-4-maverick-17b-128e-instruct","compound-beta","compound-beta-mini","llama-3.3-70b-versatile"];
     let answer=null, lastErr=null;
     for (const model of MODELS) {
       const r = await fetch("https://api.groq.com/openai/v1/chat/completions",{
