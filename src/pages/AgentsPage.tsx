@@ -46,7 +46,8 @@ const adjColumns: any[] = [
 ];
 
 const AgentsPage = () => {
-  const [date, setDate] = useState<string>(dayjs().format("YYYY-MM-01"));
+  const LATEST_MONTH = "2026-07-01";
+  const [date, setDate] = useState<string>(LATEST_MONTH);
   const [adjData, setAdjData] = useState<any[]>([]);
   const [adjLoading, setAdjLoading] = useState(false);
 
@@ -77,7 +78,7 @@ const AgentsPage = () => {
           {dayjs(date).format("MMMM YYYY")}
         </span>
         <Button icon={<RightOutlined />} onClick={() => go(1)} />
-        <Button onClick={() => setDate(dayjs().format("YYYY-MM-01"))} size="middle">Current Month</Button>
+        <Button onClick={() => setDate(LATEST_MONTH)} size="middle">Latest Month</Button>
       </div>
 
       <AgentsCardsComponent date={date} />
