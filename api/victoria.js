@@ -251,8 +251,7 @@ export default async function handler(req, res) {
 
     // ── 4. Merchant questions ─────────────────────────────────────────────────
     } else if (isMerchantQ || category === "merchants") {
-      let rq = "residuals?select=mid,business_name,paydiversenet,gross_volume,iso_id,isos(name),report_month&order=paydiversenet.desc";
-      if (months?.length === 1 && !isAnalysis) rq += `&report_month=eq.${months[0]}`;
+      const rq = "residuals?select=mid,business_name,paydiversenet,gross_volume,iso_id,isos(name),report_month&order=report_month.asc";
       const [residuals, merch] = await Promise.all([
         sbGetAll(rq),
         sbGet("merchants?select=status,business_name,vertical,is_startup,isos(name)&limit=1000"),
@@ -260,8 +259,9 @@ export default async function handler(req, res) {
       const byMid = {};
       (Array.isArray(residuals)?residuals:[]).forEach(r => {
         const k=r.business_name||r.mid||"?";
-        if (!byMid[k]) byMid[k]={ iso:r.isos?.name||"?", net:0, gv:0, months: new Set() };
+        if (!byMid[k]) byMid[k]={ iso:r.isos?.name||"?", net:0, gv:0, months: new Set(), first_seen:r.report_month };
         byMid[k].net+=(r.paydiversenet||0); byMid[k].gv+=(r.gross_volume||0); byMid[k].months.add(r.report_month);
+        if (r.report_month < byMid[k].first_seen) byMid[k].first_seen = r.report_month;
       });
       const ranked = Object.entries(byMid).sort((a,b)=>b[1].net-a[1].net);
       const mArr = Array.isArray(merch)?merch:[];
