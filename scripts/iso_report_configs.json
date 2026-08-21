@@ -26,6 +26,35 @@
       "col_paydiversenet": "L",
       "skip_header_rows": 1,
       "_notes": "Col L = ResidualDueOffice. May 2026+ format uses L/BF/BJ. Older format (Jan-Apr) may use AJ."
+    },
+    "Maverick": {
+      "verified": true,
+      "file_pattern": [
+        "Maverick*.xlsx",
+        "Maverick*.xls"
+      ],
+      "dropbox_subfolder": "Breier",
+      "col_mid": "B",
+      "col_business_name": "C",
+      "col_gross_volume": "J",
+      "col_paydiversenet": "AP",
+      "skip_header_rows": 1,
+      "_notes": "AP=Agent Payout. Files in Breier/ subfolder each month. Blitz Ordering LLC (MID 5206) has recurring negative charges."
+    },
+    "PayArc": {
+      "verified": true,
+      "file_pattern": [
+        "PayArc*.xlsx",
+        "PayArc*.xls",
+        "Payarc*.xlsx"
+      ],
+      "dropbox_subfolder": "Breier",
+      "col_mid": "C",
+      "col_business_name": "B",
+      "col_gross_volume": "H",
+      "col_paydiversenet": "M",
+      "skip_header_rows": 1,
+      "_notes": "M=Agent income (formatted as '$ 21.46'). C=MID, B=Merchant name. Values with $ prefix handled by f() parser."
     }
   }
 }
