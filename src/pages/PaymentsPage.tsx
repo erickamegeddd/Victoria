@@ -153,16 +153,20 @@ const PaymentsPage = () => {
           {(()=>{
             const statusColor={paid:'#059669',short_paid:'#dc2626',overpaid:'#2563eb',pending:'#d97706'};
             const statusBg={paid:'#f0fdf4',short_paid:'#fef2f2',overpaid:'#eff6ff',pending:'#fffbeb'};
-            const paymentItems=expectedByISO.map(iso=>{
-              const p=getPaymentForISO(iso.isoId);
+            // Build from ALL active ISOs that have a known due day (from residuals OR iso_payments)
+            const expectedByISOMap=Object.fromEntries(expectedByISO.map(i=>[i.isoId,i]));
+            const allISOsForCalendar=isos.map(iso=>{
+              const fromResiduals=expectedByISOMap[iso.id];
+              const p=getPaymentForISO(iso.id);
               const expDate=parseExpDate(p?.notes);
-              // Use current month's due date if set, otherwise fall back to historical pattern
               const payMonthStr=dayjs(selectedMonth).add(1,'month').format('YYYY-MM-');
-              const resolvedDate=expDate||(isoDueDayMap[iso.isoId]?payMonthStr+String(isoDueDayMap[iso.isoId]).padStart(2,'0'):null);
+              const resolvedDate=expDate||(isoDueDayMap[iso.id]?payMonthStr+String(isoDueDayMap[iso.id]).padStart(2,'0'):null);
               if(!resolvedDate)return null;
-              const status=p?getStatus(iso.expected,p.received_amount):'pending';
-              return{name:iso.isoName,dayNum:parseInt(resolvedDate.split('-')[2]),expDate:resolvedDate,amount:iso.expected,status};
+              const amount=fromResiduals?fromResiduals.expected:(p?.expected_amount||0);
+              const status=p?getStatus(amount,p.received_amount):'pending';
+              return{name:iso.name,isoId:iso.id,dayNum:parseInt(resolvedDate.split('-')[2]),expDate:resolvedDate,amount,status};
             }).filter(Boolean);
+            const paymentItems=allISOsForCalendar;
             const byDay={};
             paymentItems.forEach(item=>{if(!byDay[item.dayNum])byDay[item.dayNum]=[];byDay[item.dayNum].push(item);});
             const payMonth=dayjs(selectedMonth).add(1,'month');
