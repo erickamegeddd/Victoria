@@ -141,6 +141,9 @@ const OutreachPage = () => {
       width: 160,
       sorter: (a, b) => (a.iso_name || "").localeCompare(b.iso_name || ""),
       defaultSortOrder: "ascend",
+      filters: [...new Set(records.map(r => r.iso_name).filter(Boolean))].sort().map(n => ({ text: n, value: n })),
+      onFilter: (value, record) => record.iso_name === value,
+      filterSearch: true,
       render: (v) => <span style={{ fontWeight: 600 }}>{v}</span>
     },
     {
@@ -148,6 +151,8 @@ const OutreachPage = () => {
       dataIndex: "report_month",
       width: 100,
       sorter: (a, b) => (a.report_month || "").localeCompare(b.report_month || ""),
+      filters: [...new Set(records.map(r => r.report_month).filter(Boolean))].sort().map(m => ({ text: dayjs(m).format("MMM YYYY"), value: m })),
+      onFilter: (value, record) => record.report_month === value,
       render: (v) => dayjs(v).format("MMM YYYY")
     },
     {
@@ -209,6 +214,8 @@ const OutreachPage = () => {
       dataIndex: "email_sent",
       width: 120,
       sorter: (a, b) => (a.email_sent ? 1 : 0) - (b.email_sent ? 1 : 0),
+      filters: [{ text: "Sent", value: "sent" }, { text: "Pending", value: "pending" }],
+      onFilter: (value, record) => value === "sent" ? !!record.email_sent : !record.email_sent,
       render: (sent, record) => sent
         ? <Tag icon={<CheckCircleOutlined />} color="success">Sent {record.email_sent_at ? dayjs(record.email_sent_at).format("MMM D") : ""}</Tag>
         : <Tag icon={<ClockCircleOutlined />} color="warning">Pending</Tag>
