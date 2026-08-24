@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useEffect, useState, useRef } from "react";
 import { Card, Table, Select, Typography, Space, Statistic, Row, Col, Tag, Input, Button, DatePicker } from "antd";
+const { RangePicker } = DatePicker;
 import { SearchOutlined, DollarOutlined } from "@ant-design/icons";
 import { supabase } from "../utils/supabase";
 import dayjs from "dayjs";
@@ -13,12 +14,12 @@ const RevenuePerMidPage = () => {
   const [isos, setIsos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedIso, setSelectedIso] = useState(undefined);
-  const [selectedMonth, setSelectedMonth] = useState(undefined);
+  const [selectedDateRange, setSelectedDateRange] = useState(null); // [startDate, endDate] or null for all
   const [filteredData, setFilteredData] = useState([]);
   const searchInput = useRef(null);
 
   useEffect(() => { fetchIsos(); }, []);
-  useEffect(() => { fetchData(); }, [selectedIso, selectedMonth]);
+  useEffect(() => { fetchData(); }, [selectedIso, selectedDateRange]);
 
   const fetchIsos = async () => {
     const { data } = await supabase.from("isos").select("id,name").eq("status","active").order("name");
@@ -41,7 +42,8 @@ const RevenuePerMidPage = () => {
     setLoading(true);
     let base = supabase.from("residuals").select("*,isos(id,name)").order("report_month", { ascending: true });
     if (selectedIso) base = base.eq("iso_id", selectedIso);
-    if (selectedMonth) base = base.eq("report_month", selectedMonth);
+    if (selectedDateRange && selectedDateRange[0]) base = base.gte("report_month", selectedDateRange[0]);
+    if (selectedDateRange && selectedDateRange[1]) base = base.lte("report_month", selectedDateRange[1]);
     const rows = await fetchAllRows(base);
 
     if (!rows) { setLoading(false); return; }
@@ -136,7 +138,7 @@ const RevenuePerMidPage = () => {
           <Select placeholder="All ISOs" allowClear style={{ width: 200 }} onChange={v => setSelectedIso(v)}>
             {isos.map(iso => <Option key={iso.id} value={iso.id}>{iso.name}</Option>)}
           </Select>
-          <DatePicker picker="month" placeholder="All months" onChange={d => setSelectedMonth(d ? d.startOf("month").format("YYYY-MM-DD") : undefined)} style={{ width: 160 }} />
+          <RangePicker picker="month" placeholder={["From month", "To month"]} allowClear onChange={dates => setSelectedDateRange(dates ? [dates[0].startOf("month").format("YYYY-MM-DD"), dates[1].endOf("month").startOf("month").format("YYYY-MM-DD")] : null)} style={{ width: 260 }} />
           <Text style={{ color: "var(--muted-color)", fontSize: 12 }}>{filteredData.length} of {data.length} MIDs</Text>
         </Space>
       </Card>
