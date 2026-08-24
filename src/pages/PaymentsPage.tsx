@@ -32,14 +32,15 @@ const PaymentsPage = () => {
 
   const fetchIsos=async()=>{const{data}=await supabase.from('isos').select('*').eq('status','active').order('name');if(data)setIsos(data);};
   const fetchAllPaymentDates=async()=>{
-    // Fetch all historical iso_payments notes to extract each ISO's typical due day
-    const{data}=await supabase.from('iso_payments').select('iso_id,notes').limit(1000);
+    // Fetch all historical iso_payments ordered most-recent first
+    // so we capture the latest known due day for each ISO
+    const{data}=await supabase.from('iso_payments').select('iso_id,notes,report_month').order('report_month',{ascending:false}).limit(1000);
     if(!data)return;
     const map={};
     data.forEach(p=>{
-      if(!p.notes)return;
+      if(!p.notes||map[p.iso_id])return; // skip if no notes or already found a more recent date
       const m=p.notes.match(/^EXP:\d{4}-\d{2}-(\d{2})\|/);
-      if(m&&!map[p.iso_id])map[p.iso_id]=parseInt(m[1]); // take first found due day per ISO
+      if(m)map[p.iso_id]=parseInt(m[1]);
     });
     setIsoDueDayMap(map);
   };
