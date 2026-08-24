@@ -20,7 +20,14 @@ Please communicate the status of this payment as soon as possible.
 Thank you for your prompt attention to this matter.
 
 Best,
-Robert Sena`;
+Robert Sena
+
+--
+Robert Sena
+PayDiverse Merchant Services
++1.516.776.9060 | rob@paydiverse.com
+Telegram: RobertNYC
+PayDiverse.com`;
 }
 
 const OutreachPage = () => {
