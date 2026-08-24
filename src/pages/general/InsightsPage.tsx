@@ -115,8 +115,24 @@ const generateSummary=(netChange,netPct,lostMerchants,newMerchants,hasDataA,hasD
   if(lostMerchants.length>0){const names=lostMerchants.slice(0,3).map(m=>m.name).join(", ");const more=lostMerchants.length>3?` and ${lostMerchants.length-3} more`:"";parts.push(`${lostMerchants.length} merchant${lostMerchants.length>1?"s":""} stopped processing (${names}${more})`);}
   if(newMerchants.length>0){const names=newMerchants.slice(0,3).map(m=>m.name).join(", ");const more=newMerchants.length>3?` and ${newMerchants.length-3} more`:"";parts.push(`${newMerchants.length} new merchant${newMerchants.length>1?"s":""} started processing (${names}${more})`);}
   if(parts.length===0){if(Math.abs(netPct)<2)return{type:"success",text:"Income is stable — same merchants, no significant changes detected."};if(netChange<0)return{type:"warning",text:`Same merchants, but income dropped ${Math.abs(netPct).toFixed(1)}%. Likely lower processing volume, rate adjustments, or higher fees.`};return{type:"success",text:`Same merchants with higher activity — income grew ${netPct.toFixed(1)}%.`};}
-  if(netChange<-50)return{type:"error",text:`Income dropped because: ${parts.join(", and ")}. This explains the ${fmt(Math.abs(netChange))} decrease.`};
-  if(netChange>50)return{type:"success",text:`Income grew because: ${parts.join(", and ")}. This contributed ${fmt(netChange)} to earnings.`};
+  // Only attribute income change to merchants if the change direction makes sense
+  const onlyNewMerchants=lostMerchants.length===0&&newMerchants.length>0;
+  const onlyLostMerchants=lostMerchants.length>0&&newMerchants.length===0;
+  if(netChange<-50){
+    if(onlyNewMerchants){
+      // New merchants don't cause drops — report both facts separately
+      const names=newMerchants.slice(0,3).map(m=>m.name).join(", ");
+      return{type:"error",text:`Income dropped ${Math.abs(netPct).toFixed(1)}% (${fmt(Math.abs(netChange))}). ${newMerchants.length} new merchant${newMerchants.length>1?"s":""} started processing (${names}) but overall volume was lower than the prior period.`};
+    }
+    return{type:"error",text:`Income dropped because: ${parts.join(", and ")}. This explains the ${fmt(Math.abs(netChange))} decrease.`};
+  }
+  if(netChange>50){
+    if(onlyLostMerchants){
+      const names=lostMerchants.slice(0,3).map(m=>m.name).join(", ");
+      return{type:"warning",text:`Income grew ${netPct.toFixed(1)}% despite ${lostMerchants.length} merchant${lostMerchants.length>1?"s":""} leaving (${names}). Remaining merchants are processing more.`};
+    }
+    return{type:"success",text:`Income grew because: ${parts.join(", and ")}. This contributed ${fmt(netChange)} to earnings.`};
+  }
   return{type:"info",text:`${parts.join(" and ")}, but the overall income impact was small.`};
 };
 
