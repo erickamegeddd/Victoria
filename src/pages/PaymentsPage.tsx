@@ -136,6 +136,59 @@ const PaymentsPage = () => {
               <Col span={6} key={title}><Card><Statistic title={title} value={doFmt?Math.abs(value):value} prefix={showSign&&value!==0?(value>0?'+':'-'):undefined} formatter={doFmt?v=>`$${Number(v).toLocaleString('en-US',{minimumFractionDigits:2})}`:undefined} valueStyle={{color,fontWeight:700}}/></Card></Col>
             ))}
           </Row>
+          {(()=>{
+            const statusColor={paid:'#059669',short_paid:'#dc2626',overpaid:'#2563eb',pending:'#d97706'};
+            const statusBg={paid:'#f0fdf4',short_paid:'#fef2f2',overpaid:'#eff6ff',pending:'#fffbeb'};
+            const paymentItems=expectedByISO.map(iso=>{
+              const p=getPaymentForISO(iso.isoId);
+              const expDate=parseExpDate(p?.notes);
+              if(!expDate)return null;
+              const status=p?getStatus(iso.expected,p.received_amount):'pending';
+              return{name:iso.isoName,day:String(parseInt(expDate.split('-')[2])),expDate,amount:iso.expected,status};
+            }).filter(Boolean).sort((a,b)=>parseInt(a.day)-parseInt(b.day));
+            if(paymentItems.length===0)return null;
+            const byDay={};
+            paymentItems.forEach(item=>{if(!byDay[item.day])byDay[item.day]=[];byDay[item.day].push(item);});
+            const payMonth=dayjs(selectedMonth).add(1,'month');
+            const payMonthLabel=payMonth.format('MMMM YYYY');
+            return(
+              <Card style={{marginBottom:16,borderRadius:12}}>
+                <Text style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.8px',color:'var(--muted-color)',display:'block',marginBottom:14}}>
+                  Payment Schedule — {payMonthLabel}
+                </Text>
+                <div style={{display:'flex',gap:16,flexWrap:'wrap',alignItems:'flex-start'}}>
+                  {Object.entries(byDay).sort(([a],[b])=>parseInt(a)-parseInt(b)).map(([day,items])=>{
+                    const dateStr=payMonth.format('YYYY-MM-')+day.padStart(2,'0');
+                    const isPast=dateStr<today;
+                    const isToday=dateStr===today;
+                    return(
+                      <div key={day} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5}}>
+                        <div style={{
+                          width:34,height:34,borderRadius:'50%',
+                          background:isToday?'#0f2040':isPast?'#f1f5f9':'#e0f2fe',
+                          color:isToday?'#fff':isPast?'#64748b':'#0369a1',
+                          display:'flex',alignItems:'center',justifyContent:'center',
+                          fontSize:12,fontWeight:700,boxShadow:isToday?'0 0 0 3px #0f204030':'none'
+                        }}>{day}</div>
+                        {items.map((item,i)=>(
+                          <div key={i} style={{
+                            padding:'4px 10px',borderRadius:8,
+                            background:statusBg[item.status],
+                            border:`1px solid ${statusColor[item.status]}40`,
+                            fontSize:11,fontWeight:600,color:statusColor[item.status],
+                            textAlign:'center',maxWidth:130,minWidth:90
+                          }}>
+                            <div style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',marginBottom:1}}>{item.name}</div>
+                            <div style={{fontSize:10,opacity:0.75}}>${Math.round(item.amount).toLocaleString('en-US')}</div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            );
+          })()}
           <div style={{display:'flex',gap:8,marginBottom:activeStatusFilter?8:16,flexWrap:'wrap'}}>
             {[{label:`${matched} Paid in Full`,color:'#059669',bg:'#f0fdf4',key:'paid'},{label:`${shortPaid} Short Paid`,color:'#dc2626',bg:'#fef2f2',key:'short_paid'},{label:`${overpaid} Overpaid`,color:'#2563eb',bg:'#eff6ff',key:'overpaid'},{label:`${pending} Pending`,color:'#92400e',bg:'#fffbeb',key:'pending'}].map(({label,color,bg,key})=>(
               <div key={key} onClick={()=>setActiveStatusFilter(activeStatusFilter===key?null:key)}
