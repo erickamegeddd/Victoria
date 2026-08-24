@@ -25,11 +25,24 @@ const PaymentsPage = () => {
   const [selectedIsoForPayment, setSelectedIsoForPayment] = useState({isoId:null,isoName:'',expected:0});
   const [savingPayment, setSavingPayment] = useState(false);
   const [activeStatusFilter, setActiveStatusFilter] = useState(null);
+  const [isoDueDayMap, setIsoDueDayMap] = useState({}); // iso_id → day of month from historical records
 
-  useEffect(()=>{fetchIsos();},[]);
+  useEffect(()=>{fetchIsos();fetchAllPaymentDates();},[]);
   useEffect(()=>{fetchResiduals();fetchPayments();setActiveStatusFilter(null);},[selectedMonth]);
 
   const fetchIsos=async()=>{const{data}=await supabase.from('isos').select('*').eq('status','active').order('name');if(data)setIsos(data);};
+  const fetchAllPaymentDates=async()=>{
+    // Fetch all historical iso_payments notes to extract each ISO's typical due day
+    const{data}=await supabase.from('iso_payments').select('iso_id,notes').limit(1000);
+    if(!data)return;
+    const map={};
+    data.forEach(p=>{
+      if(!p.notes)return;
+      const m=p.notes.match(/^EXP:\d{4}-\d{2}-(\d{2})\|/);
+      if(m&&!map[p.iso_id])map[p.iso_id]=parseInt(m[1]); // take first found due day per ISO
+    });
+    setIsoDueDayMap(map);
+  };
   const fetchResiduals=async()=>{if(!selectedMonth)return;const{data}=await supabase.from('residuals').select('*,isos(id,name)').eq('report_month',selectedMonth).limit(500);if(data)setResiduals(data);};
   const fetchPayments=async()=>{if(!selectedMonth)return;const{data}=await supabase.from('iso_payments').select('*,isos(name)').eq('report_month',selectedMonth);if(data)setPayments(data);};
 
@@ -142,9 +155,12 @@ const PaymentsPage = () => {
             const paymentItems=expectedByISO.map(iso=>{
               const p=getPaymentForISO(iso.isoId);
               const expDate=parseExpDate(p?.notes);
-              if(!expDate)return null;
+              // Use current month's due date if set, otherwise fall back to historical pattern
+              const payMonthStr=dayjs(selectedMonth).add(1,'month').format('YYYY-MM-');
+              const resolvedDate=expDate||(isoDueDayMap[iso.isoId]?payMonthStr+String(isoDueDayMap[iso.isoId]).padStart(2,'0'):null);
+              if(!resolvedDate)return null;
               const status=p?getStatus(iso.expected,p.received_amount):'pending';
-              return{name:iso.isoName,dayNum:parseInt(expDate.split('-')[2]),expDate,amount:iso.expected,status};
+              return{name:iso.isoName,dayNum:parseInt(resolvedDate.split('-')[2]),expDate:resolvedDate,amount:iso.expected,status};
             }).filter(Boolean);
             const byDay={};
             paymentItems.forEach(item=>{if(!byDay[item.dayNum])byDay[item.dayNum]=[];byDay[item.dayNum].push(item);});
