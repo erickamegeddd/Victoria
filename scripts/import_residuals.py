@@ -37,7 +37,7 @@ SUPA_URL    = "https://vuqflofuzhybutkkzroa.supabase.co"
 SUPA_ANON   = os.environ.get("SUPABASE_ANON_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ1cWZsb2Z1emh5YnV0a2t6cm9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwNDE3NTYsImV4cCI6MjEwMTYxNzc1Nn0.46kKCy_3cY7oKuONb9e2e18yKVNui3oSOzySK33fMFE")
 
 # Dropbox shared link for Residuals By Year folder
-DROPBOX_LINK = "https://www.dropbox.com/scl/fo/ac9t016yrr5y1mi7bi5yo/h?dl=0"
+DROPBOX_LINK = "https://www.dropbox.com/scl/fo/gni0p244kbwb82ogm2ded/AHB055Suo8KsSWmVy_zB_wk?rlkey=jiqluxxk1p7lmksy2gwuphj7f&st=qsslffxr&dl=0"
 
 # Pipedream credentials (for Dropbox API access)
 PD_CLIENT_ID     = os.environ.get("PD_CLIENT_ID", "6NjkKTBzDSrxC50EtDZEJTHIRQbHNZmQ0k_7iQF8tVg")
@@ -325,7 +325,7 @@ def main():
 
     # Resolve month folder path (e.g. 2026-06 → /2026/06-2026)
     year, month_num = args.month.split("-")
-    month_folder = f"/2026/{month_num}-{year}"
+    month_folder = f"/{month_num}-{year}"
     report_month = f"{year}-{month_num}-01"
 
     # Get ISO id map from Supabase
