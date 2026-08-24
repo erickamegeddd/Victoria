@@ -228,7 +228,8 @@ const InsightsPage=()=>{
     setMonthlyTrend(Object.entries(map).sort(([a],[b])=>a.localeCompare(b)).map(([,v])=>v));
   };
 
-  const groupData=(rows)=>{const map={};rows.forEach(r=>{const k=r.iso_id;if(!map[k])map[k]={isoId:k,isoName:r.isos?.name||"Unknown",rows:[],totalNet:0,totalVolume:0,mids:new Map()};map[k].rows.push(r);map[k].totalNet+=(r.paydiversenet||0);map[k].totalVolume+=(r.gross_volume||0);map[k].mids.set(r.mid,r.business_name||r.mid);});return map;};
+  const groupData=(rows)=>{const map={};rows.forEach(r=>{const k=r.iso_id;if(!map[k])map[k]={isoId:k,isoName:r.isos?.name||"Unknown",rows:[],totalNet:0,totalVolume:0,mids:new Map()};map[k].rows.push(r);map[k].totalNet+=(r.paydiversenet||0);map[k].totalVolume+=(r.gross_volume||0);// Skip summary placeholder rows (fake MIDs like "iso-name-summary") from merchant comparison
+if(!r.mid?.includes("-summary")){map[k].mids.set(r.mid,r.business_name||r.mid);}});return map;};
 
   const buildComparison=(rowsA,rowsB,labelA,labelB)=>{
     const gA=groupData(rowsA),gB=groupData(rowsB);
