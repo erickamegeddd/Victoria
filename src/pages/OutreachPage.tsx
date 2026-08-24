@@ -139,24 +139,29 @@ const OutreachPage = () => {
       title: "ISO Name",
       dataIndex: "iso_name",
       width: 160,
+      sorter: (a, b) => (a.iso_name || "").localeCompare(b.iso_name || ""),
+      defaultSortOrder: "ascend",
       render: (v) => <span style={{ fontWeight: 600 }}>{v}</span>
     },
     {
       title: "Month",
       dataIndex: "report_month",
       width: 100,
+      sorter: (a, b) => (a.report_month || "").localeCompare(b.report_month || ""),
       render: (v) => dayjs(v).format("MMM YYYY")
     },
     {
       title: "Amount Due",
       dataIndex: "expected_amount",
       width: 120,
+      sorter: (a, b) => (a.expected_amount || 0) - (b.expected_amount || 0),
       render: (v) => <span style={{ color: "#dc2626", fontWeight: 600 }}>${(v || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
     },
     {
       title: "Due Date",
       dataIndex: "due_date",
       width: 110,
+      sorter: (a, b) => (a.due_date || "").localeCompare(b.due_date || ""),
       render: (v) => <span style={{ color: "#f59e0b" }}>{dayjs(v).format("MMM D, YYYY")}</span>
     },
     {
@@ -203,6 +208,7 @@ const OutreachPage = () => {
       title: "Status",
       dataIndex: "email_sent",
       width: 120,
+      sorter: (a, b) => (a.email_sent ? 1 : 0) - (b.email_sent ? 1 : 0),
       render: (sent, record) => sent
         ? <Tag icon={<CheckCircleOutlined />} color="success">Sent {record.email_sent_at ? dayjs(record.email_sent_at).format("MMM D") : ""}</Tag>
         : <Tag icon={<ClockCircleOutlined />} color="warning">Pending</Tag>
