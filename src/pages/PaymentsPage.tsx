@@ -25,7 +25,9 @@ const PaymentsPage = () => {
   const [selectedIsoForPayment, setSelectedIsoForPayment] = useState({isoId:null,isoName:'',expected:0});
   const [savingPayment, setSavingPayment] = useState(false);
   const [activeStatusFilter, setActiveStatusFilter] = useState(null);
-  const [isoDueDayMap, setIsoDueDayMap] = useState({}); // iso_id → day of month from historical records
+  const [isoDueDayMap, setIsoDueDayMap] = useState({});
+  const [editingExpected, setEditingExpected] = useState({}); // isoId → string value being edited
+  const [savingExpected, setSavingExpected] = useState({}); // iso_id → day of month from historical records
 
   useEffect(()=>{fetchIsos();fetchAllPaymentDates();},[]);
   useEffect(()=>{fetchResiduals();fetchPayments();setActiveStatusFilter(null);},[selectedMonth]);
@@ -52,6 +54,20 @@ const PaymentsPage = () => {
   const getStatus=(expected,received)=>{if(received==null)return'pending';const d=received-expected;if(Math.abs(d)<0.01)return'paid';if(d<0)return'short_paid';return'overpaid';};
   const STATUS_CONFIG={pending:{label:'Pending',color:'default'},paid:{label:'Paid',color:'green'},short_paid:{label:'Short Paid',color:'red'},overpaid:{label:'Overpaid',color:'blue'}};
 
+  const saveExpected=async(isoId, isoName, newAmount)=>{
+    const val=parseFloat(String(newAmount).replace(/[^0-9.-]/g,''));
+    if(isNaN(val))return;
+    setSavingExpected(prev=>({...prev,[isoId]:true}));
+    const ex=payments.find(p=>p.iso_id===isoId);
+    if(ex){
+      await supabase.from('iso_payments').update({expected_amount:val}).eq('id',ex.id);
+    } else {
+      await supabase.from('iso_payments').insert({iso_id:isoId,report_month:selectedMonth,expected_amount:val});
+    }
+    setEditingExpected(prev=>{const n={...prev};delete n[isoId];return n;});
+    setSavingExpected(prev=>{const n={...prev};delete n[isoId];return n;});
+    fetchPayments();
+  };
   const openPaymentModal=(isoId,isoName,expected)=>{
     setSelectedIsoForPayment({isoId,isoName,expected});
     const ex=payments.find(p=>p.iso_id===isoId);
@@ -107,7 +123,19 @@ const PaymentsPage = () => {
       onFilter:(val,r)=>r.isoId===val,
       filterSearch:true,
       render:(_,r)=><Text strong>{r.isoName}</Text>},
-    {title:'Expected',key:'exp',align:'right',sorter:(a,b)=>a.expected-b.expected,render:(_,r)=><Text strong style={{color:'var(--primary-color)'}}>{fmt(r.expected)}</Text>},
+    {title:'Expected',key:'exp',align:'right',width:150,sorter:(a,b)=>a.expected-b.expected,render:(_,r)=>{
+      const p=getPaymentForISO(r.isoId);
+      const displayVal=p?.expected_amount!=null?p.expected_amount:r.expected;
+      const isEditing=editingExpected[r.isoId]!==undefined;
+      const isSaving=savingExpected[r.isoId];
+      if(isEditing)return(
+        <Space size={4}>
+          <Input size="small" value={editingExpected[r.isoId]} onChange={e=>setEditingExpected(prev=>({...prev,[r.isoId]:e.target.value}))} style={{width:90,fontSize:12}} prefix="$" onPressEnter={()=>saveExpected(r.isoId,r.isoName,editingExpected[r.isoId])} autoFocus/>
+          <Button size="small" type="primary" loading={isSaving} onClick={()=>saveExpected(r.isoId,r.isoName,editingExpected[r.isoId])}>✓</Button>
+          <Button size="small" onClick={()=>setEditingExpected(prev=>{const n={...prev};delete n[r.isoId];return n;})}>✕</Button>
+        </Space>
+      );
+      return<Text strong style={{color:'var(--primary-color)',cursor:'pointer'}} onClick={()=>setEditingExpected(prev=>({...prev,[r.isoId]:String(displayVal)}))} title="Click to edit">{fmt(displayVal)</Text>;},},
     {title:'Received',key:'rec',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return(pa?.received_amount||0)-(pb?.received_amount||0);},render:(_,r)=>{const p=getPaymentForISO(r.isoId);return p?.received_amount!=null?<Text strong style={{color:'#059669'}}>{fmt(p.received_amount)}</Text>:<Text style={{color:'var(--muted-color)'}}>--</Text>;}},
     {title:'Difference',key:'diff',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return((pa?.received_amount||0)-a.expected)-((pb?.received_amount||0)-b.expected);},render:(_,r)=>{const p=getPaymentForISO(r.isoId);if(p?.received_amount==null)return<Text style={{color:'var(--muted-color)'}}>--</Text>;const diff=(p?.received_amount||0)-r.expected;return<Text strong style={{color:Math.abs(diff)<0.01?'#059669':diff<0?'#dc2626':'#2563eb'}}>{diff>=0?'+':''}{fmt(diff)}</Text>;}},
     {title:'Status',key:'status',
