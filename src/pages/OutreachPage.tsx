@@ -11,20 +11,16 @@ const sbHeaders = { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` };
 function buildEmailBody(isoName, amount, month, dueDate) {
   const monthLabel = dayjs(month).format("MMMM YYYY");
   const amt = (amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return `Hi ${isoName} Team,
+  return `Hi ${isoName},
 
-We hope you're doing well!
+This is an inquiry regarding your outstanding ${monthLabel} residual payment of $${amt}, which was due on ${dayjs(dueDate).format("MMMM D, YYYY")}.
 
-We just wanted to send a quick follow-up regarding your ${monthLabel} residual payment of $${amt}, which was due on ${dayjs(dueDate).format("MMMM D, YYYY")}. It looks like we haven't received the payment yet, so we wanted to kindly check in.
+Please communicate the status of this payment as soon as possible.
 
-When you have a chance, please arrange payment at your convenience. If payment has already been sent, no worries at all — simply reply to this email with the transaction reference so we can make sure our records are updated accordingly.
+Thank you for your prompt attention to this matter.
 
-If you have any questions or concerns, please don't hesitate to reach out — we're happy to assist.
-
-Thank you so much for your continued partnership.
-
-Best regards,
-PayDiverse Payments Team`;
+Best,
+Robert Sena`;
 }
 
 const OutreachPage = () => {
