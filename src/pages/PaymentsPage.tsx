@@ -135,7 +135,7 @@ const PaymentsPage = () => {
           <Button size="small" onClick={()=>setEditingExpected(prev=>{const n={...prev};delete n[r.isoId];return n;})}>✕</Button>
         </Space>
       );
-      return<Text strong style={{color:'var(--primary-color)',cursor:'pointer'}} onClick={()=>setEditingExpected(prev=>({...prev,[r.isoId]:String(displayVal)}))} title="Click to edit">{fmt(displayVal)</Text>;},},
+      return<Text strong style={{color:'var(--primary-color)',cursor:'pointer'}} onClick={()=>setEditingExpected(prev=>({...prev,[r.isoId]:String(displayVal)}))} title="Click to edit">{fmt(displayVal)}</Text>;},},
     {title:'Received',key:'rec',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return(pa?.received_amount||0)-(pb?.received_amount||0);},render:(_,r)=>{const p=getPaymentForISO(r.isoId);return p?.received_amount!=null?<Text strong style={{color:'#059669'}}>{fmt(p.received_amount)}</Text>:<Text style={{color:'var(--muted-color)'}}>--</Text>;}},
     {title:'Difference',key:'diff',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return((pa?.received_amount||0)-a.expected)-((pb?.received_amount||0)-b.expected);},render:(_,r)=>{const p=getPaymentForISO(r.isoId);if(p?.received_amount==null)return<Text style={{color:'var(--muted-color)'}}>--</Text>;const diff=(p?.received_amount||0)-r.expected;return<Text strong style={{color:Math.abs(diff)<0.01?'#059669':diff<0?'#dc2626':'#2563eb'}}>{diff>=0?'+':''}{fmt(diff)}</Text>;}},
     {title:'Status',key:'status',
