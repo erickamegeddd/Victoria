@@ -41,14 +41,32 @@ export default async function handler(req, res) {
       subject: `Payment Reminder — ${isoName} Residuals ${monthLabel} ($${amt} past due)`,
       text: body,
       html: (() => {
-        const htmlBody = body
+        // Build the message body (strip the plain-text signature block we appended)
+        const msgOnly = body.split("\n--\n")[0].trim();
+        const htmlBody = msgOnly
           .replace(/&/g, "&amp;")
           .replace(/</g, "&lt;")
           .replace(/>/g, "&gt;")
           .replace(/\n/g, "<br>")
           .replace(`$${amt}`, `<strong>$${amt}</strong>`);
-        return `<div style="font-family:Arial,sans-serif;max-width:600px;line-height:1.7;color:#333">
-          <p style="margin:0">${htmlBody}</p>
+        const signature = `
+          <table style="margin-top:24px;padding-top:20px;border-top:1px solid #e5e7eb;font-family:Arial,sans-serif;font-size:13px;color:#333;border-collapse:collapse">
+            <tr>
+              <td style="padding-right:20px;border-right:2px solid #d1d5db;vertical-align:top;text-align:center">
+                <img src="https://victoria-ericka3.vercel.app/paydiverse-logo.webp" alt="PayDiverse" style="height:40px;margin-bottom:6px"><br>
+                <a href="https://www.paydiverse.com" style="color:#2563eb;font-size:12px;text-decoration:none">PayDiverse.com</a>
+              </td>
+              <td style="padding-left:20px;vertical-align:top;line-height:1.8">
+                <strong style="color:#2563eb;font-size:14px">Robert Sena</strong><br>
+                PayDiverse Merchant Services<br>
+                +1.516.776.9060&nbsp;|&nbsp;<a href="mailto:rob@paydiverse.com" style="color:#2563eb">rob@paydiverse.com</a><br>
+                Telegram:&nbsp;<span style="color:#2563eb">RobertNYC</span><br>
+              </td>
+            </tr>
+          </table>`;
+        return `<div style="font-family:Arial,sans-serif;max-width:620px;line-height:1.7;color:#333;padding:20px">
+          <p style="margin:0 0 16px 0">${htmlBody}</p>
+          ${signature}
         </div>`;
       })()
     });
