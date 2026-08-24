@@ -27,7 +27,7 @@ const MerchantsListPage = () => {
     setLoading(true);
     const [{ data: mData }, { data: rData }] = await Promise.all([
       supabase.from("merchants").select("*,isos(name,slug)").order("business_name"),
-      supabase.from("residuals").select("mid,business_name,isos(name)").order("mid")
+      (async () => { let all=[],from=0; while(true){const{data:b}=await supabase.from("residuals").select("mid,business_name,isos(name)").order("mid").range(from,from+999);if(!b||b.length===0)break;all=all.concat(b);if(b.length<1000)break;from+=1000;}return{data:all};})()
     ]);
     if (mData) setMerchants(mData);
     if (mData && rData) {
