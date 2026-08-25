@@ -18,7 +18,7 @@ const MerchantsListPage = () => {
   const [merchants, setMerchants] = useState([]);
   const [residualsOnly, setResidualsOnly] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState(null); // 'active' | 'inactive' | 'residuals' | null
+  const [activeFilter, setActiveFilter] = useState(null); // 'active' | 'inactive' | 'residuals' | 'mismatch' | null
   const searchInput = useRef(null);
 
   useEffect(() => { fetchAll(); }, []);
@@ -46,10 +46,16 @@ const MerchantsListPage = () => {
   };
 
   const activeCount = merchants.filter(m => m.status === "active").length;
-  const inactiveCount = merchants.filter(m => m.status !== "active").length;
+  const inactiveCount = merchants.filter(m => m.status === "inactive").length;
+  const mismatchCount = merchants.filter(m => m.status === "mismatch").length;
 
-  const filteredMerchants = activeFilter === "residuals" ? [] :
-    activeFilter ? merchants.filter(m => activeFilter === "active" ? m.status === "active" : m.status !== "active") : merchants;
+  const filteredMerchants =
+    activeFilter === "residuals" || activeFilter === "mismatch" ? [] :
+    activeFilter === "active" ? merchants.filter(m => m.status === "active") :
+    activeFilter === "inactive" ? merchants.filter(m => m.status === "inactive") :
+    merchants.filter(m => m.status !== "mismatch");
+
+  const mismatchMerchants = merchants.filter(m => m.status === "mismatch");
 
   const getSearchProps = (dataIndex, label) => ({
     filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
@@ -91,11 +97,26 @@ const MerchantsListPage = () => {
       render: v => <Tag color={v === "Placeholder/Summary" ? "orange" : "gold"}>{v}</Tag> },
   ];
 
+  const mismatchColumns = [
+    { title: "MID", dataIndex: "mid", key: "mid", width: 200, ...getSearchProps("mid", "MID") },
+    { title: "Business Name", dataIndex: "business_name", key: "dba", ellipsis: true, ...getSearchProps("business_name", "Business Name") },
+    { title: "ISO", key: "iso", width: 150,
+      render: (_, r) => r.isos?.name || "—",
+      filters: [...new Set(mismatchMerchants.map(m => m.isos?.name).filter(Boolean))].sort().map(n => ({ text: n, value: n })),
+      onFilter: (v, r) => r.isos?.name === v, filterSearch: true },
+    { title: "Issue", dataIndex: "notes", key: "n", ellipsis: true, ...getSearchProps("notes", "Issue"),
+      render: v => <span style={{ color: "#b45309", fontSize: 12 }}>{v || "—"}</span> },
+  ];
+
+  const totalDisplayed = activeFilter === "residuals" ? residualsOnly.length
+    : activeFilter === "mismatch" ? mismatchMerchants.length
+    : filteredMerchants.length;
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>Merchants / MIDs</Title>
-        <Text style={{ color: "var(--muted-color)", fontSize: 13 }}>{activeFilter === "residuals" ? residualsOnly.length : merchants.length} {activeFilter === "residuals" ? "residual entries" : "total"}</Text>
+        <Text style={{ color: "var(--muted-color)", fontSize: 13 }}>{totalDisplayed} {activeFilter === "residuals" ? "residual entries" : activeFilter === "mismatch" ? "mismatch entries" : "total"}</Text>
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
@@ -103,6 +124,7 @@ const MerchantsListPage = () => {
           { label: `✓ ${activeCount} Active`, key: "active", color: "#059669", bg: "#f0fdf4", border: "#bbf7d0" },
           { label: `✗ ${inactiveCount} Inactive`, key: "inactive", color: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
           { label: `⚠ ${residualsOnly.length} Residuals Only`, key: "residuals", color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
+          { label: `⚡ ${mismatchCount} Mismatch`, key: "mismatch", color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe" },
         ].map(({ label, key, color, bg, border }) => (
           <div key={key} onClick={() => setActiveFilter(activeFilter === key ? null : key)}
             style={{ padding: "6px 16px", borderRadius: 20, background: bg,
@@ -124,7 +146,15 @@ const MerchantsListPage = () => {
         </div>
       )}
 
-      {activeFilter && activeFilter !== "residuals" && (
+      {activeFilter === "mismatch" && (
+        <div style={{ marginBottom: 12, padding: "8px 14px", background: "#f5f3ff", borderRadius: 10, border: "1px solid #ddd6fe" }}>
+          <Text style={{ fontSize: 13, fontWeight: 600, color: "#7c3aed" }}>
+            Merchants with data issues that need resolution – unknown ISO, non-standard MID, or missing required fields.
+          </Text>
+        </div>
+      )}
+
+      {activeFilter && activeFilter !== "residuals" && activeFilter !== "mismatch" && (
         <div style={{ marginBottom: 12, padding: "8px 14px", background: "#eff6ff", borderRadius: 10, border: "1px solid #bfdbfe" }}>
           <Text style={{ fontSize: 13, fontWeight: 600, color: "#1d4ed8" }}>
             Showing {filteredMerchants.length} {activeFilter} merchant{filteredMerchants.length !== 1 ? "s" : ""}
@@ -135,6 +165,9 @@ const MerchantsListPage = () => {
       <Card>
         {activeFilter === "residuals" ? (
           <Table scroll={{x:"max-content",y:"calc(100vh - 320px)"}} dataSource={residualsOnly} columns={resColumns} rowKey="id" loading={loading}
+            pagination={{ pageSize: 50, showTotal: t => `${t} entries` }} size="small" />
+        ) : activeFilter === "mismatch" ? (
+          <Table scroll={{x:"max-content",y;"calc(100vh - 320px)"}} dataSource={mismatchMerchants} columns={mismatchColumns} rowKey="id" loading={loading}
             pagination={{ pageSize: 50, showTotal: t => `${t} entries` }} size="small" />
         ) : (
           <Table scroll={{x:"max-content",y:"calc(100vh - 320px)"}} dataSource={filteredMerchants} columns={columns} rowKey="id" loading={loading}
