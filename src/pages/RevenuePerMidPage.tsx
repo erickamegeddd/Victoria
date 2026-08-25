@@ -7,6 +7,7 @@ import { supabase } from "../utils/supabase";
 import dayjs from "dayjs";
 const { Title, Text } = Typography;
 const { Option } = Select;
+const GATEWAY_ISO_NAMES = new Set(["nmi","authorize.net","e-fitness today","efitness today","fraud deflect","midmetrics"]);
 const fmt = (n) => n != null ? `$${Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}` : "—";
 
 const RevenuePerMidPage = () => {
@@ -84,6 +85,7 @@ const RevenuePerMidPage = () => {
 
   const totalNet = filteredData.reduce((s, r) => s + r.total_net, 0);
   const totalVol = filteredData.reduce((s, r) => s + r.total_volume, 0);
+  const processingMids = filteredData.filter(r => !GATEWAY_ISO_NAMES.has((r.iso_name||"").toLowerCase()));
 
   const getSearchProps = (dataIndex, label) => ({
     filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
@@ -131,7 +133,7 @@ const RevenuePerMidPage = () => {
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={8}><Card><Statistic title="Total Net Income" value={totalNet} prefix="$" precision={2} valueStyle={{ color: "var(--primary-color)", fontWeight: 700 }} formatter={v => Number(v).toLocaleString("en-US",{minimumFractionDigits:2})}/></Card></Col>
         <Col span={8}><Card><Statistic title="Total Volume Processed" value={totalVol} prefix="$" precision={2} valueStyle={{ color: "#6b7a99", fontWeight: 700 }} formatter={v => Number(v).toLocaleString("en-US",{minimumFractionDigits:2})}/></Card></Col>
-        <Col span={8}><Card><Statistic title="Unique MIDs" value={filteredData.length} valueStyle={{ color: "var(--primary-color)", fontWeight: 700 }}/></Card></Col>
+        <Col span={8}><Card><Statistic title="Unique MIDs" value={processingMids.length} valueStyle={{ color: "var(--primary-color)", fontWeight: 700 }}/></Card></Col>
       </Row>
       <Card style={{ marginBottom: 12 }}>
         <Space wrap>
@@ -139,7 +141,7 @@ const RevenuePerMidPage = () => {
             {isos.map(iso => <Option key={iso.id} value={iso.id}>{iso.name}</Option>)}
           </Select>
           <RangePicker picker="month" placeholder={["From month", "To month"]} allowClear onChange={dates => setSelectedDateRange(dates ? [dates[0].startOf("month").format("YYYY-MM-DD"), dates[1].endOf("month").startOf("month").format("YYYY-MM-DD")] : null)} style={{ width: 260 }} />
-          <Text style={{ color: "var(--muted-color)", fontSize: 12 }}>{filteredData.length} of {data.length} MIDs</Text>
+          <Text style={{ color: "var(--muted-color)", fontSize: 12 }}>{processingMids.length} processing MIDs · {filteredData.length - processingMids.length} gateway MIDs</Text>
         </Space>
       </Card>
       <Card>
