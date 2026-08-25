@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { Routes, Route } from "react-router-dom";
 import PageNotFound from "../pages/general/PageNotFound";
-import RevenuePage from "../pages/RevenueVolumePage";
 import RevenuePerMidPage from "../pages/RevenuePerMidPage";
 import AgentsPage from "../pages/AgentsPage";
 import IndustryPage from "../pages/IndustryPage";
@@ -22,7 +21,6 @@ import { Suspense } from "react";
 import { Spin } from "antd";
 import { getUserFromLocalStorage } from "../utils/getUser";
 import AgentsDashboard from "../pages/agentsPages/AgentsDashboard";
-import MonthlyData from "../pages/agentsPages/MonthlyDataPage";
 import PaymentsPage from "../pages/PaymentsPage";
 import Dashboard from "../pages/general/Dashboard";
 import AddAgentsPage from "../pages/users/AddAgentsPage";
@@ -36,9 +34,6 @@ const HomeRoutes = () => {
   return (
     <Routes>
       <Route index element={<SP><Dashboard/></SP>}/>
-      <Route path="/dashboard" element={<SP><Dashboard/></SP>}/>
-      <Route path="/monthly-data" element={<SP><MonthlyData/></SP>}/>
-      <Route path="/total-revenue-volume" element={<SP><RevenuePage/></SP>}/>
       <Route path="/revenue-mid" element={<SP><RevenuePerMidPage/></SP>}/>
       <Route path="/agents" element={<SP><AgentsPage/></SP>}/>
       <Route path="/industry" element={<SP><IndustryPage/></SP>}/>
