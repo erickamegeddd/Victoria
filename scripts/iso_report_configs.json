@@ -246,7 +246,7 @@
       "_notes": "E=CommissionsAmount. Row 0=metadata, Row 1=header, data from row 2."
     },
     "AltoPay": {
-      "verified": false,
+      "verified": true,
       "file_pattern": [
         "AltoPay*.xlsx"
       ],
@@ -255,7 +255,8 @@
       "col_gross_volume": "B",
       "col_paydiversenet": "C",
       "skip_header_rows": 1,
-      "_notes": "No residual xlsx files found in Dropbox as of 2026-08-25. Parser implementation deferred until files are available."
+      "_notes": "Block-per-merchant layout. Row \"Merchant: {name}\" starts each block. Agent payout in col C of row where col B = \"Agent\".",
+      "custom_parser": "altopay"
     },
     "NMI": {
       "verified": true,
