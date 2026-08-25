@@ -8,6 +8,8 @@ import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
 const { Title, Text } = Typography;
 const { Option } = Select;
+const GATEWAY_ISO_NAMES = new Set(["nmi","authorize.net","e-fitness today","efitness today","fraud deflect","midmetrics"]);
+const isGatewayRow = (r) => GATEWAY_ISO_NAMES.has((r.isos?.name||"").toLowerCase());
 const fmt = (n) => n != null ? `$${Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}` : '--';
 const fmtK = (n) => {
   if (n == null) return '--';
@@ -46,7 +48,7 @@ const Dashboard = () => {
 
   const totalRevenue = residuals.reduce((s,r)=>s+(r.paydiversenet||0),0);
   const totalVolume = residuals.reduce((s,r)=>s+(r.gross_volume||0),0);
-  const activeMids = new Set(residuals.map(r=>r.mid)).size;
+  const activeMids = new Set(residuals.filter(r=>!isGatewayRow(r)).map(r=>r.mid)).size;
 
   useEffect(()=>{fetchIsos();},[]);
   useEffect(()=>{fetchResiduals();},[selectedIso,selectedMonth]);
