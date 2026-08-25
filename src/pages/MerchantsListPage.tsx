@@ -51,13 +51,12 @@ const MerchantsListPage = () => {
   const mismatchCount = merchants.filter(m => m.status === "mismatch").length;
   const gatewayCount = merchants.filter(m => isGateway(m) && m.status !== "mismatch").length;
 
-  // Gateway merchants appear in Active/Inactive/unfiltered views AND the Gateway tab.
-  // The COUNT badge excludes gateways to avoid double-counting the # of merchants,
-  // but the table itself shows all so users can find any merchant regardless of tab.
+  // Green/red pills = processing merchants only (gateways live in the blue pill).
+  // Default (no pill) shows everything so nothing is hidden when browsing.
   const filteredMerchants =
     activeFilter === "residuals" || activeFilter === "mismatch" || activeFilter === "gateway" ? [] :
-    activeFilter === "active" ? merchants.filter(m => m.status === "active") :
-    activeFilter === "inactive" ? merchants.filter(m => m.status === "inactive") :
+    activeFilter === "active" ? merchants.filter(m => m.status === "active" && !isGateway(m)) :
+    activeFilter === "inactive" ? merchants.filter(m => m.status === "inactive" && !isGateway(m)) :
     merchants.filter(m => m.status !== "mismatch");
 
   const mismatchMerchants = merchants.filter(m => m.status === "mismatch");
@@ -88,6 +87,8 @@ const MerchantsListPage = () => {
       filters: [...new Set(merchants.map(m => m.isos?.name).filter(Boolean))].sort().map(n => ({ text: n, value: n })),
       onFilter: (v, r) => r.isos?.name === v, filterSearch: true },
     { title: "Status", dataIndex: "status", key: "s", width: 110,
+      filters: [{ text: "✓ Active", value: "active" }, { text: "✗ Inactive", value: "inactive" }],
+      onFilter: (v, r) => r.status === v,
       render: v => <Tag color={v === "active" ? "green" : "default"} style={{ fontWeight: 600 }}>{v === "active" ? "✓ Active" : "✗ Inactive"}</Tag> },
     { title: "Notes", dataIndex: "notes", key: "n", ellipsis: true, ...getSearchProps("notes", "Notes"),
       render: v => <span style={{ color: "var(--muted-color)", fontSize: 11 }}>{v || "—"}</span> },
