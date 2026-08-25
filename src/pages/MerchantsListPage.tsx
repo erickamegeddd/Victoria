@@ -51,11 +51,14 @@ const MerchantsListPage = () => {
   const mismatchCount = merchants.filter(m => m.status === "mismatch").length;
   const gatewayCount = merchants.filter(m => isGateway(m) && m.status !== "mismatch").length;
 
+  // Gateway merchants appear in Active/Inactive/unfiltered views AND the Gateway tab.
+  // The COUNT badge excludes gateways to avoid double-counting the # of merchants,
+  // but the table itself shows all so users can find any merchant regardless of tab.
   const filteredMerchants =
     activeFilter === "residuals" || activeFilter === "mismatch" || activeFilter === "gateway" ? [] :
-    activeFilter === "active" ? merchants.filter(m => m.status === "active" && !isGateway(m)) :
-    activeFilter === "inactive" ? merchants.filter(m => m.status === "inactive" && !isGateway(m)) :
-    merchants.filter(m => m.status !== "mismatch" && !isGateway(m));
+    activeFilter === "active" ? merchants.filter(m => m.status === "active") :
+    activeFilter === "inactive" ? merchants.filter(m => m.status === "inactive") :
+    merchants.filter(m => m.status !== "mismatch");
 
   const mismatchMerchants = merchants.filter(m => m.status === "mismatch");
   const gatewayMerchants = merchants.filter(m => isGateway(m) && m.status !== "mismatch");
@@ -177,16 +180,16 @@ const MerchantsListPage = () => {
 
       <Card>
         {activeFilter === "residuals" ? (
-          <Table scroll={{x:"max-content",y:"calc(100vh - 320px)"}} dataSource={residualsOnly} columns={resColumns} rowKey="id" loading={loading}
+          <Table key="residuals" scroll={{x:"max-content",y:"calc(100vh - 320px)"}} dataSource={residualsOnly} columns={resColumns} rowKey="id" loading={loading}
             pagination={{ pageSize: 50, showTotal: t => `${t} entries` }} size="small" />
         ) : activeFilter === "mismatch" ? (
-          <Table scroll={{x:"max-content",y:"calc(100vh - 320px)"}} dataSource={mismatchMerchants} columns={mismatchColumns} rowKey="id" loading={loading}
+          <Table key="mismatch" scroll={{x:"max-content",y:"calc(100vh - 320px)"}} dataSource={mismatchMerchants} columns={mismatchColumns} rowKey="id" loading={loading}
             pagination={{ pageSize: 50, showTotal: t => `${t} entries` }} size="small" />
         ) : activeFilter === "gateway" ? (
-          <Table scroll={{x:"max-content",y:"calc(100vh - 320px)"}} dataSource={gatewayMerchants} columns={columns} rowKey="id" loading={loading}
+          <Table key="gateway" scroll={{x:"max-content",y:"calc(100vh - 320px)"}} dataSource={gatewayMerchants} columns={columns} rowKey="id" loading={loading}
             pagination={{ pageSize: 50, showTotal: t => `${t} gateway clients` }} size="small" />
         ) : (
-          <Table scroll={{x:"max-content",y:"calc(100vh - 320px)"}} dataSource={filteredMerchants} columns={columns} rowKey="id" loading={loading}
+          <Table key={activeFilter ?? "all"} scroll={{x:"max-content",y:"calc(100vh - 320px)"}} dataSource={filteredMerchants} columns={columns} rowKey="id" loading={loading}
             pagination={{ pageSize: 50, showTotal: t => `${t} merchants` }} size="small" />
         )}
       </Card>
