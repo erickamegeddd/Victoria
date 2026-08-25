@@ -46,8 +46,8 @@ const MerchantsListPage = () => {
   };
 
   const isGateway = (m) => m.merchant_type === "gateway";
-  const activeCount = merchants.filter(m => m.status === "active").length;
-  const inactiveCount = merchants.filter(m => m.status === "inactive").length;
+  const activeCount = merchants.filter(m => m.status === "active" && !isGateway(m)).length;
+  const inactiveCount = merchants.filter(m => m.status === "inactive" && !isGateway(m)).length;
   const mismatchCount = merchants.filter(m => m.status === "mismatch").length;
   const gatewayCount = merchants.filter(m => isGateway(m) && m.status !== "mismatch").length;
 
