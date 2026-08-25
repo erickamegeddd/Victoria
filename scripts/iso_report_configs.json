@@ -209,7 +209,7 @@
       "_notes": "M=Agent Net (70% of net). 6 title/metadata rows before header. Data starts at row 7."
     },
     "Midmetrics": {
-      "verified": false,
+      "verified": true,
       "file_pattern": [
         "Midmetrics*.xlsx"
       ],
@@ -217,7 +217,8 @@
       "col_business_name": "A",
       "col_paydiversenet": "E",
       "skip_header_rows": 1,
-      "_notes": "E=PayDiverse net share (35% of gross profit). Non-standard grouped layout \u2014 needs custom parser. Marked unverified until parser supports it."
+      "_notes": "Custom grouped summary parser (parse_midmetrics_rows). Sums col E per merchant across all sections. One record per sub-merchant (midmetrics_XXX).",
+      "custom_parser": "midmetrics"
     },
     "Seamless Chex": {
       "verified": true,
@@ -254,7 +255,7 @@
       "col_gross_volume": "B",
       "col_paydiversenet": "C",
       "skip_header_rows": 1,
-      "_notes": "Non-standard block layout (one merchant per block, not per row). C=agent payout per block. Needs custom parser \u2014 marked unverified."
+      "_notes": "No residual xlsx files found in Dropbox as of 2026-08-25. Parser implementation deferred until files are available."
     },
     "NMI": {
       "verified": true,
