@@ -149,7 +149,7 @@ const MerchantsListPage = () => {
       {activeFilter === "mismatch" && (
         <div style={{ marginBottom: 12, padding: "8px 14px", background: "#f5f3ff", borderRadius: 10, border: "1px solid #ddd6fe" }}>
           <Text style={{ fontSize: 13, fontWeight: 600, color: "#7c3aed" }}>
-            Merchants with data issues that need resolution – unknown ISO, non-standard MID, or missing required fields.
+            Merchants with data issues that need resolution — unknown ISO, non-standard MID, or missing required fields.
           </Text>
         </div>
       )}
@@ -167,7 +167,7 @@ const MerchantsListPage = () => {
           <Table scroll={{x:"max-content",y:"calc(100vh - 320px)"}} dataSource={residualsOnly} columns={resColumns} rowKey="id" loading={loading}
             pagination={{ pageSize: 50, showTotal: t => `${t} entries` }} size="small" />
         ) : activeFilter === "mismatch" ? (
-          <Table scroll={{x:"max-content",y;"calc(100vh - 320px)"}} dataSource={mismatchMerchants} columns={mismatchColumns} rowKey="id" loading={loading}
+          <Table scroll={{x:"max-content",y:"calc(100vh - 320px)"}} dataSource={mismatchMerchants} columns={mismatchColumns} rowKey="id" loading={loading}
             pagination={{ pageSize: 50, showTotal: t => `${t} entries` }} size="small" />
         ) : (
           <Table scroll={{x:"max-content",y:"calc(100vh - 320px)"}} dataSource={filteredMerchants} columns={columns} rowKey="id" loading={loading}
