@@ -183,6 +183,62 @@ def sb_insert_residuals(records, victoria_key):
 
 # ── Custom parsers ────────────────────────────────────────────────────────────
 
+def parse_altopay_rows(rows, iso_id, report_month, file_name):
+    """
+    AltoPay block-per-merchant format.
+    Each block:
+      Row 1: ['Merchant: {name}', ...]
+      Row 2: headers (Description, Volume/Count, Commission)
+      Row 3+: fee rows (Sales, Auth Fee, Refunds, ...)
+      Second-to-last: ['Total due to Alto', '', total_commission]
+      Last: ['', 'Agent', agent_payout]   ← PayDiverse share
+    Parses all blocks in the sheet.
+    """
+    records = []
+    total_pdn = 0.0
+    i = 0
+    while i < len(rows):
+        row = rows[i]
+        a = str(row[0] if len(row) > 0 else '').strip()
+        if a.startswith('Merchant:'):
+            merchant_name = a.replace('Merchant:', '').strip()
+            gross_vol = 0.0
+            agent_payout = 0.0
+            # Scan block until next Merchant: or end
+            j = i + 1
+            while j < len(rows):
+                r = rows[j]
+                r_a = str(r[0] if len(r) > 0 else '').strip()
+                r_b = str(r[1] if len(r) > 1 else '').strip()
+                r_c = str(r[2] if len(r) > 2 else '').strip()
+                if r_a.startswith('Merchant:'):
+                    break
+                if r_a == 'Sales':
+                    gross_vol = f(r[1] if len(r) > 1 else '')
+                if r_b == 'Agent':
+                    agent_payout = f(r[2] if len(r) > 2 else '')
+                j += 1
+            if agent_payout != 0:
+                total_pdn += agent_payout
+                records.append({
+                    "iso_id": iso_id,
+                    "report_month": report_month,
+                    "mid": merchant_name,
+                    "business_name": merchant_name,
+                    "gross_volume": gross_vol,
+                    "gross_revenue": 0.0,
+                    "fees_deducted": 0.0,
+                    "net_revenue": agent_payout,
+                    "paydiversenet": agent_payout,
+                    "agent_payout": 0.0,
+                    "agent_split_pct": None,
+                    "source_file": file_name,
+                })
+            i = j
+        else:
+            i += 1
+    return records, total_pdn
+
 def parse_midmetrics_rows(rows, iso_id, report_month, file_name):
     """
     Midmetrics grouped summary format.
@@ -292,6 +348,19 @@ def import_iso_month(iso_name, cfg, iso_id, report_month, month_folder, dry_run=
         return 0, 0, f"Parse failed: {e}"
 
     # Dispatch to custom parsers where needed
+    if cfg.get("custom_parser") == "altopay":
+        records, total_pdn = parse_altopay_rows(rows, iso_id, report_month, file_name)
+        print(f"  Parsed {len(records)} merchants | paydiversenet total: ${total_pdn:,.2f}")
+        if dry_run:
+            print(f"  DRY RUN — not writing to Supabase")
+            return len(records), total_pdn, None
+        if not victoria_key:
+            return 0, total_pdn, "No Victoria service key provided — cannot write to Supabase"
+        sb_delete_iso_month(iso_id, report_month, victoria_key)
+        if records:
+            sb_insert_residuals(records, victoria_key)
+        return len(records), total_pdn, None
+
     if cfg.get("custom_parser") == "midmetrics":
         records, total_pdn = parse_midmetrics_rows(rows, iso_id, report_month, file_name)
         print(f"  Parsed {len(records)} merchants | paydiversenet total: ${total_pdn:,.2f}")
