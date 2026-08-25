@@ -5,7 +5,7 @@ import { supabase } from "../utils/supabase";
 import dayjs from "dayjs";
 const { Title, Text } = Typography;
 
-const GATEWAY_ISO_NAMES = ["nmi", "authorize.net", "e-fitness today", "efitness today", "fraud deflect", "midmetrics"];
+const GATEWAY_ISO_NAMES = ["nmi", "authorize.net"];
 
 const fmtMoney = (n) => {
   if (!n && n !== 0) return "--";
@@ -173,7 +173,7 @@ const ISOsMerchantsPage = () => {
 
   const expandableConfig = {
     expandedRowKeys: expandedRows,
-    onExpandedRowsChange: (keys) => setExpandedRows(keys),
+    onExpandedRowsChange: keys => setExpandedRows(keys),
     expandedRowRender: (row) => {
       const filter = isoFilters[row.isoId] || null;
       const filtered = filter
@@ -224,6 +224,9 @@ const ISOsMerchantsPage = () => {
     expandRowByClick: true,
   };
 
+  const regularMerchantCount = regularRows.reduce((s, r) => s + r.total, 0);
+  const gatewayMerchantCount = gatewayRows.reduce((s, r) => s + r.total, 0);
+
   if (loading) return <div style={{ padding: 40, textAlign: "center" }}><Text style={{ color: "var(--muted-color)" }}>Loading...</Text></div>;
 
   return (
@@ -231,7 +234,7 @@ const ISOsMerchantsPage = () => {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>ISOs -- Merchant Overview</Title>
         <Text style={{ color: "var(--muted-color)", fontSize: 13 }}>
-          {allRows.length} ISOs -- {merchants.length} merchants -- click any row to expand
+          {regularRows.length} ISOs -- {regularMerchantCount} merchants -- click any row to expand
         </Text>
       </div>
 
@@ -252,7 +255,12 @@ const ISOsMerchantsPage = () => {
       {/* Gateway section */}
       {gatewayRows.length > 0 && (
         <>
-          <SectionHeader label="Gateway" color="#7c3aed" />
+          <SectionHeader label="Gateway Services" color="#7c3aed" />
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+            <Text style={{ color: "var(--muted-color)", fontSize: 13 }}>
+              {gatewayRows.length} gateways -- {gatewayMerchantCount} gateway clients -- click any row to expand
+            </Text>
+          </div>
           <Card bodyStyle={{ padding: 0 }}>
             <Table
               dataSource={gatewayRows}
