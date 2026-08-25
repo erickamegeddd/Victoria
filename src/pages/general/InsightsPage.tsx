@@ -229,7 +229,14 @@ const InsightsPage=()=>{
   const [runningComparison,setRunningComparison]=useState(false);
   const [comparisonFilter,setComparisonFilter]=useState(null);
   const [monthlyTrend,setMonthlyTrend]=useState([]);
+  const [gatewayMids,setGatewayMids]=useState(new Set());
 
+  useEffect(()=>{
+    // Load gateway MIDs once so they can be excluded from merchant counts
+    supabase.from("merchants").select("mid").eq("merchant_type","gateway").then(({data})=>{
+      if(data) setGatewayMids(new Set(data.map(r=>String(r.mid||"").trim())));
+    });
+  },[]);
   useEffect(()=>{loadOverview();loadTrend();setActiveFilter(null);},[overviewPeriod]);
 
   const fetchAllPaginated=async(query)=>{let all=[],from=0;while(true){const{data:batch}=await query.range(from,from+999);if(!batch||batch.length===0)break;all=all.concat(batch);if(batch.length<1000)break;from+=1000;}return all;};
@@ -244,8 +251,8 @@ const InsightsPage=()=>{
     setMonthlyTrend(Object.entries(map).sort(([a],[b])=>a.localeCompare(b)).map(([,v])=>v));
   };
 
-  const groupData=(rows)=>{const map={};rows.forEach(r=>{const k=r.iso_id;if(!map[k])map[k]={isoId:k,isoName:r.isos?.name||"Unknown",rows:[],totalNet:0,totalVolume:0,mids:new Map()};map[k].rows.push(r);map[k].totalNet+=(r.paydiversenet||0);map[k].totalVolume+=(r.gross_volume||0);// Skip summary placeholder rows (fake MIDs like "iso-name-summary") from merchant comparison
-if(!r.mid?.includes("-summary")){map[k].mids.set(r.mid,r.business_name||r.mid);}});return map;};
+  const groupData=(rows)=>{const map={};rows.forEach(r=>{const k=r.iso_id;if(!map[k])map[k]={isoId:k,isoName:r.isos?.name||"Unknown",rows:[],totalNet:0,totalVolume:0,mids:new Map()};map[k].rows.push(r);map[k].totalNet+=(r.paydiversenet||0);map[k].totalVolume+=(r.gross_volume||0);// Skip summary placeholders and gateway MIDs from merchant count
+if(!r.mid?.includes("-summary")&&!gatewayMids.has(String(r.mid||"").trim())){map[k].mids.set(r.mid,r.business_name||r.mid);}});return map;};
 
   const buildComparison=(rowsA,rowsB,labelA,labelB)=>{
     const gA=groupData(rowsA),gB=groupData(rowsB);
@@ -264,7 +271,9 @@ if(!r.mid?.includes("-summary")){map[k].mids.set(r.mid,r.business_name||r.mid);}
     }).sort((a,b)=>Math.abs(b.netChange)-Math.abs(a.netChange));
     const totNetA=rowsA.reduce((s,r)=>s+(r.paydiversenet||0),0),totNetB=rowsB.reduce((s,r)=>s+(r.paydiversenet||0),0);
     const totVolA=rowsA.reduce((s,r)=>s+(r.gross_volume||0),0),totVolB=rowsB.reduce((s,r)=>s+(r.gross_volume||0),0);
-    const midSetA=new Set(rowsA.map(r=>r.mid)),midSetB=new Set(rowsB.map(r=>r.mid));
+    const isGw=(mid)=>gatewayMids.has(String(mid||"").trim());
+    const midSetA=new Set(rowsA.filter(r=>!isGw(r.mid)&&!String(r.mid||"").includes("-summary")).map(r=>r.mid));
+    const midSetB=new Set(rowsB.filter(r=>!isGw(r.mid)&&!String(r.mid||"").includes("-summary")).map(r=>r.mid));
     const byMerchant=[];
     const allMids=new Set([...rowsA.map(r=>r.mid),...rowsB.map(r=>r.mid)]);
     allMids.forEach(mid=>{
