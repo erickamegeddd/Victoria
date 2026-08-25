@@ -5,7 +5,7 @@ import { supabase } from "../utils/supabase";
 import dayjs from "dayjs";
 const { Title, Text } = Typography;
 
-const GATEWAY_ISO_NAMES = ["nmi", "authorize.net"];
+const GATEWAY_ISO_NAMES = ["nmi", "authorize.net", "e-fitness today", "efitness today", "fraud deflect", "midmetrics"];
 
 const fmtMoney = (n) => {
   if (!n && n !== 0) return "--";
