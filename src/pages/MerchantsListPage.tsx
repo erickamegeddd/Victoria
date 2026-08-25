@@ -18,7 +18,7 @@ const MerchantsListPage = () => {
   const [merchants, setMerchants] = useState([]);
   const [residualsOnly, setResidualsOnly] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState(null); // 'active' | 'inactive' | 'residuals' | 'mismatch' | null
+  const [activeFilter, setActiveFilter] = useState(null); // 'active' | 'inactive' | 'residuals' | 'mismatch' | 'gateway' | null
   const searchInput = useRef(null);
 
   useEffect(() => { fetchAll(); }, []);
@@ -45,17 +45,20 @@ const MerchantsListPage = () => {
     setLoading(false);
   };
 
-  const activeCount = merchants.filter(m => m.status === "active").length;
-  const inactiveCount = merchants.filter(m => m.status === "inactive").length;
+  const isGateway = (m) => m.merchant_type === "gateway";
+  const activeCount = merchants.filter(m => m.status === "active" && !isGateway(m)).length;
+  const inactiveCount = merchants.filter(m => m.status === "inactive" && !isGateway(m)).length;
   const mismatchCount = merchants.filter(m => m.status === "mismatch").length;
+  const gatewayCount = merchants.filter(m => isGateway(m) && m.status !== "mismatch").length;
 
   const filteredMerchants =
-    activeFilter === "residuals" || activeFilter === "mismatch" ? [] :
-    activeFilter === "active" ? merchants.filter(m => m.status === "active") :
-    activeFilter === "inactive" ? merchants.filter(m => m.status === "inactive") :
-    merchants.filter(m => m.status !== "mismatch");
+    activeFilter === "residuals" || activeFilter === "mismatch" || activeFilter === "gateway" ? [] :
+    activeFilter === "active" ? merchants.filter(m => m.status === "active" && !isGateway(m)) :
+    activeFilter === "inactive" ? merchants.filter(m => m.status === "inactive" && !isGateway(m)) :
+    merchants.filter(m => m.status !== "mismatch" && !isGateway(m));
 
   const mismatchMerchants = merchants.filter(m => m.status === "mismatch");
+  const gatewayMerchants = merchants.filter(m => isGateway(m) && m.status !== "mismatch");
 
   const getSearchProps = (dataIndex, label) => ({
     filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
@@ -110,19 +113,21 @@ const MerchantsListPage = () => {
 
   const totalDisplayed = activeFilter === "residuals" ? residualsOnly.length
     : activeFilter === "mismatch" ? mismatchMerchants.length
+    : activeFilter === "gateway" ? gatewayMerchants.length
     : filteredMerchants.length;
 
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>Merchants / MIDs</Title>
-        <Text style={{ color: "var(--muted-color)", fontSize: 13 }}>{totalDisplayed} {activeFilter === "residuals" ? "residual entries" : activeFilter === "mismatch" ? "mismatch entries" : "total"}</Text>
+        <Text style={{ color: "var(--muted-color)", fontSize: 13 }}>{totalDisplayed} {activeFilter === "residuals" ? "residual entries" : activeFilter === "mismatch" ? "mismatch entries" : activeFilter === "gateway" ? "gateway clients" : "total"}</Text>
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         {[
           { label: `✓ ${activeCount} Active`, key: "active", color: "#059669", bg: "#f0fdf4", border: "#bbf7d0" },
           { label: `✗ ${inactiveCount} Inactive`, key: "inactive", color: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
+          { label: `🔗 ${gatewayCount} Gateway Clients`, key: "gateway", color: "#0369a1", bg: "#f0f9ff", border: "#bae6fd" },
           { label: `⚠ ${residualsOnly.length} Residuals Only`, key: "residuals", color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
           { label: `⚡ ${mismatchCount} Mismatch`, key: "mismatch", color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe" },
         ].map(({ label, key, color, bg, border }) => (
@@ -142,6 +147,14 @@ const MerchantsListPage = () => {
         <div style={{ marginBottom: 12, padding: "8px 14px", background: "#fffbeb", borderRadius: 10, border: "1px solid #fde68a" }}>
           <Text style={{ fontSize: 13, fontWeight: 600, color: "#d97706" }}>
             MIDs found in residuals data but not registered in the merchants table. Placeholders/summaries are artificial import entries.
+          </Text>
+        </div>
+      )}
+
+      {activeFilter === "gateway" && (
+        <div style={{ marginBottom: 12, padding: "8px 14px", background: "#f0f9ff", borderRadius: 10, border: "1px solid #bae6fd" }}>
+          <Text style={{ fontSize: 13, fontWeight: 600, color: "#0369a1" }}>
+            Merchants using PayDiverse gateway services (Authorize.Net / NMI). Revenue tracked separately from ISO processing income — not counted in Active total.
           </Text>
         </div>
       )}
@@ -169,6 +182,9 @@ const MerchantsListPage = () => {
         ) : activeFilter === "mismatch" ? (
           <Table scroll={{x:"max-content",y:"calc(100vh - 320px)"}} dataSource={mismatchMerchants} columns={mismatchColumns} rowKey="id" loading={loading}
             pagination={{ pageSize: 50, showTotal: t => `${t} entries` }} size="small" />
+        ) : activeFilter === "gateway" ? (
+          <Table scroll={{x:"max-content",y:"calc(100vh - 320px)"}} dataSource={gatewayMerchants} columns={columns} rowKey="id" loading={loading}
+            pagination={{ pageSize: 50, showTotal: t => `${t} gateway clients` }} size="small" />
         ) : (
           <Table scroll={{x:"max-content",y:"calc(100vh - 320px)"}} dataSource={filteredMerchants} columns={columns} rowKey="id" loading={loading}
             pagination={{ pageSize: 50, showTotal: t => `${t} merchants` }} size="small" />
