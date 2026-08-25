@@ -181,6 +181,58 @@ def sb_insert_residuals(records, victoria_key):
     with urllib.request.urlopen(req) as r:
         return r.status
 
+# ── Custom parsers ────────────────────────────────────────────────────────────
+
+def parse_midmetrics_rows(rows, iso_id, report_month, file_name):
+    """
+    Midmetrics grouped summary format.
+    Each section (Alerts, RDR, Transactions, etc.) has rows like:
+      col A = 'midmetrics_XXX Total', col D = Gross Profit, col E = PayDiverse share.
+    Sums col D and col E per merchant across all sections.
+    Row where A == 'Total' is a section subtotal — skip it.
+    """
+    SECTION_NAMES = {'Alerts', 'RDR', 'Transactions', 'Disputes',
+                     'Representment Submissions', 'Total', 'B', 'Count'}
+    merchants = {}
+
+    for row in rows:
+        if not row or len(row) == 0:
+            continue
+        a_val = str(row[0] if len(row) > 0 else '').strip()
+        if not a_val or a_val == 'Total' or a_val in SECTION_NAMES:
+            continue
+        if not a_val.endswith(' Total'):
+            continue
+        merchant_name = a_val[:-len(' Total')].strip()
+        gross = f(row[3] if len(row) > 3 else '')
+        pdn   = f(row[4] if len(row) > 4 else '')
+        if merchant_name not in merchants:
+            merchants[merchant_name] = {'gross': 0.0, 'pdn': 0.0}
+        merchants[merchant_name]['gross'] += gross
+        merchants[merchant_name]['pdn']   += pdn
+
+    records = []
+    total_pdn = 0.0
+    for name, vals in sorted(merchants.items()):
+        pdn = vals['pdn']
+        total_pdn += pdn
+        records.append({
+            "iso_id": iso_id,
+            "report_month": report_month,
+            "mid": name,
+            "business_name": name,
+            "gross_volume": 0.0,
+            "gross_revenue": vals['gross'],
+            "fees_deducted": 0.0,
+            "net_revenue": pdn,
+            "paydiversenet": pdn,
+            "agent_payout": 0.0,
+            "agent_split_pct": None,
+            "source_file": file_name,
+        })
+    return records, total_pdn
+
+
 # ── Main import logic ─────────────────────────────────────────────────────────
 
 def import_iso_month(iso_name, cfg, iso_id, report_month, month_folder, dry_run=False, victoria_key=None):
@@ -238,6 +290,20 @@ def import_iso_month(iso_name, cfg, iso_id, report_month, month_folder, dry_run=
         rows = parse_xlsx(local_path)
     except Exception as e:
         return 0, 0, f"Parse failed: {e}"
+
+    # Dispatch to custom parsers where needed
+    if cfg.get("custom_parser") == "midmetrics":
+        records, total_pdn = parse_midmetrics_rows(rows, iso_id, report_month, file_name)
+        print(f"  Parsed {len(records)} merchants | paydiversenet total: ${total_pdn:,.2f}")
+        if dry_run:
+            print(f"  DRY RUN — not writing to Supabase")
+            return len(records), total_pdn, None
+        if not victoria_key:
+            return 0, total_pdn, "No Victoria service key provided — cannot write to Supabase"
+        sb_delete_iso_month(iso_id, report_month, victoria_key)
+        if records:
+            sb_insert_residuals(records, victoria_key)
+        return len(records), total_pdn, None
 
     skip = cfg.get("skip_header_rows", 1)
     headers = rows[0] if rows else []
