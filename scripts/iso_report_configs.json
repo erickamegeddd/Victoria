@@ -282,7 +282,7 @@
       "col_gross_volume": "J",
       "col_paydiversenet": "AL",
       "skip_header_rows": 1,
-      "_notes": "AL=CommissionAmount (agent payout) in older months. July 2026 onward uses AF=Split to Agent. J=TotalVolumeSales. File in Breier subfolder \u2014 verify commission column before importing."
+      "_notes": "AF=Split to Agent (commission) from July 2026 onward. Older months used AL=CommissionAmount. J=TotalVolumeSales. B=MID, C=Merchant name. File has a yellow Total row at bottom with no MID \u2014 skip it (filter on non-blank MID). Individual merchant rows net to the same total as the yellow cell."
     },
     "Celero": {
       "verified": true,
