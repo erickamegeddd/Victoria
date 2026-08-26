@@ -282,7 +282,7 @@
       "col_gross_volume": "J",
       "col_paydiversenet": "AL",
       "skip_header_rows": 1,
-      "_notes": "AL=CommissionAmount (agent payout). J=TotalVolumeSales. File in Breier subfolder."
+      "_notes": "AL=CommissionAmount (agent payout) in older months. July 2026 onward uses AF=Split to Agent. J=TotalVolumeSales. File in Breier subfolder \u2014 verify commission column before importing."
     },
     "Celero": {
       "verified": true,
@@ -350,6 +350,19 @@
       "col_paydiversenet": "Y",
       "skip_header_rows": 1,
       "_notes": "Y=TOTAL_ADJ_RESID (net adjusted residual). L=MERCH_NBR (MID), O=MERCHANT_NAME, R=TOTAL_SALES_VOLUME. File in Breier subfolder."
+    },
+    "Nuvei": {
+      "verified": true,
+      "file_pattern": [
+        "Nuvei*.xls",
+        "Nuvei*.xlsx"
+      ],
+      "col_mid": "A",
+      "col_business_name": "B",
+      "col_gross_volume": "I",
+      "col_paydiversenet": "CQ",
+      "skip_header_rows": 1,
+      "_notes": "CQ=Agent Net (PayDiverse share). A=MID, B=DBA Name (trimmed), I=V/MC/Discover Volume. Skip last row (Total row where A='Total'). File is legacy binary .xls format \u2014 convert via Google Drive (copy to Sheets, export as xlsx) before running import."
     }
   },
   "payment_due_rules": {
