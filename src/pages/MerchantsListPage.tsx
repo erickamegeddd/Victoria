@@ -1,13 +1,13 @@
 // @ts-nocheck
 import { useEffect, useState, useRef } from "react";
-import { Card, Table, Tag, Typography, Space, Input, Button } from "antd";
+import { Card, Table, Tag, Typography, Space, Input, Button, DatePicker } from "antd";
 import { SearchOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { supabase } from "../utils/supabase";
 import dayjs from "dayjs";
 const { Title, Text } = Typography;
 
 const LATEST_MONTH = "2026-07-01";
-const GATEWAY_SLUGS = new Set(["nmi","authorize-net","e-fitness-today","efitness-today","fraud-deflect","midmetrics","alto-pay","altopay"]);
+const GATEWAY_ISO_NAMES = new Set(["nmi","authorize.net","e-fitness today","efitness today","fraud deflect","midmetrics"]);
 const AGGREGATE_PREFIXES = ["PC_COMBINED_","RAC_COMBINED_","NMI_COMBINED_","ALTO_COMBINED_"];
 const isAggregateMid = (mid) => AGGREGATE_PREFIXES.some(p => String(mid||"").toUpperCase().startsWith(p));
 
@@ -58,9 +58,9 @@ const MerchantsListPage = () => {
   const fetchMonthMids = async (month) => {
     if (!month) { setMonthMids(null); return; }
     setMonthLoading(true);
-    const { data } = await supabase.from("residuals").select("mid,isos(slug)").eq("report_month", month);
+    const { data } = await supabase.from("residuals").select("mid,isos(name)").eq("report_month", month);
     const mids = new Set(
-      (data || []).filter(r => r.mid && !GATEWAY_SLUGS.has(r.isos?.slug) && !isAggregateMid(r.mid)).map(r => String(r.mid).trim())
+      (data || []).filter(r => r.mid && !GATEWAY_ISO_NAMES.has((r.isos?.name||"").toLowerCase()) && !isAggregateMid(r.mid)).map(r => String(r.mid).trim())
     );
     setMonthMids(mids);
     setMonthLoading(false);
@@ -174,9 +174,11 @@ const MerchantsListPage = () => {
       {/* Month navigator */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
         <Button icon={<LeftOutlined />} onClick={prevMonth} disabled={atStart || monthLoading} size="small" style={{ borderRadius: 8 }} />
-        <div style={{ minWidth: 110, textAlign: "center", fontWeight: 700, fontSize: 15, color: "var(--primary-color)", background: "#eff6ff", borderRadius: 8, padding: "4px 16px", border: "1.5px solid #bfdbfe" }}>
-          {dayjs(selectedMonth).format("MMM YYYY")}
-        </div>
+        <DatePicker picker="month" value={dayjs(selectedMonth)} allowClear={false}
+          disabledDate={d => d.isBefore(dayjs("2026-01-01")) || d.isAfter(dayjs(LATEST_MONTH))}
+          onChange={d => { if(d) setSelectedMonth(d.format("YYYY-MM-01")); }}
+          format="MMM YYYY" size="small"
+          style={{ fontWeight: 700, fontSize: 14, color: "var(--primary-color)", borderRadius: 8, border: "1.5px solid #bfdbfe", background: "#eff6ff", width: 120 }} />
         <Button icon={<RightOutlined />} onClick={nextMonth} disabled={atEnd || monthLoading} size="small" style={{ borderRadius: 8 }} />
         {monthLoading && <Text style={{ fontSize: 12, color: "var(--muted-color)" }}>Loading…</Text>}
       </div>
