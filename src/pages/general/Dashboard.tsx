@@ -57,22 +57,25 @@ const Dashboard = () => {
   useEffect(()=>{fetchResiduals();},[selectedIso,selectedMonth]);
   useEffect(()=>{
     const fetchAllTime = async () => {
-      const data = await fetchAllRows(supabase.from('residuals').select('paydiversenet,gross_volume,report_month'));
+      const data = await fetchAllRows(supabase.from('residuals').select('paydiversenet,gross_volume,report_month,mid'));
       setAllTimeRevenue(data.reduce((s,r)=>s+(r.paydiversenet||0),0));
       setAllTimeVolume(data.reduce((s,r)=>s+(r.gross_volume||0),0));
 
       // Build per-month breakdown for line chart
       const byMonth = {};
+      const midsByMonth = {};
       data.forEach(r => {
         if (!r.report_month) return;
-        if (!byMonth[r.report_month]) byMonth[r.report_month] = 0;
+        if (!byMonth[r.report_month]) { byMonth[r.report_month] = 0; midsByMonth[r.report_month] = new Set(); }
         byMonth[r.report_month] += (r.paydiversenet || 0);
+        if (r.mid && !String(r.mid).includes('_COMBINED_') && r.mid !== 'No MID') midsByMonth[r.report_month].add(r.mid);
       });
       const sorted = Object.entries(byMonth)
         .sort(([a],[b]) => a.localeCompare(b))
         .map(([month, pdn]) => ({
           month: dayjs(month).format('MMM YYYY'),
           paydiversenet: Math.round(pdn * 100) / 100,
+          midCount: midsByMonth[month]?.size || 0,
         }));
       setMonthlyData(sorted);
     };
@@ -131,6 +134,7 @@ const Dashboard = () => {
             <Card size="small" style={{minWidth:120,textAlign:'center',background: d.paydiversenet < 0 ? '#fef2f2' : '#f0fdf4', borderColor: d.paydiversenet < 0 ? '#fca5a5' : '#86efac'}}>
               <div style={{fontSize:11,color:'#6b7280',marginBottom:2}}>{d.month}</div>
               <div style={{fontSize:14,fontWeight:700,color: d.paydiversenet < 0 ? '#dc2626' : '#059669'}}>{fmtK(d.paydiversenet)}</div>
+              <div style={{fontSize:10,color:'#9ca3af',marginTop:2}}>{d.midCount} MIDs</div>
             </Card>
           </Col>
         ))}
