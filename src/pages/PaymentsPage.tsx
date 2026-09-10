@@ -179,6 +179,21 @@ payments.forEach(p=>{if(map[p.iso_id]&&p.expected_amount!=null)map[p.iso_id].exp
               <Col span={6} key={title}><Card><Statistic title={title} value={doFmt?Math.abs(value):value} prefix={showSign&&value!==0?(value>0?'+':'-'):undefined} formatter={doFmt?v=>`$${Number(v).toLocaleString('en-US',{minimumFractionDigits:2})}`:undefined} valueStyle={{color,fontWeight:700}}/></Card></Col>
             ))}
           </Row>
+
+          <div style={{display:'flex',gap:8,marginBottom:activeStatusFilter?8:16,flexWrap:'wrap'}}>
+            {[{label:`${matched} Paid in Full`,color:'#059669',bg:'#f0fdf4',key:'paid'},{label:`${shortPaid} Short Paid`,color:'#dc2626',bg:'#fef2f2',key:'short_paid'},{label:`${overpaid} Overpaid`,color:'#2563eb',bg:'#eff6ff',key:'overpaid'},{label:`${pending} Pending`,color:'#92400e',bg:'#fffbeb',key:'pending'}].map(({label,color,bg,key})=>(
+              <div key={key} onClick={()=>setActiveStatusFilter(activeStatusFilter===key?null:key)}
+                style={{padding:'6px 14px',borderRadius:20,background:bg,color,fontSize:13,fontWeight:600,cursor:'pointer',border:activeStatusFilter===key?`2px solid ${color}`:'1px solid transparent',transform:activeStatusFilter===key?'translateY(-2px)':'none',transition:'all 0.18s',userSelect:'none'}}>
+                {label}
+              </div>
+            ))}
+          </div>
+          {activeStatusFilter&&(<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12,padding:'8px 14px',background:'#eff6ff',borderRadius:10,border:'1px solid #bfdbfe'}}><Text style={{fontSize:13,fontWeight:600,color:'#1d4ed8'}}>{activeStatusFilter==='paid'?`Showing ${matched} ISO${matched!==1?'s':''} paid in full`:activeStatusFilter==='short_paid'?`Showing ${shortPaid} ISO${shortPaid!==1?'s':''} with short payments`:activeStatusFilter==='overpaid'?`Showing ${overpaid} overpaid ISO${overpaid!==1?'s':''}`:`Showing ${pending} pending ISO${pending!==1?'s':''}`}</Text><Button size="small" onClick={()=>setActiveStatusFilter(null)} style={{marginLeft:'auto'}}>Clear x</Button></div>)}
+          {(shortPaid>0||pending>0)&&<Alert type="warning" showIcon style={{marginBottom:16}} message={`Action needed: ${shortPaid>0?`${shortPaid} ISO${shortPaid>1?'s':''} paid less than expected. `:''}${pending>0?`${pending} ISO${pending>1?'s have':' has'} no payment recorded yet.`:''}`}/>}
+          <Card><Table dataSource={filteredISOs} columns={reconCols} rowKey="isoId" pagination={false} size="middle"
+            scroll={{x:1000,y:'calc(100vh - 340px)'}}
+            onRow={r=>({style:{background:(()=>{const p=getPaymentForISO(r.isoId);const s=p?getStatus(r.expected,p.received_amount):'pending';if(s==='short_paid')return'#fff5f5';if(s==='pending')return'#fffbeb';if(s==='paid')return'#f0fdf4';return undefined;})()}})}
+          /></Card>
           {(()=>{
             const statusColor={paid:'#059669',short_paid:'#dc2626',overpaid:'#2563eb',pending:'#d97706'};
             const statusBg={paid:'#f0fdf4',short_paid:'#fef2f2',overpaid:'#eff6ff',pending:'#fffbeb'};
@@ -249,7 +264,7 @@ payments.forEach(p=>{if(map[p.iso_id]&&p.expected_amount!=null)map[p.iso_id].exp
                               }}>{day}</div>
                               <div style={{display:'flex',flexDirection:'column',gap:2}}>
                                 {items.map((item,i)=>(
-                                  <div key={i} title={`${item.name} — $${item.amount.toLocaleString('en-US',{minimumFractionDigits:2})}`} style={{
+                                  <div key={i} title={`${item.name} — ${item.amount.toLocaleString('en-US',{minimumFractionDigits:2})}`} style={{
                                     padding:'2px 6px',borderRadius:4,
                                     background:statusBg[item.status],
                                     borderLeft:`3px solid ${statusColor[item.status]}`,
@@ -270,20 +285,6 @@ payments.forEach(p=>{if(map[p.iso_id]&&p.expected_amount!=null)map[p.iso_id].exp
               </Card>
             );
           })()}
-          <div style={{display:'flex',gap:8,marginBottom:activeStatusFilter?8:16,flexWrap:'wrap'}}>
-            {[{label:`${matched} Paid in Full`,color:'#059669',bg:'#f0fdf4',key:'paid'},{label:`${shortPaid} Short Paid`,color:'#dc2626',bg:'#fef2f2',key:'short_paid'},{label:`${overpaid} Overpaid`,color:'#2563eb',bg:'#eff6ff',key:'overpaid'},{label:`${pending} Pending`,color:'#92400e',bg:'#fffbeb',key:'pending'}].map(({label,color,bg,key})=>(
-              <div key={key} onClick={()=>setActiveStatusFilter(activeStatusFilter===key?null:key)}
-                style={{padding:'6px 14px',borderRadius:20,background:bg,color,fontSize:13,fontWeight:600,cursor:'pointer',border:activeStatusFilter===key?`2px solid ${color}`:'1px solid transparent',transform:activeStatusFilter===key?'translateY(-2px)':'none',transition:'all 0.18s',userSelect:'none'}}>
-                {label}
-              </div>
-            ))}
-          </div>
-          {activeStatusFilter&&(<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12,padding:'8px 14px',background:'#eff6ff',borderRadius:10,border:'1px solid #bfdbfe'}}><Text style={{fontSize:13,fontWeight:600,color:'#1d4ed8'}}>{activeStatusFilter==='paid'?`Showing ${matched} ISO${matched!==1?'s':''} paid in full`:activeStatusFilter==='short_paid'?`Showing ${shortPaid} ISO${shortPaid!==1?'s':''} with short payments`:activeStatusFilter==='overpaid'?`Showing ${overpaid} overpaid ISO${overpaid!==1?'s':''}`:`Showing ${pending} pending ISO${pending!==1?'s':''}`}</Text><Button size="small" onClick={()=>setActiveStatusFilter(null)} style={{marginLeft:'auto'}}>Clear x</Button></div>)}
-          {(shortPaid>0||pending>0)&&<Alert type="warning" showIcon style={{marginBottom:16}} message={`Action needed: ${shortPaid>0?`${shortPaid} ISO${shortPaid>1?'s':''} paid less than expected. `:''}${pending>0?`${pending} ISO${pending>1?'s have':' has'} no payment recorded yet.`:''}`}/>}
-          <Card><Table dataSource={filteredISOs} columns={reconCols} rowKey="isoId" pagination={false} size="middle"
-            scroll={{x:1000,y:'calc(100vh - 340px)'}}
-            onRow={r=>({style:{background:(()=>{const p=getPaymentForISO(r.isoId);const s=p?getStatus(r.expected,p.received_amount):'pending';if(s==='short_paid')return'#fff5f5';if(s==='pending')return'#fffbeb';if(s==='paid')return'#f0fdf4';return undefined;})()}})}
-          /></Card>
         </>
       )}
       <Modal open={paymentModal} onCancel={()=>{setPaymentModal(false);setEditingPayment(null);}} footer={null}
