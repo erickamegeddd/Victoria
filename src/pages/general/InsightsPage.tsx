@@ -332,7 +332,7 @@ if(!r.mid?.includes("-summary")&&!gatewayMids.has(String(r.mid||"").trim())){map
             <Text style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.8px",color:"var(--muted-color)",display:"block"}}>PayDiverse Net Income -- Monthly Trend</Text>
             <Text style={{fontSize:12,color:"var(--muted-color)"}}>{monthlyTrend[0]?.label} to {monthlyTrend[monthlyTrend.length-1]?.label} -- {monthlyTrend.length} months</Text>
           </div>
-          <TrendChart data={monthlyTrend} height={140} color="#1d4ed8" labelKey="label" valueKey="net"/>
+          <TrendChart data={monthlyTrend} height={280} color="#1d4ed8" labelKey="label" valueKey="net"/>
         </Card>
       )}
       {loadingOverview&&<div style={{textAlign:"center",padding:60}}><Spin size="large"/><br/><Text style={{color:"var(--muted-color)",marginTop:12,display:"block"}}>Loading summary...</Text></div>}
@@ -447,7 +447,7 @@ if(!r.mid?.includes("-summary")&&!gatewayMids.has(String(r.mid||"").trim())){map
           {monthlyTrend.length>=2&&(
             <Card style={{marginBottom:16,borderRadius:12}}>
               <Text style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.8px",color:"var(--muted-color)",display:"block",marginBottom:8}}>Net Income Trend -- All Months</Text>
-              <TrendChart data={monthlyTrend} height={120} color="#1d4ed8" labelKey="label" valueKey="net"/>
+              <TrendChart data={monthlyTrend} height={240} color="#1d4ed8" labelKey="label" valueKey="net"/>
             </Card>
           )}
           {compareBy==="iso"&&comparison.isos.filter(i=>i.hasDataA&&i.hasDataB).length>0&&(
