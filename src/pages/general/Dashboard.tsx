@@ -56,7 +56,7 @@ const Dashboard = () => {
 
   useEffect(()=>{fetchIsos();},[]);
   useEffect(()=>{
-    supabase.from('merchants').select('id',{count:'exact',head:true}).eq('status','active').not('merchant_type','eq','gateway').then(({count})=>setActiveMerchantCount(count||0));
+    supabase.from('merchants').select('id',{count:'exact',head:true}).eq('status','active').or('merchant_type.is.null,merchant_type.neq.gateway').then(({count})=>setActiveMerchantCount(count||0));
   },[]);
   useEffect(()=>{fetchResiduals();},[selectedIso,selectedMonth]);
   useEffect(()=>{
