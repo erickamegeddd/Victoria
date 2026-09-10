@@ -225,6 +225,8 @@ const ISOsMerchantsPage = () => {
   };
 
   const regularMerchantCount = regularRows.reduce((s, r) => s + r.total, 0);
+  const regularActiveCount = regularRows.reduce((s, r) => s + r.active, 0);
+  const regularInactiveCount = regularRows.reduce((s, r) => s + r.inactive, 0);
   const gatewayMerchantCount = gatewayRows.reduce((s, r) => s + r.total, 0);
 
   if (loading) return <div style={{ padding: 40, textAlign: "center" }}><Text style={{ color: "var(--muted-color)" }}>Loading...</Text></div>;
@@ -234,7 +236,7 @@ const ISOsMerchantsPage = () => {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>ISOs -- Merchant Overview</Title>
         <Text style={{ color: "var(--muted-color)", fontSize: 13 }}>
-          {regularRows.length} ISOs -- {regularMerchantCount} merchants -- click any row to expand
+          {regularRows.length} ISOs -- {regularActiveCount} active / {regularInactiveCount} inactive merchants -- click any row to expand
         </Text>
       </div>
 
