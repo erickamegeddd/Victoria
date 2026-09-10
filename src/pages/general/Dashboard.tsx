@@ -47,7 +47,6 @@ const Dashboard = () => {
   const [monthlyData, setMonthlyData] = useState([]);
   const [prevMonthMids, setPrevMonthMids] = useState(new Set());
   const [prevResiduals, setPrevResiduals] = useState([]);
-  const [activeMerchantCount, setActiveMerchantCount] = useState(0);
   const searchInput = useRef(null);
 
   const totalRevenue = residuals.reduce((s,r)=>s+(r.paydiversenet||0),0);
@@ -55,9 +54,6 @@ const Dashboard = () => {
   const activeMids = new Set(residuals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)).map(r=>r.mid)).size;
 
   useEffect(()=>{fetchIsos();},[]);
-  useEffect(()=>{
-    supabase.from('merchants').select('id',{count:'exact',head:true}).eq('status','active').or('merchant_type.is.null,merchant_type.neq.gateway').then(({count})=>setActiveMerchantCount(count||0));
-  },[]);
   useEffect(()=>{fetchResiduals();},[selectedIso,selectedMonth]);
   useEffect(()=>{
     const fetchAllTime = async () => {
@@ -117,7 +113,7 @@ const Dashboard = () => {
         {selectedMonth&&<Text style={{color:'var(--muted-color)',fontSize:12}}>Showing data for <strong>{dayjs(selectedMonth).format('MMMM YYYY')}</strong></Text>}
       </div>
       <Row gutter={16} style={{marginBottom:20}}>
-        {[{title:'PayDiverse Net Income',value:totalRevenue,prefix:'$',precision:2,color:'var(--primary-color)'},{title:'Total Volume (Processed)',value:totalVolume,prefix:'$',precision:2,color:'#6b7a99'},{title:'Active Merchants',value:activeMerchantCount,precision:0,color:'var(--primary-color)'}].map(({title,value,prefix,precision,color})=>(
+        {[{title:'PayDiverse Net Income',value:totalRevenue,prefix:'$',precision:2,color:'var(--primary-color)'},{title:'Total Volume (Processed)',value:totalVolume,prefix:'$',precision:2,color:'#6b7a99'},{title:'Active Merchants',value:activeMids,precision:0,color:'var(--primary-color)'}].map(({title,value,prefix,precision,color})=>(
           <Col span={8} key={title}><Card><Statistic title={title} value={value} prefix={prefix} precision={precision} valueStyle={{color,fontWeight:700}}/></Card></Col>
         ))}
       </Row>
