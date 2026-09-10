@@ -131,7 +131,7 @@ const MerchantsListPage = () => {
         {[
           { label: `✓ ${activeCount} Active`, key: "active", color: "#059669", bg: "#f0fdf4", border: "#bbf7d0" },
           { label: `✗ ${inactiveCount} Inactive`, key: "inactive", color: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
-          { label: `🔗 ${gatewayCount} Gateway Clients`, key: "gateway", color: "#0369a1", bg: "#f0f9ff", border: "#bae6fd" },
+          { label: `🔗 ${gatewayCount} Reseller Revenue`, key: "gateway", color: "#0369a1", bg: "#f0f9ff", border: "#bae6fd" },
           { label: `⚠ ${residualsOnly.length} Residuals Only`, key: "residuals", color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
           { label: `⚡ ${mismatchCount} Mismatch`, key: "mismatch", color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe" },
         ].map(({ label, key, color, bg, border }) => (
