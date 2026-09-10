@@ -8,7 +8,7 @@ import dayjs from "dayjs";
 const { Title, Text } = Typography;
 const { Option } = Select;
 const GATEWAY_ISO_NAMES = new Set(["nmi","authorize.net","e-fitness today","efitness today","fraud deflect","midmetrics"]);
-const fmt = (n) => n != null ? `$${Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}` : "—";
+const fmt = (n) => n != null ? `$${Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}` : "â";
 
 const RevenuePerMidPage = () => {
   const [data, setData] = useState([]);
@@ -56,7 +56,7 @@ const RevenuePerMidPage = () => {
       if (!map[key]) map[key] = {
         mid: r.mid,
         business_name: r.business_name || r.mid,
-        iso_name: r.isos?.name || "—",
+        iso_name: r.isos?.name || "â",
         iso_id: r.iso_id,
         total_net: 0,
         total_volume: 0,
@@ -106,8 +106,8 @@ const RevenuePerMidPage = () => {
 
   const columns = [
     { title: "#", key: "rank", width: 50, render: (_, __, i) => <Text style={{ color: "var(--muted-color)", fontWeight: 700 }}>{i + 1}</Text> },
-    { title: "MID", dataIndex: "mid", key: "mid", width: 160, ...getSearchProps("mid", "MID") },
-    { title: "Business Name", dataIndex: "business_name", key: "dba", ellipsis: true, ...getSearchProps("business_name", "Business Name"),
+    { title: "MID", dataIndex: "mid", key: "mid", width: 160, ...getSearchProps("mid", "MID"), sorter: (a,b) => (a.mid||"").localeCompare(b.mid||"") },
+    { title: "Business Name", dataIndex: "business_name", key: "dba", ellipsis: true, ...getSearchProps("business_name", "Business Name"), sorter: (a,b) => (a.business_name||"").localeCompare(b.business_name||""),
       render: v => <Text strong>{v}</Text> },
     { title: "ISO", dataIndex: "iso_name", key: "iso", width: 130,
       filters: [...new Set(data.map(r => r.iso_name).filter(Boolean))].sort().map(n => ({ text: n, value: n })),
@@ -122,7 +122,7 @@ const RevenuePerMidPage = () => {
     { title: "Months Active", dataIndex: "months", key: "mo", width: 120, align: "center", sorter: (a, b) => a.months - b.months,
       render: v => <Tag>{v} month{v !== 1 ? "s" : ""}</Tag> },
     { title: "Last Report", dataIndex: "last_month", key: "last", width: 110, align: "center", sorter: (a, b) => (a.last_month||"").localeCompare(b.last_month||""),
-      render: v => v ? dayjs(v).format("MMM YYYY") : "—" },
+      render: v => v ? dayjs(v).format("MMM YYYY") : "â" },
   ];
 
   return (
