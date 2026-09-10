@@ -1,9 +1,15 @@
 // @ts-nocheck
 import { useEffect, useState, useRef } from "react";
 import { Card, Table, Tag, Typography, Space, Input, Button } from "antd";
-import { SearchOutlined } from "@ant-design/icons";
+import { SearchOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { supabase } from "../utils/supabase";
+import dayjs from "dayjs";
 const { Title, Text } = Typography;
+
+const LATEST_MONTH = "2026-07-01";
+const GATEWAY_SLUGS = new Set(["nmi","authorize-net","e-fitness-today","efitness-today","fraud-deflect","midmetrics","alto-pay","altopay"]);
+const AGGREGATE_PREFIXES = ["PC_COMBINED_","RAC_COMBINED_","NMI_COMBINED_","ALTO_COMBINED_"];
+const isAggregateMid = (mid) => AGGREGATE_PREFIXES.some(p => String(mid||"").toUpperCase().startsWith(p));
 
 const PLACEHOLDER_PREFIXES = ["-summary","nuvei_r","adj_","card_insight","nexio_adj"];
 const isPlaceholder = (mid) => {
@@ -18,10 +24,14 @@ const MerchantsListPage = () => {
   const [merchants, setMerchants] = useState([]);
   const [residualsOnly, setResidualsOnly] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState(null); // 'active' | 'inactive' | 'residuals' | 'mismatch' | 'gateway' | null
+  const [activeFilter, setActiveFilter] = useState(null);
+  const [selectedMonth, setSelectedMonth] = useState(LATEST_MONTH);
+  const [monthMids, setMonthMids] = useState(null);
+  const [monthLoading, setMonthLoading] = useState(false);
   const searchInput = useRef(null);
 
   useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { fetchMonthMids(selectedMonth); }, [selectedMonth]);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -45,22 +55,47 @@ const MerchantsListPage = () => {
     setLoading(false);
   };
 
+  const fetchMonthMids = async (month) => {
+    if (!month) { setMonthMids(null); return; }
+    setMonthLoading(true);
+    const { data } = await supabase.from("residuals").select("mid,isos(slug)").eq("report_month", month);
+    const mids = new Set(
+      (data || []).filter(r => r.mid && !GATEWAY_SLUGS.has(r.isos?.slug) && !isAggregateMid(r.mid)).map(r => String(r.mid).trim())
+    );
+    setMonthMids(mids);
+    setMonthLoading(false);
+  };
+
   const isGateway = (m) => m.merchant_type === "gateway";
-  const activeCount = merchants.filter(m => m.status === "active" && !isGateway(m)).length;
-  const inactiveCount = merchants.filter(m => m.status === "inactive" && !isGateway(m)).length;
+
+  const activeCount = monthMids ? monthMids.size : merchants.filter(m => m.status === "active" && !isGateway(m)).length;
+  const inactiveCount = monthMids
+    ? merchants.filter(m => !isGateway(m) && m.status !== "mismatch" && !monthMids.has(String(m.mid || "").trim())).length
+    : merchants.filter(m => m.status === "inactive" && !isGateway(m)).length;
   const mismatchCount = merchants.filter(m => m.status === "mismatch").length;
   const gatewayCount = merchants.filter(m => isGateway(m) && m.status !== "mismatch").length;
 
-  // Green/red pills = processing merchants only (gateways live in the blue pill).
-  // Default (no pill) shows everything so nothing is hidden when browsing.
+  const isActiveInMonth = (m) => monthMids ? monthMids.has(String(m.mid || "").trim()) : m.status === "active";
+
   const filteredMerchants =
     activeFilter === "residuals" || activeFilter === "mismatch" || activeFilter === "gateway" ? [] :
-    activeFilter === "active" ? merchants.filter(m => m.status === "active" && !isGateway(m)) :
-    activeFilter === "inactive" ? merchants.filter(m => m.status === "inactive" && !isGateway(m)) :
+    activeFilter === "active" ? merchants.filter(m => !isGateway(m) && m.status !== "mismatch" && isActiveInMonth(m)) :
+    activeFilter === "inactive" ? merchants.filter(m => !isGateway(m) && m.status !== "mismatch" && !isActiveInMonth(m)) :
     merchants.filter(m => m.status !== "mismatch");
 
   const mismatchMerchants = merchants.filter(m => m.status === "mismatch");
   const gatewayMerchants = merchants.filter(m => isGateway(m) && m.status !== "mismatch");
+
+  const prevMonth = () => {
+    const prev = dayjs(selectedMonth).subtract(1, "month").format("YYYY-MM-01");
+    if (prev >= "2026-01-01") setSelectedMonth(prev);
+  };
+  const nextMonth = () => {
+    const next = dayjs(selectedMonth).add(1, "month").format("YYYY-MM-01");
+    if (next <= LATEST_MONTH) setSelectedMonth(next);
+  };
+  const atStart = selectedMonth <= "2026-01-01";
+  const atEnd = selectedMonth >= LATEST_MONTH;
 
   const getSearchProps = (dataIndex, label) => ({
     filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
@@ -79,6 +114,18 @@ const MerchantsListPage = () => {
     onFilterDropdownOpenChange: open => { if (open) setTimeout(() => searchInput.current?.select(), 100); },
   });
 
+  const monthStatusCol = {
+    title: dayjs(selectedMonth).format("MMM YYYY") + " Status",
+    key: "monthStatus",
+    width: 130,
+    render: (_, r) => {
+      if (isGateway(r)) return <Tag color="blue" style={{fontSize:11}}>Reseller</Tag>;
+      if (r.status === "mismatch") return <Tag color="purple" style={{fontSize:11}}>Mismatch</Tag>;
+      const active = monthMids ? monthMids.has(String(r.mid || "").trim()) : r.status === "active";
+      return <Tag color={active ? "green" : "default"} style={{fontSize:11,fontWeight:600}}>{active ? "✓ Active" : "✗ Inactive"}</Tag>;
+    }
+  };
+
   const columns = [
     { title: "MID", dataIndex: "mid", key: "mid", width: 160, ...getSearchProps("mid", "MID") },
     { title: "Business Name", dataIndex: "business_name", key: "dba", ellipsis: true, ...getSearchProps("business_name", "Business Name") },
@@ -86,10 +133,7 @@ const MerchantsListPage = () => {
       render: (_, r) => r.isos?.name || "—",
       filters: [...new Set(merchants.map(m => m.isos?.name).filter(Boolean))].sort().map(n => ({ text: n, value: n })),
       onFilter: (v, r) => r.isos?.name === v, filterSearch: true },
-    { title: "Status", dataIndex: "status", key: "s", width: 110,
-      filters: [{ text: "✓ Active", value: "active" }, { text: "✗ Inactive", value: "inactive" }],
-      onFilter: (v, r) => r.status === v,
-      render: v => <Tag color={v === "active" ? "green" : "default"} style={{ fontWeight: 600 }}>{v === "active" ? "✓ Active" : "✗ Inactive"}</Tag> },
+    monthStatusCol,
     { title: "Notes", dataIndex: "notes", key: "n", ellipsis: true, ...getSearchProps("notes", "Notes"),
       render: v => <span style={{ color: "var(--muted-color)", fontSize: 11 }}>{v || "—"}</span> },
   ];
@@ -122,9 +166,19 @@ const MerchantsListPage = () => {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <Title level={4} style={{ margin: 0 }}>Merchants / MIDs</Title>
         <Text style={{ color: "var(--muted-color)", fontSize: 13 }}>{totalDisplayed} {activeFilter === "residuals" ? "residual entries" : activeFilter === "mismatch" ? "mismatch entries" : activeFilter === "gateway" ? "gateway clients" : "total"}</Text>
+      </div>
+
+      {/* Month navigator */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+        <Button icon={<LeftOutlined />} onClick={prevMonth} disabled={atStart || monthLoading} size="small" style={{ borderRadius: 8 }} />
+        <div style={{ minWidth: 110, textAlign: "center", fontWeight: 700, fontSize: 15, color: "var(--primary-color)", background: "#eff6ff", borderRadius: 8, padding: "4px 16px", border: "1.5px solid #bfdbfe" }}>
+          {dayjs(selectedMonth).format("MMM YYYY")}
+        </div>
+        <Button icon={<RightOutlined />} onClick={nextMonth} disabled={atEnd || monthLoading} size="small" style={{ borderRadius: 8 }} />
+        {monthLoading && <Text style={{ fontSize: 12, color: "var(--muted-color)" }}>Loading…</Text>}
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
@@ -171,26 +225,31 @@ const MerchantsListPage = () => {
         </div>
       )}
 
-      {activeFilter && activeFilter !== "residuals" && activeFilter !== "mismatch" && (
+      {activeFilter && activeFilter !== "residuals" && activeFilter !== "mismatch" && activeFilter !== "gateway" && (
         <div style={{ marginBottom: 12, padding: "8px 14px", background: "#eff6ff", borderRadius: 10, border: "1px solid #bfdbfe" }}>
           <Text style={{ fontSize: 13, fontWeight: 600, color: "#1d4ed8" }}>
-            Showing {filteredMerchants.length} {activeFilter} merchant{filteredMerchants.length !== 1 ? "s" : ""}
+            Showing {filteredMerchants.length} {activeFilter} merchant{filteredMerchants.length !== 1 ? "s" : ""} for {dayjs(selectedMonth).format("MMMM YYYY")}
           </Text>
         </div>
       )}
 
       <Card>
         {activeFilter === "residuals" ? (
-          <Table key="residuals" scroll={{x:"max-content",y:"calc(100vh - 320px)"}} dataSource={residualsOnly} columns={resColumns} rowKey="id" loading={loading}
+          <Table key="residuals" scroll={{x:"max-content",y:"calc(100vh - 360px)"}} dataSource={residualsOnly} columns={resColumns} rowKey="id" loading={loading}
             pagination={{ pageSize: 50, showTotal: t => `${t} entries` }} size="small" />
         ) : activeFilter === "mismatch" ? (
-          <Table key="mismatch" scroll={{x:"max-content",y:"calc(100vh - 320px)"}} dataSource={mismatchMerchants} columns={mismatchColumns} rowKey="id" loading={loading}
+          <Table key="mismatch" scroll={{x:"max-content",y:"calc(100vh - 360px)"}} dataSource={mismatchMerchants} columns={mismatchColumns} rowKey="id" loading={loading}
             pagination={{ pageSize: 50, showTotal: t => `${t} entries` }} size="small" />
         ) : activeFilter === "gateway" ? (
-          <Table key="gateway" scroll={{x:"max-content",y:"calc(100vh - 320px)"}} dataSource={gatewayMerchants} columns={columns} rowKey="id" loading={loading}
+          <Table key="gateway" scroll={{x:"max-content",y:"calc(100vh - 360px)"}} dataSource={gatewayMerchants} columns={columns} rowKey="id" loading={loading}
             pagination={{ pageSize: 50, showTotal: t => `${t} gateway clients` }} size="small" />
         ) : (
-          <Table key={activeFilter ?? "all"} scroll={{x:"max-content",y:"calc(100vh - 320px)"}} dataSource={filteredMerchants} columns={columns} rowKey="id" loading={loading}
+          <Table key={activeFilter ?? "all"} scroll={{x:"max-content",y:"calc(100vh - 360px)"}} dataSource={filteredMerchants} columns={columns} rowKey="id" loading={loading || monthLoading}
+            onRow={(r) => {
+              if (!monthMids) return {};
+              const active = isGateway(r) || monthMids.has(String(r.mid || "").trim());
+              return { style: { background: active ? "#f0fdf4" : "#fef2f2" } };
+            }}
             pagination={{ pageSize: 50, showTotal: t => `${t} merchants` }} size="small" />
         )}
       </Card>
