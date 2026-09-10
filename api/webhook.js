@@ -19,6 +19,14 @@ export default async function handler(req,res){
           const syncUrl = `${req.headers.origin || 'https://victoria-ericka3.vercel.app'}/api/sync-iso-payments?month=${records[0]?.report_month || ''}`;
           fetch(syncUrl).catch(()=>{});
         } catch(e) {}
+        // Sync merchant statuses based on latest month's residuals
+        try {
+          await fetch(`${SUPABASE_URL}/rest/v1/rpc/sync_merchant_status`, {
+            method: 'POST',
+            headers: {'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json'},
+            body: '{}'
+          }).catch(()=>{});
+        } catch(e) {}
         return res.status(200).json({ok:true,inserted:records.length,iso:isoSlug});}
     }
     return res.status(200).json({ok:true,event,note:'Received'});
