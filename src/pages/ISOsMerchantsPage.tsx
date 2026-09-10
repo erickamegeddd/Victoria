@@ -255,7 +255,7 @@ const ISOsMerchantsPage = () => {
       {/* Gateway section */}
       {gatewayRows.length > 0 && (
         <>
-          <SectionHeader label="Gateway Services" color="#7c3aed" />
+          <SectionHeader label="Reseller Revenue" color="#7c3aed" />
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
             <Text style={{ color: "var(--muted-color)", fontSize: 13 }}>
               {gatewayRows.length} gateways -- {gatewayMerchantCount} gateway clients -- click any row to expand
