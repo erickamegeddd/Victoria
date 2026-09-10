@@ -8,7 +8,7 @@ import dayjs from "dayjs";
 const { Title, Text } = Typography;
 const { Option } = Select;
 const GATEWAY_ISO_NAMES = new Set(["nmi","authorize.net","e-fitness today","efitness today","fraud deflect","midmetrics"]);
-const fmt = (n) => n != null ? `$${Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}` : "Ã--Ã";
+const fmt = (n) => n != null ? `$${Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}` : "--";
 
 const RevenuePerMidPage = () => {
   const [data, setData] = useState([]);
@@ -56,7 +56,7 @@ const RevenuePerMidPage = () => {
       if (!map[key]) map[key] = {
         mid: r.mid,
         business_name: r.business_name || r.mid,
-        iso_name: r.isos?.name || "Ã--Ã",
+        iso_name: r.isos?.name || "--",
         iso_id: r.iso_id,
         total_net: 0,
         total_volume: 0,
@@ -122,7 +122,7 @@ const RevenuePerMidPage = () => {
     { title: "Months Active", dataIndex: "months", key: "mo", width: 120, align: "center", sorter: (a, b) => a.months - b.months,
       render: v => <Tag>{v} month{v !== 1 ? "s" : ""}</Tag> },
     { title: "Last Report", dataIndex: "last_month", key: "last", width: 110, align: "center", sorter: (a, b) => (a.last_month||"").localeCompare(b.last_month||""),
-      render: v => v ? dayjs(v).format("MMM YYYY") : "Ã--Ã" },
+      render: v => v ? dayjs(v).format("MMM YYYY") : "--" },
   ];
 
   return (
@@ -141,7 +141,7 @@ const RevenuePerMidPage = () => {
             {isos.map(iso => <Option key={iso.id} value={iso.id}>{iso.name}</Option>)}
           </Select>
           <RangePicker picker="month" placeholder={["From month", "To month"]} allowClear onChange={dates => setSelectedDateRange(dates ? [dates[0].startOf("month").format("YYYY-MM-DD"), dates[1].endOf("month").startOf("month").format("YYYY-MM-DD")] : null)} style={{ width: 260 }} />
-          <Text style={{ color: "var(--muted-color)", fontSize: 12 }}>{processingMids.length} processing MIDs Ã· {filteredData.length - processingMids.length} gateway MIDs</Text>
+          <Text style={{ color: "var(--muted-color)", fontSize: 12 }}>{processingMids.length} processing MIDs · {filteredData.length - processingMids.length} gateway MIDs</Text>
         </Space>
       </Card>
       <Card>
