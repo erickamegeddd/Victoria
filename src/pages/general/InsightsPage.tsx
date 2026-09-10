@@ -470,7 +470,7 @@ if(!r.mid?.includes("-summary")&&!gatewayMids.has(String(r.mid||"").trim())){map
                         <div>
                           <Text strong style={{fontSize:14}}>{m.name}</Text>
                           {m.isoName&&<Tag style={{marginLeft:8}} color="blue">{m.isoName}</Tag>}
-                          {!m.hasDataB&&<Tag color="red" style={{marginLeft:4}}>Left</Tag>}
+                          {!m.hasDataB&&<Tag color="red" style={{marginLeft:4}}>Lost</Tag>}
                           {!m.hasDataA&&<Tag color="green" style={{marginLeft:4}}>New</Tag>}
                           <div style={{fontSize:11,color:"var(--muted-color)",marginTop:2}}>MID: {m.mid}</div>
                         </div>
