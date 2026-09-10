@@ -28,7 +28,7 @@ a{font-weight:500;color:var(--primary-color);text-decoration:inherit;}
 .ant-card{background:rgba(255,255,255,0.60)!important;border:1px solid rgba(29,78,216,0.15)!important;border-radius:16px!important;box-shadow:0 4px 24px rgba(29,78,216,0.12)!important;transition:box-shadow 0.2s;}
 .ant-card:hover{box-shadow:0 6px 28px rgba(29,78,216,0.13)!important;}
 .ant-card .ant-card-head{border-bottom:1px solid var(--line-color)!important;background:transparent!important;font-weight:700;color:var(--black-color);font-size:14px;}
-.ant-statistic-title{font-size:11px!important;font-weight:700!important;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted-color)!important;}
+.ant-statistic-title{font-size:14px!important;font-weight:800!important;text-transform:uppercase;letter-spacing:0.5px;color:var(--black-color)!important;}
 .ant-statistic-content-value{font-weight:800!important;}
 .ant-table-thead>tr>th{background:var(--primary-color)!important;color:#ffffff!important;font-weight:700!important;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:none!important;}
 .ant-table-tbody>tr>td{border-bottom:1px solid rgba(226,232,240,0.7)!important;color:var(--black-color);font-size:13px;background:rgba(255,255,255,0.55)!important;}
