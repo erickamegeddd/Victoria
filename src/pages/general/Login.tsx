@@ -50,14 +50,14 @@ export default function Login() {
           height: "100%",
           margin: 0,
           overflow: "hidden",
-          padding: "40px"
+          padding: "20px"
         }}>
           <img
             src="/paydiverse-featured.jpg"
             alt="PayDiverse"
             style={{
               width: "100%",
-              maxWidth: 480,
+              maxWidth: 620,
               objectFit: "contain",
               borderRadius: 16,
               display: "block"
