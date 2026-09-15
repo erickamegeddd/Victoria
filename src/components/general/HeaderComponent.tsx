@@ -38,9 +38,14 @@ const navItems = [
   },
 ];
 
+const agentNavItems = [
+  { key: "/home/agents", label: "Agents Data", icon: <BarChartOutlined /> },
+];
+
 const HeaderComponent = () => {
   const user = getUserFromLocalStorage();
   const navigate = useNavigate();
+  const visibleNavItems = user?.role === "agent" ? agentNavItems : navItems;
   const currentPath = window.location.pathname;
   const [isModalVisible, setModalVisible] = useState(false);
   const [overduePayments, setOverduePayments] = useState([]);
@@ -135,7 +140,7 @@ const HeaderComponent = () => {
           mode="horizontal"
           selectedKeys={[getSelectedKey()]}
           onClick={({ key }) => { if (key !== "admin") navigate(key); }}
-          items={navItems}
+          items={visibleNavItems}
           theme="dark"
           style={{ flex: 1, background: "transparent", border: "none", minWidth: 0, margin: "0 28px", fontSize: 14 }}
         />
@@ -151,7 +156,7 @@ const HeaderComponent = () => {
           </Dropdown>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
             <span style={{ fontSize: "14px", fontWeight: "600", color: "#fff" }}>{user?.name || "PayDiverse"}</span>
-            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{user?.role == "super_admin" ? "Admin" : "Dashboard"}</span>
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{user?.role === "admin" ? "Admin" : user?.role === "agent" ? "Agent" : "Dashboard"}</span>
           </div>
           <Dropdown placement="bottomLeft" trigger={["hover", "click"]} menu={{ items: userMenuItems }}>
             <Avatar size="large" style={{ backgroundColor: "rgba(255,255,255,0.2)", cursor: "pointer", border: "2px solid rgba(255,255,255,0.3)" }} icon={<UserOutlined />} />
