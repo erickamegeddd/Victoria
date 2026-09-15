@@ -42,11 +42,24 @@ export default function Login() {
           </Form>
         </Flex>
       </Col>
-      <Col xs={{ span: 24 }} md={{ span: 12, order: 1 }} style={{ backgroundColor: "var(--primary-color)", display: "flex", alignItems: "center", justifyContent: "center", height: "100%", margin: 0 }}>
-        <Flex vertical gap="middle" align="center">
-          <img src="/paydiverse-logo.webp" alt="PayDiverse" style={{ height: 60, objectFit: "contain" }} />
-        </Flex>
-      </Col>
+      <Col xs={{ span: 24 }} md={{ span: 12, order: 1 }} style={{
+          position: "relative",
+          backgroundImage: "url('/paydiverse-featured.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+          margin: 0,
+          overflow: "hidden"
+        }}>
+          {/* dark-blue overlay to blend the image with the brand color */}
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, rgba(13,40,100,0.45) 0%, rgba(29,78,216,0.25) 100%)" }} />
+          <Flex vertical gap="middle" align="center" style={{ position: "relative", zIndex: 1 }}>
+            <img src="/paydiverse-logo.webp" alt="PayDiverse" style={{ height: 52, objectFit: "contain", filter: "brightness(0) invert(1)", opacity: 0.95 }} />
+          </Flex>
+        </Col>
     </Row>
   );
 }
