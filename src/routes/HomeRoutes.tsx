@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import PageNotFound from "../pages/general/PageNotFound";
 import RevenuePerMidPage from "../pages/RevenuePerMidPage";
 import AgentsPage from "../pages/AgentsPage";
@@ -31,6 +31,15 @@ const SP = ({ children }) => <Suspense fallback={<Spin className="app-loading-wr
 
 const HomeRoutes = () => {
   const user = getUserFromLocalStorage();
+  if (user?.role === "agent") {
+    return (
+      <Routes>
+        <Route index element={<Navigate to="/home/agents" replace />}/>
+        <Route path="/agents" element={<SP><AgentsPage/></SP>}/>
+        <Route path="/*" element={<Navigate to="/home/agents" replace />}/>
+      </Routes>
+    );
+  }
   return (
     <Routes>
       <Route index element={<SP><Dashboard/></SP>}/>
