@@ -43,7 +43,7 @@ export default function Login() {
         </Flex>
       </Col>
       <Col xs={{ span: 24 }} md={{ span: 12, order: 1 }} style={{
-          backgroundColor: "#1565c8",
+          backgroundColor: "#1877F2",
           height: "100%",
           margin: 0,
           display: "flex",
@@ -52,8 +52,8 @@ export default function Login() {
           gap: 24,
           padding: "0 32px"
         }}>
-          <img src="/PD_logo_dog.png" alt="PayDiverse Dog" style={{ height: 260, width: 260, objectFit: "contain" }} />
-          <img src="/PD_logo_text.webp" alt="PayDiverse" style={{ height: 260, width: 260, objectFit: "contain", mixBlendMode: "multiply" }} />
+          <img src="/PD_logo_dog.png" alt="PayDiverse Dog" style={{ height: 300, width: 300, objectFit: "contain" }} />
+          <img src="/PD_logo_text.webp" alt="PayDiverse" style={{ height: 200, objectFit: "contain", mixBlendMode: "multiply" }} />
         </Col>
     </Row>
   );
