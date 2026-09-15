@@ -44,10 +44,8 @@ export default function Login() {
       </Col>
       <Col xs={{ span: 24 }} md={{ span: 12, order: 1 }} style={{
           backgroundImage: "url('/paydiverse-featured.jpg')",
-          backgroundSize: "contain",
-          backgroundRepeat: "no-repeat",
-          backgroundPosition: "center center",
-          backgroundColor: "#1565D8",
+          backgroundSize: "cover",
+          backgroundPosition: "30% center",
           height: "100%",
           margin: 0
         }}>
