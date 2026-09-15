@@ -47,13 +47,14 @@ export default function Login() {
           height: "100%",
           margin: 0,
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          gap: 24,
-          padding: "0 32px"
+          gap: 20,
+          padding: "32px"
         }}>
-          <img src="/PD_logo_dog.png" alt="PayDiverse Dog" style={{ height: 300, width: 300, objectFit: "contain" }} />
-          <img src="/PD_logo_text.webp" alt="PayDiverse" style={{ height: 200, objectFit: "contain", mixBlendMode: "multiply" }} />
+          <img src="/PD_logo_text.webp" alt="PayDiverse" style={{ width: "80%", maxWidth: 300, objectFit: "contain", mixBlendMode: "multiply" }} />
+          <img src="/PD_logo_dog.png" alt="PayDiverse Dog" style={{ width: "75%", maxWidth: 280, objectFit: "contain" }} />
         </Col>
     </Row>
   );
