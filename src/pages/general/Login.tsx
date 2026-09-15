@@ -44,19 +44,19 @@ export default function Login() {
       </Col>
       <Col xs={{ span: 24 }} md={{ span: 12, order: 1 }} style={{
           position: "relative",
-          backgroundImage: "url('/paydiverse-featured.jpg')",
-          backgroundSize: "contain",
-          backgroundRepeat: "no-repeat",
-          backgroundPosition: "center",
-          backgroundColor: "#1464d4",
+          backgroundImage: "url('/PD_logo_dog.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center bottom",
           height: "100%",
           margin: 0,
-          overflow: "hidden"
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "flex-start",
+          paddingTop: 48
         }}>
-          <div style={{
-            position: "absolute", inset: 0,
-            background: "linear-gradient(to bottom, #1464d4 0%, transparent 22%, transparent 78%, #1464d4 100%)"
-          }} />
+          <img src="/paydiverse-logo.webp" alt="PayDiverse" style={{ height: 48, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
         </Col>
     </Row>
   );
