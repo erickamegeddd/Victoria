@@ -43,22 +43,26 @@ export default function Login() {
         </Flex>
       </Col>
       <Col xs={{ span: 24 }} md={{ span: 12, order: 1 }} style={{
-          position: "relative",
-          backgroundImage: "url('/paydiverse-featured.jpg')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
+          background: "#1a72e8",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           height: "100%",
           margin: 0,
-          overflow: "hidden"
+          overflow: "hidden",
+          padding: "40px"
         }}>
-          {/* dark-blue overlay to blend the image with the brand color */}
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, rgba(13,40,100,0.45) 0%, rgba(29,78,216,0.25) 100%)" }} />
-          <Flex vertical gap="middle" align="center" style={{ position: "relative", zIndex: 1 }}>
-            <img src="/paydiverse-logo.webp" alt="PayDiverse" style={{ height: 52, objectFit: "contain", filter: "brightness(0) invert(1)", opacity: 0.95 }} />
-          </Flex>
+          <img
+            src="/paydiverse-featured.jpg"
+            alt="PayDiverse"
+            style={{
+              width: "100%",
+              maxWidth: 480,
+              objectFit: "contain",
+              borderRadius: 16,
+              display: "block"
+            }}
+          />
         </Col>
     </Row>
   );
