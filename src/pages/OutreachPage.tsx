@@ -55,18 +55,34 @@ const OutreachPage = () => {
       const today = dayjs().format("YYYY-MM-DD");
       const overdue = data.filter(p => {
         const m = p.notes?.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/);
-        return m && m[1] < today && (p.expected_amount || 0) > 0;
+        return m && m[1] < today;
       }).map(p => {
         const due = p.notes?.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/)?.[1];
-        return {
-          ...p,
-          due_date: due,
-          iso_name: p.isos?.name,
-          iso_email: p.isos?.email || "",
-          body: buildEmailBody(p.isos?.name, p.expected_amount, p.report_month, due)
-        };
+        return { ...p, due_date: due, iso_name: p.isos?.name, iso_email: p.isos?.email || "" };
       });
-      setRecords(overdue);
+
+      // Fetch residuals to compute correct expected amounts (expected_amount is now null)
+      let enriched = overdue;
+      if (overdue.length > 0) {
+        const isoIds = [...new Set(overdue.map(p => p.iso_id))].join(",");
+        const resResp = await fetch(
+          `${SUPABASE_URL}/rest/v1/residuals?select=iso_id,report_month,paydiversenet&iso_id=in.(${isoIds})&limit=2000`,
+          { headers: sbHeaders }
+        );
+        const residuals = await resResp.json();
+        const resMap = {};
+        if (Array.isArray(residuals)) {
+          residuals.forEach(r => {
+            const key = `${r.iso_id}|${r.report_month}`;
+            resMap[key] = (resMap[key] || 0) + (r.paydiversenet || 0);
+          });
+        }
+        enriched = overdue.map(p => {
+          const computedAmount = Math.round((resMap[`${p.iso_id}|${p.report_month}`] || 0) * 100) / 100;
+          return { ...p, computed_amount: computedAmount, body: buildEmailBody(p.iso_name, computedAmount, p.report_month, p.due_date) };
+        });
+      }
+      setRecords(enriched);
     } catch (e) {
       message.error("Failed to load overdue payments");
     } finally {
@@ -112,7 +128,7 @@ const OutreachPage = () => {
           paymentId: record.id,
           isoName: record.iso_name,
           isoEmail: emailToUse,
-          amount: record.expected_amount,
+          amount: record.computed_amount,
           month: record.report_month,
           dueDate: record.due_date,
           body: record.body
@@ -157,10 +173,10 @@ const OutreachPage = () => {
     },
     {
       title: "Amount Due",
-      dataIndex: "expected_amount",
+      dataIndex: "computed_amount",
       width: 120,
-      sorter: (a, b) => (a.expected_amount || 0) - (b.expected_amount || 0),
-      render: (v) => <span style={{ color: "#dc2626", fontWeight: 600 }}>${(v || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+      sorter: (a, b) => (a.computed_amount || 0) - (b.computed_amount || 0),
+      render: (v) => <span style={{ color: "#dc2626", fontWeight: 600 }}>${(v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
     },
     {
       title: "Due Date",
