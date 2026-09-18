@@ -49,6 +49,7 @@ const Dashboard = () => {
   const [prevResiduals, setPrevResiduals] = useState([]);
   const [inactiveMerchantCount, setInactiveMerchantCount] = useState(0);
   const [activeGatewayCount, setActiveGatewayCount] = useState(0);
+  const [activeWindowMids, setActiveWindowMids] = useState(new Set());
   const searchInput = useRef(null);
 
   const totalRevenue = residuals.reduce((s,r)=>s+(r.paydiversenet||0),0);
@@ -68,6 +69,20 @@ const Dashboard = () => {
       setActiveGatewayCount(gateway||0);
     });
   },[]);
+  // 8-month rule: fetch unique non-gateway MIDs from last 8 months
+  useEffect(()=>{
+    const fetchActiveWindow=async()=>{
+      const cur=dayjs(selectedMonth||LATEST_MONTH);
+      const from=cur.subtract(7,'month').startOf('month').format('YYYY-MM-DD');
+      const to=cur.startOf('month').format('YYYY-MM-DD');
+      let q=supabase.from('residuals').select('mid,isos(name)').gte('report_month',from).lte('report_month',to);
+      if(selectedIso)q=q.eq('iso_id',selectedIso);
+      const rows=await fetchAllRows(q);
+      const mids=new Set((rows||[]).filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.mid).map(r=>r.mid));
+      setActiveWindowMids(mids);
+    };
+    fetchActiveWindow();
+  },[selectedMonth,selectedIso]);
   useEffect(()=>{fetchResiduals();},[selectedIso,selectedMonth]);
   useEffect(()=>{
     const fetchAllTime = async () => {
@@ -132,7 +147,7 @@ const Dashboard = () => {
       <Row gutter={16} style={{marginBottom:12}}>
         <Col span={8}><div style={{background:'#fef3c7',border:'1.5px solid #fbbf24',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}><Statistic title="Total Merchants Income" value={merchantsRevenue} prefix="$" precision={2} valueStyle={{color:'#059669',fontWeight:700}}/></div></Col>
         <Col span={8}><div style={{background:'#fef3c7',border:'1.5px solid #fbbf24',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}><Statistic title="Total Volume Processed" value={totalVolume} prefix="$" precision={2} valueStyle={{color:'#6b7a99',fontWeight:700}}/></div></Col>
-        <Col span={8}><div style={{background:'#fef3c7',border:'1.5px solid #fbbf24',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}><div style={{fontSize:14,fontWeight:800,textTransform:'uppercase',letterSpacing:'0.5px',color:'var(--black-color)',marginBottom:10}}>Active Merchants</div><div><span style={{fontSize:26,fontWeight:800,color:'var(--primary-color)'}}>{activeMids}</span><span style={{fontSize:13,fontWeight:600,color:'var(--muted-color)',marginLeft:6}}>active</span><span style={{fontSize:13,fontWeight:700,color:'#dc2626',marginLeft:10}}> | {inactiveMerchantCount} inactive</span></div></div></Col>
+        <Col span={8}><div style={{background:'#fef3c7',border:'1.5px solid #fbbf24',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}><div style={{fontSize:14,fontWeight:800,textTransform:'uppercase',letterSpacing:'0.5px',color:'var(--black-color)',marginBottom:10}}>Active Merchants</div><div><span style={{fontSize:26,fontWeight:800,color:'var(--primary-color)'}}>{activeWindowMids.size}</span><span style={{fontSize:13,fontWeight:600,color:'var(--muted-color)',marginLeft:6}}>active (8mo)</span><span style={{fontSize:13,fontWeight:700,color:'#dc2626',marginLeft:10}}> | {activeMids} this month</span></div></div></Col>
       </Row>
       <Row gutter={16} style={{marginBottom:20}}>
         <Col span={12}><div style={{background:'#f3e8ff',border:'1.5px solid #c084fc',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}><Statistic title="Total Reseller Revenue" value={resellerRevenue} prefix="$" precision={2} valueStyle={{color:'#059669',fontWeight:700}}/></div></Col>
@@ -141,7 +156,7 @@ const Dashboard = () => {
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
         {key:'residuals',label:`Residuals (${residuals.length})`,children:(
           <><Card style={{marginBottom:12}}><Space wrap><Select placeholder="All ISOs" allowClear style={{width:200}} onChange={v=>setSelectedIso(v)}>{isos.map(iso => <Option key={iso.id} value={iso.id}>{iso.name}</Option>)}</Select><Text style={{color:'var(--muted-color)',fontSize:12}}>{residuals.length} rows</Text></Space></Card>
-          {residuals.length===0&&!loading?(<Card><div style={{textAlign:'center',padding:'60px 20px',color:'var(--muted-color)'}}><FileExcelOutlined style={{fontSize:40,marginBottom:12,display:'block'}}/><div style={{fontSize:16,fontWeight:600,marginBottom:8}}>No residual data yet</div><Button type="primary" onClick={()=>navigate('/home/import-data')}>Import Report</Button></div></Card>):(<><Card><Table dataSource={residuals} columns={rCols} rowKey="id" loading={loading} pagination={{pageSize:50,showTotal:(t)=>`${t} rows`}} scroll={{x:960,y:'calc(100vh - 420px)'}} size="small" onRow={(r)=>{const isNew=!isGatewayRow(r)&&!isAggregateMid(r.mid)&&prevMonthMids.size>0&&!prevMonthMids.has(r.mid);return{style:{backgroundColor:isNew?'#6ee7b7':undefined}};}} /></Card>{(()=>{const cM=new Set(residuals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)).map(r=>r.mid));const dr=prevResiduals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.paydiversenet&&!cM.has(r.mid));if(!dr.length||!prevMonthMids.size)return null;return(<Card style={{marginTop:12,borderColor:'#fca5a5',borderWidth:2}} key="dr"><div style={{color:'#dc2626',fontWeight:700,marginBottom:8}}>{dr.length} merchant(s) removed vs last month</div><Table dataSource={dr} columns={rCols} rowKey="id" pagination={false} size="small" onRow={()=>({style:{backgroundColor:'#fecaca'}})}/></Card>);})()}{(()=>{const am=residuals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.paydiversenet&&prevMonthMids.size>0&&!prevMonthMids.has(r.mid));if(!am.length||!prevMonthMids.size)return null;return(<Card style={{marginTop:12,borderColor:'#86efac',borderWidth:2}} key="added"><div style={{color:'#059669',fontWeight:700,marginBottom:8}}>{am.length} new merchant(s) added this month</div><Table dataSource={am} columns={rCols} rowKey="id" pagination={false} size="small" onRow={()=>({style:{backgroundColor:'#bbf7d0'}})}/></Card>);})()}</>)}</>
+          {residuals.length===0&&!loading?(<Card><div style={{textAlign:'center',padding:'60px 20px',color:'var(--muted-color)'}}><FileExcelOutlined style={{fontSize:40,marginBottom:12,display:'block'}}/><div style={{fontSize:16,fontWeight:600,marginBottom:8}}>No residual data yet</div><Button type="primary" onClick={()=>navigate('/home/import-data')}>Import Report</Button></div></Card>):(<><Card><Table dataSource={residuals} columns={rCols} rowKey="id" loading={loading} pagination={{pageSize:50,showTotal:(t)=>`${t} rows`}} scroll={{x:960,y:'calc(100vh - 420px)'}} size="small" onRow={(r)=>{const isNew=!isGatewayRow(r)&&!isAggregateMid(r.mid)&&prevMonthMids.size>0&&!prevMonthMids.has(r.mid);return{style:{backgroundColor:isNew?'#6ee7b7':undefined}};}} /></Card>{(()=>{const cM=new Set(residuals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)).map(r=>r.mid));const dr=prevResiduals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.paydiversenet&&!cM.has(r.mid));if(!dr.length||!prevMonthMids.size)return null;return(<Card style={{marginTop:12,borderColor:'#fca5a5',borderWidth:2}} key="dr"><div style={{color:'#dc2626',fontWeight:700,marginBottom:8}}>{dr.length} merchant(s) not in this month (still active per 8-month rule)</div><Table dataSource={dr} columns={rCols} rowKey="id" pagination={false} size="small" onRow={()=>({style:{backgroundColor:'#fecaca'}})}/></Card>);})()}{(()=>{const am=residuals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.paydiversenet&&prevMonthMids.size>0&&!prevMonthMids.has(r.mid));if(!am.length||!prevMonthMids.size)return null;return(<Card style={{marginTop:12,borderColor:'#86efac',borderWidth:2}} key="added"><div style={{color:'#059669',fontWeight:700,marginBottom:8}}>{am.length} new merchant(s) added this month</div><Table dataSource={am} columns={rCols} rowKey="id" pagination={false} size="small" onRow={()=>({style:{backgroundColor:'#bbf7d0'}})}/></Card>);})()}</>)}</>
         )},
       ]}/>
     </>
