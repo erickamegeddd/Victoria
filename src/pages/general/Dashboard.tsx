@@ -207,7 +207,6 @@ const Dashboard = () => {
   );
 };
 export default Dashboard;
-+totalRevenue.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></Card></Col></Row>
       <Row gutter={12} style={{marginBottom:12}}><Col span={8}><Card><Statistic title="Total Merchants Income" value={merchantsRevenue} prefix="$" precision={2} valueStyle={{color:'var(--primary-color)',fontWeight:700}}/></Card></Col><Col span={8}><Card><Statistic title="Total Volume Processed" value={totalVolume} prefix="$" precision={2} valueStyle={{color:'#6b7a99',fontWeight:700}}/></Card></Col><Col span={8}><Card><div style={{fontSize:14,fontWeight:800,textTransform:'uppercase',letterSpacing:'0.5px',color:'var(--black-color)',marginBottom:10}}>Active Merchants</div><div><span style={{fontSize:26,fontWeight:800,color:'var(--primary-color)'}}>{activeMids}</span><span style={{fontSize:13,fontWeight:600,color:'var(--muted-color)',marginLeft:6}}>active</span><span style={{fontSize:13,fontWeight:700,color:'#dc2626',marginLeft:10}}>| {inactiveMerchantCount} inactive</span></div></Card></Col></Row>
       <Row gutter={12} style={{marginBottom:20}}><Col span={12}><Card><Statistic title="Total Reseller Revenue" value={resellerRevenue} prefix="$" precision={2} valueStyle={{color:'#059669',fontWeight:700}}/></Card></Col><Col span={12}><Card><Statistic title="Active Accounts" value={activeGatewayCount} precision={0} valueStyle={{color:'#0369a1',fontWeight:700}}/></Card></Col></Row>
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
