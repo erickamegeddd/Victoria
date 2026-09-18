@@ -49,7 +49,6 @@ const Dashboard = () => {
   const [prevResiduals, setPrevResiduals] = useState([]);
   const [inactiveMerchantCount, setInactiveMerchantCount] = useState(0);
   const [activeGatewayCount, setActiveGatewayCount] = useState(0);
-  const [activeWindowMids, setActiveWindowMids] = useState(new Set());
   const searchInput = useRef(null);
 
   const totalRevenue = residuals.reduce((s,r)=>s+(r.paydiversenet||0),0);
@@ -69,20 +68,6 @@ const Dashboard = () => {
       setActiveGatewayCount(gateway||0);
     });
   },[]);
-  // 8-month rule: fetch unique non-gateway MIDs from last 8 months
-  useEffect(()=>{
-    const fetchActiveWindow=async()=>{
-      const cur=dayjs(selectedMonth||LATEST_MONTH);
-      const from=cur.subtract(7,'month').startOf('month').format('YYYY-MM-DD');
-      const to=cur.startOf('month').format('YYYY-MM-DD');
-      let q=supabase.from('residuals').select('mid,isos(name)').gte('report_month',from).lte('report_month',to);
-      if(selectedIso)q=q.eq('iso_id',selectedIso);
-      const rows=await fetchAllRows(q);
-      const mids=new Set((rows||[]).filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.mid).map(r=>r.mid));
-      setActiveWindowMids(mids);
-    };
-    fetchActiveWindow();
-  },[selectedMonth,selectedIso]);
   useEffect(()=>{fetchResiduals();},[selectedIso,selectedMonth]);
   useEffect(()=>{
     const fetchAllTime = async () => {
@@ -147,7 +132,7 @@ const Dashboard = () => {
       <Row gutter={16} style={{marginBottom:12}}>
         <Col span={8}><div style={{background:'#fef3c7',border:'1.5px solid #fbbf24',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}><Statistic title="Total Merchants Income" value={merchantsRevenue} prefix="$" precision={2} valueStyle={{color:'#059669',fontWeight:700}}/></div></Col>
         <Col span={8}><div style={{background:'#fef3c7',border:'1.5px solid #fbbf24',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}><Statistic title="Total Volume Processed" value={totalVolume} prefix="$" precision={2} valueStyle={{color:'#6b7a99',fontWeight:700}}/></div></Col>
-        <Col span={8}><div style={{background:'#fef3c7',border:'1.5px solid #fbbf24',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}><div style={{fontSize:14,fontWeight:800,textTransform:'uppercase',letterSpacing:'0.5px',color:'var(--black-color)',marginBottom:10}}>Active Merchants</div><div><span style={{fontSize:26,fontWeight:800,color:'var(--primary-color)'}}>{activeWindowMids.size}</span><span style={{fontSize:13,fontWeight:600,color:'var(--muted-color)',marginLeft:6}}>active (8mo)</span><span style={{fontSize:13,fontWeight:700,color:'#dc2626',marginLeft:10}}> | {activeMids} this month</span></div></div></Col>
+        <Col span={8}><div style={{background:'#fef3c7',border:'1.5px solid #fbbf24',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}><div style={{fontSize:14,fontWeight:800,textTransform:'uppercase',letterSpacing:'0.5px',color:'var(--black-color)',marginBottom:10}}>Active Merchants</div><div><span style={{fontSize:26,fontWeight:800,color:'var(--primary-color)'}}>{activeMids}</span><span style={{fontSize:13,fontWeight:600,color:'var(--muted-color)',marginLeft:6}}>active</span><span style={{fontSize:13,fontWeight:700,color:'#dc2626',marginLeft:10}}> | {inactiveMerchantCount} inactive</span></div></div></Col>
       </Row>
       <Row gutter={16} style={{marginBottom:20}}>
         <Col span={12}><div style={{background:'#f3e8ff',border:'1.5px solid #c084fc',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}><Statistic title="Total Reseller Revenue" value={resellerRevenue} prefix="$" precision={2} valueStyle={{color:'#059669',fontWeight:700}}/></div></Col>
