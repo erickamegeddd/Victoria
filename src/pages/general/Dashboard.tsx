@@ -125,90 +125,18 @@ const Dashboard = () => {
         <Button size="small" onClick={()=>setSelectedMonth(dayjs().startOf('month').format('YYYY-MM-DD'))} style={{color:'var(--primary-color)',fontSize:12,fontWeight:600}}>Current Month</Button>
         {selectedMonth&&<Text style={{color:'var(--muted-color)',fontSize:12}}>Showing data for <strong>{dayjs(selectedMonth).format('MMMM YYYY')}</strong></Text>}
       </div>
-      <Row justify="center" style={{marginBottom:12}}><Col xs={24} md={14}><Card style={{textAlign:'center',background:'linear-gradient(135deg,#1d4ed8 0%,#2563eb 100%)',border:'none',borderRadius:14,boxShadow:'0 4px 20px rgba(29,78,216,0.35)'}}><Statistic title={<span style={{color:'rgba(255,255,255,0.8)',fontSize:13,fontWeight:800,textTransform:'uppercase',letterSpacing:'0.6px'}}>Total PayDiverse Net Income</span>} value={totalRevenue} prefix="$" precision={2} valueStyle={{color:'#fff',fontWeight:800,fontSize:34}}/></Card></Col></Row>
-      <Row gutter={12} style={{marginBottom:12}}><Col span={8}><Card><Statistic title="Total Merchants Income" value={merchantsRevenue} prefix="$" precision={2} valueStyle={{color:'var(--primary-color)',fontWeight:700}}/></Card></Col><Col span={8}><Card><Statistic title="Total Volume Processed" value={totalVolume} prefix="$" precision={2} valueStyle={{color:'#6b7a99',fontWeight:700}}/></Card></Col><Col span={8}><Card><div style={{fontSize:14,fontWeight:800,textTransform:'uppercase',letterSpacing:'0.5px',color:'var(--black-color)',marginBottom:10}}>Active Merchants</div><div><span style={{fontSize:26,fontWeight:800,color:'var(--primary-color)'}}>{activeMids}</span><span style={{fontSize:13,fontWeight:600,color:'var(--muted-color)',marginLeft:6}}>active</span><span style={{fontSize:13,fontWeight:700,color:'#dc2626',marginLeft:10}}>| {inactiveMerchantCount} inactive</span></div></Card></Col></Row>
-      <Row gutter={12} style={{marginBottom:20}}><Col span={12}><Card><Statistic title="Total Reseller Revenue" value={resellerRevenue} prefix="$" precision={2} valueStyle={{color:'#059669',fontWeight:700}}/></Card></Col><Col span={12}><Card><Statistic title="Active Accounts" value={activeGatewayCount} precision={0} valueStyle={{color:'#0369a1',fontWeight:700}}/></Card></Col></Row>
-            <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
-        {key:'residuals',label:`Residuals (${residuals.length})`,children:(
-          <><Card style={{marginBottom:12}}><Space wrap><Select placeholder="All ISOs" allowClear style={{width:200}} onChange={v=>setSelectedIso(v)}>{isos.map(iso => <Option key={iso.id} value={iso.id}>{iso.name}</Option>)}</Select><Text style={{color:'var(--muted-color)',fontSize:12}}>{residuals.length} rows</Text></Space></Card>
-          {residuals.length===0&&!loading?(<Card><div style={{textAlign:'center',padding:'60px 20px',color:'var(--muted-color)'}}><FileExcelOutlined style={{fontSize:40,marginBottom:12,display:'block'}}/><div style={{fontSize:16,fontWeight:600,marginBottom:8}}>No residual data yet</div><Button type="primary" onClick={()=>navigate('/home/import-data')}>Import Report</Button></div></Card>):(<><Card><Table dataSource={residuals} columns={rCols} rowKey="id" loading={loading} pagination={{pageSize:50,showTotal:(t)=>`${t} rows`}} scroll={{x:960,y:'calc(100vh - 420px)'}} size="small" onRow={(r)=>{const isNew=!isGatewayRow(r)&&!isAggregateMid(r.mid)&&prevMonthMids.size>0&&!prevMonthMids.has(r.mid);return{style:{backgroundColor:isNew?'#6ee7b7':undefined}};}} /></Card>{(()=>{const cM=new Set(residuals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)).map(r=>r.mid));const dr=prevResiduals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.paydiversenet&&!cM.has(r.mid));if(!dr.length||!prevMonthMids.size)return null;return(<Card style={{marginTop:12,borderColor:'#fca5a5',borderWidth:2}} key="dr"><div style={{color:'#dc2626',fontWeight:700,marginBottom:8}}>{dr.length} merchant(s) removed vs last month</div><Table dataSource={dr} columns={rCols} rowKey="id" pagination={false} size="small" onRow={()=>({style:{backgroundColor:'#fecaca'}})}/></Card>);})()}{(()=>{const am=residuals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.paydiversenet&&prevMonthMids.size>0&&!prevMonthMids.has(r.mid));if(!am.length||!prevMonthMids.size)return null;return(<Card style={{marginTop:12,borderColor:'#86efac',borderWidth:2}} key="added"><div style={{color:'#059669',fontWeight:700,marginBottom:8}}>{am.length} new merchant(s) added this month</div><Table dataSource={am} columns={rCols} rowKey="id" pagination={false} size="small" onRow={()=>({style:{backgroundColor:'#bbf7d0'}})}/></Card>);})()}</>)}</>
-        )},
-      ]}/>
-    </>
-  );
-
-  const yearlyView = (
-    <div>
-      <Row gutter={16} style={{marginBottom:24}}>
-        {monthlyData.map(d => (
-          <Col key={d.month} style={{marginBottom:8}}>
-            <Card size="small" style={{minWidth:120,textAlign:'center',background: d.paydiversenet < 0 ? '#fef2f2' : '#f0fdf4', borderColor: d.paydiversenet < 0 ? '#fca5a5' : '#86efac'}}>
-              <div style={{fontSize:11,color:'#6b7280',marginBottom:2}}>{d.month}</div>
-              <div style={{fontSize:14,fontWeight:700,color: d.paydiversenet < 0 ? '#dc2626' : '#059669'}}>{fmtK(d.paydiversenet)}</div>
-              <div style={{fontSize:10,color:'#9ca3af',marginTop:2}}>{d.midCount} MIDs</div>
-            </Card>
-          </Col>
-        ))}
+      <Row justify="center" style={{marginBottom:12}}>
+        <Col xs={24} md={14}><Card style={{textAlign:'center',background:'linear-gradient(135deg,#1d4ed8 0%,#2563eb 100%)',border:'none',borderRadius:14,boxShadow:'0 4px 20px rgba(29,78,216,0.35)'}}><Statistic title={<span style={{color:'rgba(255,255,255,0.8)',fontSize:13,fontWeight:800,textTransform:'uppercase',letterSpacing:'0.6px'}}>Total PayDiverse Net Income</span>} value={totalRevenue} prefix="$" precision={2} valueStyle={{color:'#fff',fontWeight:800,fontSize:34}}/></Card></Col>
       </Row>
-      <Card>
-        <div style={{marginBottom:16}}>
-          <div style={{fontWeight:700,fontSize:16,color:'#111'}}>Monthly PayDiverse Net Income</div>
-          <div style={{color:'#6b7280',fontSize:13}}>Jan 2026 - Jul 2026 · All ISOs combined</div>
-        </div>
-        <ResponsiveContainer width="100%" height={360}>
-          <LineChart data={monthlyData} margin={{top:10,right:30,left:10,bottom:10}}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-            <XAxis dataKey="month" tick={{fill:'#6b7280',fontSize:12}} axisLine={{stroke:'#e5e7eb'}}/>
-            <YAxis tickFormatter={v=>fmtK(v)} tick={{fill:'#6b7280',fontSize:12}} axisLine={{stroke:'#e5e7eb'}} width={70}/>
-            <Tooltip content={<CustomTooltip/>}/>
-            <ReferenceLine y={0} stroke="#e5e7eb" strokeDasharray="4 4"/>
-            <Line
-              type="monotone"
-              dataKey="paydiversenet"
-              stroke="#1d4ed8"
-              strokeWidth={3}
-              dot={{fill:'#1d4ed8',r:6,strokeWidth:2,stroke:'#fff'}}
-              activeDot={{r:8,fill:'#1d4ed8',stroke:'#fff',strokeWidth:2}}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </Card>
-    </div>
-  );
-
-  return (
-    <div>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-        <Title level={4} style={{margin:0}}>Victoria Dashboard</Title>
-        <Button type="primary" icon={<FileExcelOutlined/>} onClick={()=>navigate('/home/import-data')}>Import Report</Button>
-      </div>
-
-      {/* All Time Banner */}
-      <div style={{marginBottom:20,background:'linear-gradient(135deg,#0f2040 0%,#1d4ed8 100%)',borderRadius:12,padding:'20px 28px',boxShadow:'0 4px 20px rgba(15,32,64,0.3)'}}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:16}}>
-          <div>
-            <div style={{color:'rgba(255,255,255,0.7)',fontSize:13,fontWeight:500,marginBottom:4,textTransform:'uppercase',letterSpacing:'0.5px'}}>All Time Total Revenue</div>
-            <div style={{color:'#fff',fontSize:34,fontWeight:800,letterSpacing:'-0.5px'}}>{fmt(allTimeRevenue)}</div>
-            <div style={{color:'rgba(255,255,255,0.55)',fontSize:12,marginTop:4}}>Jan 2026 - Jul 2026 · All ISOs combined</div>
-          </div>
-          <div>
-            <div style={{color:'rgba(255,255,255,0.6)',fontSize:11,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:2}}>Total Processed Volume</div>
-            <div style={{color:'#fff',fontSize:20,fontWeight:700}}>{fmt(allTimeVolume)}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Monthly / Yearly outer tabs */}
-      <Tabs activeKey={outerTab} onChange={setOuterTab} items={[
-        { key:'monthly', label:'Monthly', children: monthlyView },
-        { key:'yearly',  label:'Yearly',  children: yearlyView },
-      ]}/>
-    </div>
-  );
-};
-export default Dashboard;
-      <Row gutter={12} style={{marginBottom:12}}><Col span={8}><Card><Statistic title="Total Merchants Income" value={merchantsRevenue} prefix="$" precision={2} valueStyle={{color:'var(--primary-color)',fontWeight:700}}/></Card></Col><Col span={8}><Card><Statistic title="Total Volume Processed" value={totalVolume} prefix="$" precision={2} valueStyle={{color:'#6b7a99',fontWeight:700}}/></Card></Col><Col span={8}><Card><div style={{fontSize:14,fontWeight:800,textTransform:'uppercase',letterSpacing:'0.5px',color:'var(--black-color)',marginBottom:10}}>Active Merchants</div><div><span style={{fontSize:26,fontWeight:800,color:'var(--primary-color)'}}>{activeMids}</span><span style={{fontSize:13,fontWeight:600,color:'var(--muted-color)',marginLeft:6}}>active</span><span style={{fontSize:13,fontWeight:700,color:'#dc2626',marginLeft:10}}>| {inactiveMerchantCount} inactive</span></div></Card></Col></Row>
-      <Row gutter={12} style={{marginBottom:20}}><Col span={12}><Card><Statistic title="Total Reseller Revenue" value={resellerRevenue} prefix="$" precision={2} valueStyle={{color:'#059669',fontWeight:700}}/></Card></Col><Col span={12}><Card><Statistic title="Active Accounts" value={activeGatewayCount} precision={0} valueStyle={{color:'#0369a1',fontWeight:700}}/></Card></Col></Row>
+      <Row gutter={16} style={{marginBottom:12}}>
+        <Col span={8}><Card><Statistic title="Total Merchants Income" value={merchantsRevenue} prefix="$" precision={2} valueStyle={{color:'var(--primary-color)',fontWeight:700}}/></Card></Col>
+        <Col span={8}><Card><Statistic title="Total Volume Processed" value={totalVolume} prefix="$" precision={2} valueStyle={{color:'#6b7a99',fontWeight:700}}/></Card></Col>
+        <Col span={8}><Card><div style={{fontSize:14,fontWeight:800,textTransform:'uppercase',letterSpacing:'0.5px',color:'var(--black-color)',marginBottom:10}}>Active Merchants</div><div><span style={{fontSize:26,fontWeight:800,color:'var(--primary-color)'}}>{activeMids}</span><span style={{fontSize:13,fontWeight:600,color:'var(--muted-color)',marginLeft:6}}>active</span><span style={{fontSize:13,fontWeight:700,color:'#dc2626',marginLeft:10}}> | {inactiveMerchantCount} inactive</span></div></Card></Col>
+      </Row>
+      <Row gutter={16} style={{marginBottom:20}}>
+        <Col span={12}><Card><Statistic title="Total Reseller Revenue" value={resellerRevenue} prefix="$" precision={2} valueStyle={{color:'#059669',fontWeight:700}}/></Card></Col>
+        <Col span={12}><Card><Statistic title="Active Accounts" value={activeGatewayCount} precision={0} valueStyle={{color:'#0369a1',fontWeight:700}}/></Card></Col>
+      </Row>
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
         {key:'residuals',label:`Residuals (${residuals.length})`,children:(
           <><Card style={{marginBottom:12}}><Space wrap><Select placeholder="All ISOs" allowClear style={{width:200}} onChange={v=>setSelectedIso(v)}>{isos.map(iso => <Option key={iso.id} value={iso.id}>{iso.name}</Option>)}</Select><Text style={{color:'var(--muted-color)',fontSize:12}}>{residuals.length} rows</Text></Space></Card>
