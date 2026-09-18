@@ -115,6 +115,7 @@ payments.forEach(p=>{if(map[p.iso_id]&&p.expected_amount!=null)map[p.iso_id].exp
   const shortPaid=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return p&&getStatus(i.expected,p.received_amount)==='short_paid';}).length;
   const pending=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return !p||p.received_amount==null;}).length;
   const overpaid=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return p&&getStatus(i.expected,p.received_amount)==='overpaid';}).length;
+  const totalOutstanding=expectedByISO.reduce((s,i)=>{const p=getPaymentForISO(i.isoId);const received=p?.received_amount||0;const diff=i.expected-received;return diff>0?s+diff:s;},0);
 
   const filteredISOs=activeStatusFilter?expectedByISO.filter(r=>{const p=getPaymentForISO(r.isoId);return getStatus(r.expected,p?.received_amount)===activeStatusFilter;}):expectedByISO;
 
@@ -175,7 +176,7 @@ payments.forEach(p=>{if(map[p.iso_id]&&p.expected_amount!=null)map[p.iso_id].exp
       {!selectedMonth?(<Alert type="info" showIcon message="Select a month to view payment reconciliation."/>):(
         <>
           <Row gutter={16} style={{marginBottom:16}}>
-            {[{title:'Total Expected',value:totalExpected,color:'var(--primary-color)',doFmt:true},{title:'Total Received',value:totalReceived,color:'#059669',doFmt:true},{title:'Net Difference',value:totalReceived-totalExpected,color:totalReceived>=totalExpected?'#059669':'#dc2626',doFmt:true,showSign:true},{title:'Pending ISOs',value:pending,color:'#f59e0b',doFmt:false}].map(({title,value,color,doFmt,showSign})=>(
+            {[{title:'Total Expected',value:totalExpected,color:'var(--primary-color)',doFmt:true},{title:'Total Received',value:totalReceived,color:'#059669',doFmt:true},{title:'Outstanding Balance',value:totalOutstanding,color:totalOutstanding>0?'#dc2626':'#059669',doFmt:true},{title:'Pending ISOs',value:pending,color:'#f59e0b',doFmt:false}].map(({title,value,color,doFmt,showSign})=>(
               <Col span={6} key={title}><Card><Statistic title={title} value={doFmt?Math.abs(value):value} prefix={showSign&&value!==0?(value>0?'+':'-'):undefined} formatter={doFmt?v=>`$${Number(v).toLocaleString('en-US',{minimumFractionDigits:2})}`:undefined} valueStyle={{color,fontWeight:700}}/></Card></Col>
             ))}
           </Row>
