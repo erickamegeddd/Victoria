@@ -129,12 +129,12 @@ const Dashboard = () => {
         <Col xs={24} md={14}><div style={{textAlign:'center',background:'linear-gradient(135deg,#1d4ed8 0%,#2563eb 100%)',borderRadius:14,padding:'24px 32px',boxShadow:'0 4px 20px rgba(29,78,216,0.35)'}}><Statistic title={<span style={{color:'rgba(255,255,255,0.85)',fontSize:13,fontWeight:800,textTransform:'uppercase',letterSpacing:'0.6px'}}>Total PayDiverse Net Income</span>} value={totalRevenue} prefix="$" precision={2} valueStyle={{color:'#fff',fontWeight:800,fontSize:36}}/></div></Col>
       </Row>
       <Row gutter={16} style={{marginBottom:12}}>
-        <Col span={8}><Card style={{background:'#fef9c3',border:'1.5px solid #fde047'}}><Statistic title="Total Merchants Income" value={merchantsRevenue} prefix="$" precision={2} valueStyle={{color:'#059669',fontWeight:700}}/></Card></Col>
+        <Col span={8}><div style={{background:'#fef3c7',border:'1.5px solid #fbbf24',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}><Statistic title="Total Merchants Income" value={merchantsRevenue} prefix="$" precision={2} valueStyle={{color:'#059669',fontWeight:700}}/></div></Col>
         <Col span={8}><Card><Statistic title="Total Volume Processed" value={totalVolume} prefix="$" precision={2} valueStyle={{color:'#6b7a99',fontWeight:700}}/></Card></Col>
         <Col span={8}><Card><div style={{fontSize:14,fontWeight:800,textTransform:'uppercase',letterSpacing:'0.5px',color:'var(--black-color)',marginBottom:10}}>Active Merchants</div><div><span style={{fontSize:26,fontWeight:800,color:'var(--primary-color)'}}>{activeMids}</span><span style={{fontSize:13,fontWeight:600,color:'var(--muted-color)',marginLeft:6}}>active</span><span style={{fontSize:13,fontWeight:700,color:'#dc2626',marginLeft:10}}> | {inactiveMerchantCount} inactive</span></div></Card></Col>
       </Row>
       <Row gutter={16} style={{marginBottom:20}}>
-        <Col span={12}><Card style={{background:'#fff7ed',border:'1.5px solid #fed7aa'}}><Statistic title="Total Reseller Revenue" value={resellerRevenue} prefix="$" precision={2} valueStyle={{color:'#059669',fontWeight:700}}/></Card></Col>
+        <Col span={12}><div style={{background:'#f3e8ff',border:'1.5px solid #c084fc',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}><Statistic title="Total Reseller Revenue" value={resellerRevenue} prefix="$" precision={2} valueStyle={{color:'#059669',fontWeight:700}}/></div></Col>
         <Col span={12}><Card><Statistic title="Active Accounts" value={activeGatewayCount} precision={0} valueStyle={{color:'#0369a1',fontWeight:700}}/></Card></Col>
       </Row>
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
