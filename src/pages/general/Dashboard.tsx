@@ -56,6 +56,7 @@ const Dashboard = () => {
   const activeMids = new Set(residuals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)).map(r=>r.mid)).size;
   const merchantsRevenue = residuals.filter(r=>!isGatewayRow(r)).reduce((s,r)=>s+(r.paydiversenet||0),0);
   const resellerRevenue = residuals.filter(r=>isGatewayRow(r)).reduce((s,r)=>s+(r.paydiversenet||0),0);
+  const activeGatewayMids = new Set(residuals.filter(r=>isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.mid).map(r=>r.mid)).size;
 
   useEffect(()=>{fetchIsos();},[]);
   useEffect(()=>{
@@ -135,7 +136,7 @@ const Dashboard = () => {
       </Row>
       <Row gutter={16} style={{marginBottom:20}}>
         <Col span={12}><div style={{background:'#f3e8ff',border:'1.5px solid #c084fc',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}><Statistic title="Total Reseller Revenue" value={resellerRevenue} prefix="$" precision={2} valueStyle={{color:'#059669',fontWeight:700}}/></div></Col>
-        <Col span={12}><div style={{background:'#f3e8ff',border:'1.5px solid #c084fc',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}><Statistic title="Active Accounts" value={activeGatewayCount} precision={0} valueStyle={{color:'#7c3aed',fontWeight:700}}/></div></Col>
+        <Col span={12}><div style={{background:'#f3e8ff',border:'1.5px solid #c084fc',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}><Statistic title="Active Accounts" value={activeGatewayMids} precision={0} valueStyle={{color:'#7c3aed',fontWeight:700}}/></div></Col>
       </Row>
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
         {key:'residuals',label:`Residuals (${residuals.length})`,children:(
