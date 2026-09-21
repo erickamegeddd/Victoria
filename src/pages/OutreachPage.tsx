@@ -186,7 +186,7 @@ const OutreachPage = () => {
       render: (v) => <span style={{ color: "#f59e0b" }}>{dayjs(v).format("MMM D, YYYY")}</span>
     },
     {
-      title: "ISO Email",
+      title: "ISO Contact Email",
       dataIndex: "iso_email",
       width: 270,
       render: (_, record) => {
