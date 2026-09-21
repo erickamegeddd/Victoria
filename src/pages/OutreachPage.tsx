@@ -55,11 +55,12 @@ const OutreachPage = () => {
       const today = dayjs().format("YYYY-MM-DD");
       const overdue = data.filter(p => {
         const m = p.notes?.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/);
-        return m && m[1] < today;
+        return !!m;
       }).map(p => {
         const due = p.notes?.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/)?.[1];
-        return { ...p, due_date: due, iso_name: p.isos?.name, iso_email: p.isos?.email || "" };
-      });
+        const payment_status = due < today ? "overdue" : "due_soon";
+        return { ...p, due_date: due, iso_name: p.isos?.name, iso_email: p.isos?.email || "", payment_status };
+      }).sort((a, b) => (a.due_date || "").localeCompare(b.due_date || ""));
 
       // Fetch residuals to compute correct expected amounts (expected_amount is now null)
       let enriched = overdue;
@@ -186,6 +187,16 @@ const OutreachPage = () => {
       render: (v) => <span style={{ color: "#f59e0b" }}>{dayjs(v).format("MMM D, YYYY")}</span>
     },
     {
+      title: "Payment Status",
+      dataIndex: "payment_status",
+      width: 120,
+      filters: [{ text: "Overdue", value: "overdue" }, { text: "Due Soon", value: "due_soon" }],
+      onFilter: (value, record) => record.payment_status === value,
+      render: (v) => v === "overdue"
+        ? <Tag color="error" style={{ fontWeight: 600 }}>OVERDUE</Tag>
+        : <Tag color="orange" style={{ fontWeight: 600 }}>DUE SOON</Tag>
+    },
+    {
       title: "ISO Contact Email",
       dataIndex: "iso_email",
       width: 270,
@@ -244,7 +255,7 @@ const OutreachPage = () => {
         <div>
           <h2 style={{ margin: 0 }}>Payment Outreach</h2>
           <p style={{ color: "#6b7280", margin: "4px 0 0", fontSize: 13 }}>
-            {records.length} past-due ISO payment{records.length !== 1 ? "s" : ""} — add emails and send reminders
+            {records.filter(r => r.payment_status === "overdue").length} overdue &nbsp;·&nbsp; {records.filter(r => r.payment_status === "due_soon").length} due soon — add emails and send reminders
           </p>
         </div>
         <Button onClick={fetchOverdue} size="small">Refresh</Button>
