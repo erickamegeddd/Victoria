@@ -24,8 +24,8 @@ const SiderComponent = () => {
 
   const allMenuItems = [
     { key:"/home", label:"Overview", icon:ic(<TbLayoutDashboard/>, "#60a5fa", "rgba(96,165,250,0.18)") },
-    { key:"/home/iso-merchants", label:"ISOs", icon:ic(<BankOutlined/>, "#818cf8", "rgba(129,140,248,0.18)") },
-    { key:"/home/merchants", label:"Merchants / MIDs", icon:ic(<DiffOutlined/>, "#fb923c", "rgba(251,146,60,0.18)") },
+    // HIDDEN: { key:"/home/iso-merchants", label:"ISOs", icon:ic(<BankOutlined/>, "#818cf8", "rgba(129,140,248,0.18)") },
+    // HIDDEN: { key:"/home/merchants", label:"Merchants / MIDs", icon:ic(<DiffOutlined/>, "#fb923c", "rgba(251,146,60,0.18)") },
     { key:"/home/revenue-mid", label:"Revenue per MID", icon:ic(<DollarOutlined/>, "#fbbf24", "rgba(251,191,36,0.18)") },
     { key:"/home/payments", label:"Payments", icon:ic(<MdPayment/>, "#4ade80", "rgba(74,222,128,0.18)") },
     { key:"/home/insights", label:"Insights", icon:ic(<BulbOutlined/>, "#fcd34d", "rgba(252,211,77,0.18)") },
