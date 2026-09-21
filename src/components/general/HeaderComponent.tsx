@@ -21,8 +21,8 @@ const ic = (icon, color) => (<span style={{color, fontSize:15, display:"inline-f
 
 const navItems = [
   { key: "/home",              label: "Overview",      icon: ic(<TbLayoutDashboard />, "#60a5fa") },
-  { key: "/home/iso-merchants",label: "ISOs",         icon: ic(<BankOutlined />, "#818cf8") },
-  { key: "/home/merchants",    label: "Merchants",      icon: ic(<DiffOutlined />, "#fb923c") },
+  // HIDDEN: { key: "/home/iso-merchants",label: "ISOs",         icon: ic(<BankOutlined />, "#818cf8") },
+  // HIDDEN: { key: "/home/merchants",    label: "Merchants",      icon: ic(<DiffOutlined />, "#fb923c") },
   { key: "/home/revenue-mid",  label: "Revenue/MID",   icon: ic(<DollarOutlined />, "#fbbf24") },
   { key: "/home/payments",     label: "Payments",       icon: ic(<MdPayment />, "#4ade80") },
   { key: "/home/insights",     label: "Insights",       icon: ic(<BulbOutlined />, "#fcd34d") },
