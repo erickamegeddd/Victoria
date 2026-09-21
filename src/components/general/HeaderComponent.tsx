@@ -17,29 +17,31 @@ import dayjs from "dayjs";
 const parseExpDate = (notes) => { if (!notes) return null; const m = notes.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/); return m ? m[1] : null; };
 const fmtMoney = (n) => n != null ? `$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : "--";
 
+const ic = (icon, color) => (<span style={{color, fontSize:15, display:"inline-flex", alignItems:"center"}}>{icon}</span>);
+
 const navItems = [
-  { key: "/home",              label: "Overview",      icon: <TbLayoutDashboard /> },
-  { key: "/home/iso-merchants",label: "ISOs",          icon: <BankOutlined /> },
-  { key: "/home/merchants",    label: "Merchants",      icon: <DiffOutlined /> },
-  { key: "/home/revenue-mid",  label: "Revenue/MID",   icon: <DollarOutlined /> },
-  { key: "/home/payments",     label: "Payments",       icon: <MdPayment /> },
-  { key: "/home/insights",     label: "Insights",       icon: <BulbOutlined /> },
-  { key: "/home/industry",     label: "Industry",       icon: <AreaChartOutlined /> },
-  { key: "/home/outreach",     label: "Outreach",       icon: <MailOutlined /> },
+  { key: "/home",              label: "Overview",      icon: ic(<TbLayoutDashboard />, "#60a5fa") },
+  { key: "/home/iso-merchants",label: "ISOs",         icon: ic(<BankOutlined />, "#818cf8") },
+  { key: "/home/merchants",    label: "Merchants",      icon: ic(<DiffOutlined />, "#fb923c") },
+  { key: "/home/revenue-mid",  label: "Revenue/MID",   icon: ic(<DollarOutlined />, "#fbbf24") },
+  { key: "/home/payments",     label: "Payments",       icon: ic(<MdPayment />, "#4ade80") },
+  { key: "/home/insights",     label: "Insights",       icon: ic(<BulbOutlined />, "#fcd34d") },
+  { key: "/home/industry",     label: "Industry",       icon: ic(<AreaChartOutlined />, "#38bdf8") },
+  { key: "/home/outreach",     label: "Outreach",       icon: ic(<MailOutlined />, "#f472b6") },
   {
-    key: "admin", label: "Administrator", icon: <SettingOutlined />,
+    key: "admin", label: "Administrator", icon: ic(<SettingOutlined />, "#a78bfa"),
     children: [
-      { key: "/home/users",       label: "Users",       icon: <LuUsers /> },
-      { key: "/home/adjustments", label: "Adjustments", icon: <LiaFileInvoiceDollarSolid /> },
-      { key: "/home/agents",      label: "Agents Data", icon: <BarChartOutlined /> },
-      { key: "/home/logs",        label: "Logs",        icon: <SnippetsOutlined /> },
-      { key: "/home/import-data", label: "Import Data", icon: <ImportOutlined /> },
+      { key: "/home/users",       label: "Users",       icon: ic(<LuUsers />, "#f472b6") },
+      { key: "/home/adjustments", label: "Adjustments", icon: ic(<LiaFileInvoiceDollarSolid />, "#f87171") },
+      { key: "/home/agents",      label: "Agents Data", icon: ic(<BarChartOutlined />, "#22d3ee") },
+      { key: "/home/logs",        label: "Logs",        icon: ic(<SnippetsOutlined />, "#94a3b8") },
+      { key: "/home/import-data", label: "Import Data", icon: ic(<ImportOutlined />, "#34d399") },
     ]
   },
 ];
 
 const agentNavItems = [
-  { key: "/home/agents", label: "Agents Data", icon: <BarChartOutlined /> },
+  { key: "/home/agents", label: "Agents Data", icon: ic(<BarChartOutlined />, "#22d3ee") },
 ];
 
 const HeaderComponent = () => {
@@ -138,7 +140,7 @@ const HeaderComponent = () => {
         {/* Horizontal Nav */}
         <Menu
           mode="horizontal"
-          selectedKeys={[getSelectedKey()]}
+          selectedKeys={[getSelectedKey()]} 
           onClick={({ key }) => { if (key !== "admin") navigate(key); }}
           items={visibleNavItems}
           theme="dark"
@@ -159,7 +161,7 @@ const HeaderComponent = () => {
             <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{user?.role === "admin" ? "Admin" : user?.role === "agent" ? "Agent" : "Dashboard"}</span>
           </div>
           <Dropdown placement="bottomLeft" trigger={["hover", "click"]} menu={{ items: userMenuItems }}>
-            <Avatar size="large" style={{ backgroundColor: "rgba(255,255,255,0.2)", cursor: "pointer", border: "2px solid rgba(255,255,255,0.3)" }} icon={<UserOutlined />} />
+            <Avatar size="large" style={{ backgroundColor: "rgba(255,255,255,0.2)", cursor: "pointer", border: "2px solid rgba(255,255,255,0.2)" }} icon={<UserOutlined />} />
           </Dropdown>
         </div>
       </header>
