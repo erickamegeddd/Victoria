@@ -1,15 +1,12 @@
 // @ts-nocheck
 import { Button } from "antd";
-import { LeftOutlined, RightOutlined } from "@ant-design/icons";
+import { LeftOutlined, RightOutlined, BarChartOutlined } from "@ant-design/icons";
 import { useState } from "react";
 import dayjs from "dayjs";
-import RevenuePerIndustryTable from "../components/tables/RevenuePerIndustryTable";
 
 const IndustryPage = () => {
-  const [date, setDate] = useState<string>(dayjs().format("YYYY-MM-01"));
-
-  const go = (months: number) => setDate(dayjs(date).add(months, "month").format("YYYY-MM-01"));
-  const goCurrent = () => setDate(dayjs().format("YYYY-MM-01"));
+  const [date, setDate] = useState(dayjs().format("YYYY-MM-01"));
+  const go = (months) => setDate(dayjs(date).add(months, "month").format("YYYY-MM-01"));
 
   return (
     <>
@@ -19,9 +16,13 @@ const IndustryPage = () => {
           {dayjs(date).format("MMMM YYYY")}
         </span>
         <Button icon={<RightOutlined />} onClick={() => go(1)} />
-        <Button onClick={goCurrent} size="middle">Current Month</Button>
+        <Button onClick={() => setDate(dayjs().format("YYYY-MM-01"))} size="middle">Current Month</Button>
       </div>
-      <RevenuePerIndustryTable date={date} />
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 320, background: "rgba(255,255,255,0.06)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)" }}>
+        <BarChartOutlined style={{ fontSize: 48, color: "#38bdf8", marginBottom: 16 }} />
+        <div style={{ fontSize: 18, fontWeight: 600, color: "#fff", marginBottom: 8 }}>Industry Breakdown</div>
+        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>Coming soon — revenue aggregated by industry vertical</div>
+      </div>
     </>
   );
 };
