@@ -26,6 +26,7 @@ interface RevenuePerAgentTableProps {
 interface AgentsColumn {
   agent_name: string;
   total_payout: number;
+  mid_count: number;
 }
 
 const RevenuePerAgentTable: React.FC<RevenuePerAgentTableProps> = ({
@@ -48,10 +49,18 @@ const RevenuePerAgentTable: React.FC<RevenuePerAgentTableProps> = ({
         agent_name || <Tag color="error">Not Provided</Tag>,
     },
     {
+      key: 3,
+      title: "MIDs",
+      dataIndex: "mid_count",
+      width: "100px",
+      sorter: (a: AgentsColumn, b: AgentsColumn) => (a.mid_count || 0) - (b.mid_count || 0),
+      render: (v: number) => v || 0,
+    },
+    {
       key: 2,
       title: "Total Payout",
       dataIndex: "total_payout",
-      width: "400px",
+      width: "300px",
       sorter: (a: AgentsColumn, b: AgentsColumn) =>
         a.total_payout - b.total_payout,
       render: formatCurrency,
@@ -84,25 +93,22 @@ const RevenuePerAgentTable: React.FC<RevenuePerAgentTableProps> = ({
   };
 
   const handleDownload = () => {
-    // Use the currentTableData for download
     const formattedData = currentTableData.map((item: AgentsColumn) => ({
       "Agent Name": item.agent_name || "Not Provided",
+      "MIDs": item.mid_count || 0,
       "Total Payout": item.total_payout ? Number(item.total_payout) : 0.0,
     }));
 
-    // Create worksheet with the formatted data
     const worksheet = XLSX.utils.json_to_sheet(
       formattedData || totalPayoutData,
       {
-        header: ["Agent Name", "Total Payout"],
+        header: ["Agent Name", "MIDs", "Total Payout"],
       }
     );
 
-    // Set column widths
-    const columnWidths = [{ wch: 30 }, { wch: 20 }];
+    const columnWidths = [{ wch: 30 }, { wch: 10 }, { wch: 20 }];
     worksheet["!cols"] = columnWidths;
 
-    // Create workbook and append worksheet
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Revenue Per Agent Data");
     XLSX.writeFile(workbook, `Revenue-Per-Agent${date}.xlsx`);
@@ -151,7 +157,7 @@ const RevenuePerAgentTable: React.FC<RevenuePerAgentTableProps> = ({
         ) => {
           setCurrentTableData(
             extra.currentDataSource || (totalPayoutData as any)
-          ); // Handle optional chaining
+          );
         }}
         columns={columns}
         scroll={{ x: 768 }}

@@ -14,7 +14,7 @@ async function sbGet(path) {
 // This guarantees the overview and detail totals match exactly.
 async function computeAgentPayout(agentName, merchants, date) {
   const active = merchants.filter((m) => !m.until || m.until >= date);
-  if (active.length === 0) return 0;
+  if (active.length === 0) return { payout: 0, midCount: 0 };
 
   // Fetch deleted-row markers — wrapped in try/catch so failures don't block payout calc
   let deletedMids = new Set();
@@ -27,23 +27,24 @@ async function computeAgentPayout(agentName, merchants, date) {
 
   // Exclude deleted MIDs
   const filteredActive = active.filter((m) => !deletedMids.has(m.mid));
-  if (filteredActive.length === 0) return 0;
+  if (filteredActive.length === 0) return { payout: 0, midCount: 0 };
 
   const mids = [...new Set(filteredActive.map((m) => m.mid))];
   const rows = await sbGet(
     `residuals?select=mid,paydiversenet&mid=in.(${mids.join(",")})&report_month=eq.${date}&limit=5000`
   );
-  if (!Array.isArray(rows)) return 0;
+  if (!Array.isArray(rows)) return { payout: 0, midCount: mids.length };
 
   const netByMid = {};
   rows.forEach((r) => {
     netByMid[r.mid] = (netByMid[r.mid] || 0) + (r.paydiversenet || 0);
   });
 
-  return filteredActive.reduce(
+  const payout = filteredActive.reduce(
     (sum, { mid, pct }) => sum + (netByMid[mid] || 0) * pct / 100,
     0
   );
+  return { payout, midCount: mids.length };
 }
 
 export default async function handler(req, res) {
@@ -60,10 +61,10 @@ export default async function handler(req, res) {
     const results = await Promise.all(
       Object.entries(AGENT_MAP).map(async ([agent_name, merchants]) => {
         try {
-          const total_payout = await computeAgentPayout(agent_name, merchants, date);
-          return { agent_name, total_payout: Math.round(total_payout * 100) / 100 };
+          const { payout, midCount } = await computeAgentPayout(agent_name, merchants, date);
+          return { agent_name, total_payout: Math.round(payout * 100) / 100, mid_count: midCount };
         } catch {
-          return { agent_name, total_payout: 0 };
+          return { agent_name, total_payout: 0, mid_count: 0 };
         }
       })
     );
