@@ -6,7 +6,6 @@ import AgentsPage from "../pages/AgentsPage";
 import IndustryPage from "../pages/IndustryPage";
 import OutreachPage from "../pages/OutreachPage";
 import InsightsPage from "../pages/general/InsightsPage";
-import ImportDataPage from "../pages/ImportDataPage";
 import LogsPage from "../pages/LogsPage";
 import MerchantsListPage from "../pages/MerchantsListPage";
 import ISOsMerchantsPage from "../pages/ISOsMerchantsPage";
@@ -51,7 +50,6 @@ const HomeRoutes = () => {
       <Route path="/merchants" element={<SP><MerchantsListPage/></SP>}/>
       <Route path="/iso-merchants" element={<SP><ISOsMerchantsPage/></SP>}/>
       <Route path="/merchants/:mid" element={<SP><MerchantPage/></SP>}/>
-      <Route path="/import-data" element={<SP><ImportDataPage/></SP>}/>
       <Route path="/logs" element={<SP><LogsPage/></SP>}/>
       <Route path="/users/:id" element={<SP><AddAgentsPage/></SP>}/>
       <Route path="/users" element={<SP><ViewUsersPage/></SP>}/>

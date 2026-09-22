@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { Menu } from "antd";
 import { useNavigate } from "react-router-dom";
-import { LogoutOutlined, DollarOutlined, BarChartOutlined, AreaChartOutlined, ImportOutlined, SnippetsOutlined, DiffOutlined, UserAddOutlined, BulbOutlined, BankOutlined, SettingOutlined } from "@ant-design/icons";
+import { LogoutOutlined, DollarOutlined, BarChartOutlined, AreaChartOutlined, SnippetsOutlined, DiffOutlined, UserAddOutlined, BulbOutlined, BankOutlined, SettingOutlined } from "@ant-design/icons";
 import { LuUsers } from "react-icons/lu";
 import { LiaFileInvoiceDollarSolid } from "react-icons/lia";
 import { MdPayment } from "react-icons/md";
@@ -20,7 +20,7 @@ const SiderComponent = () => {
   const currentPath = window.location.pathname;
   const user = getUserFromLocalStorage();
 
-  const adminPaths = ["/home/users","/home/adjustments","/home/agents","/home/logs","/home/import-data"];
+  const adminPaths = ["/home/users","/home/adjustments","/home/agents","/home/logs"];
 
   const allMenuItems = [
     { key:"/home", label:"Overview", icon:ic(<TbLayoutDashboard/>, "#60a5fa", "rgba(96,165,250,0.18)") },
@@ -40,7 +40,6 @@ const SiderComponent = () => {
         { key:"/home/adjustments", label:"Adjustments", icon:ic(<LiaFileInvoiceDollarSolid/>, "#f87171", "rgba(248,113,113,0.18)") },
         { key:"/home/agents", label:"Agents Data", icon:ic(<BarChartOutlined/>, "#22d3ee", "rgba(34,211,238,0.18)") },
         { key:"/home/logs", label:"Logs", icon:ic(<SnippetsOutlined/>, "#94a3b8", "rgba(148,163,184,0.18)") },
-        { key:"/home/import-data", label:"Import Data", icon:ic(<ImportOutlined/>, "#34d399", "rgba(52,211,153,0.18)") },
       ]
     },
     { type:"divider" },
