@@ -53,7 +53,6 @@ const TrendChart = ({ data, height = 140, color = "#1d4ed8", labelKey = "label",
             <g key={i} onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)} style={{ cursor: "pointer" }}>
               <circle cx={cx} cy={cy} r="12" fill="transparent"/>
               <circle cx={cx} cy={cy} r={isHov ? 6 : 4} fill="#fff" stroke={color} strokeWidth="2.5"/>
-              <rect x={cx - 30} y={labelAbove ? cy - 26 : cy + 5} width={60} height={17} rx={3} fill="white" opacity="0.85"/>
               <text x={cx} y={labelAbove ? cy - 13 : cy + 18} textAnchor="middle" fontSize="11" fill={color} fontWeight="800" opacity={isHov ? 0 : 1}>{fmtedLabel}</text>
               <text x={cx} y={H-4} textAnchor="middle" fontSize="9" fill="#9ca3af">{d[labelKey]}</text>
               {isHov && (() => {
