@@ -48,12 +48,13 @@ const TrendChart = ({ data, height = 140, color = "#1d4ed8", labelKey = "label",
           const cx = toX(i), cy = toY(d[valueKey]||0);
           const isHov = hovered === i;
           const fmtedLabel = fmtTip(d[valueKey] || 0);
-          const labelAbove = cy > PT + 28;
+          const labelAbove = cy > PT + 34;
           return (
             <g key={i} onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)} style={{ cursor: "pointer" }}>
               <circle cx={cx} cy={cy} r="12" fill="transparent"/>
               <circle cx={cx} cy={cy} r={isHov ? 6 : 4} fill="#fff" stroke={color} strokeWidth="2.5"/>
-              <text x={cx} y={labelAbove ? cy - 9 : cy + 16} textAnchor="middle" fontSize="8" fill={color} fontWeight="700" opacity={isHov ? 0 : 1}>{fmtedLabel}</text>
+              <rect x={cx - 30} y={labelAbove ? cy - 26 : cy + 5} width={60} height={17} rx={3} fill="white" opacity="0.85"/>
+              <text x={cx} y={labelAbove ? cy - 13 : cy + 18} textAnchor="middle" fontSize="11" fill={color} fontWeight="800" opacity={isHov ? 0 : 1}>{fmtedLabel}</text>
               <text x={cx} y={H-4} textAnchor="middle" fontSize="9" fill="#9ca3af">{d[labelKey]}</text>
               {isHov && (() => {
                 const tipW = 72, tipH = 32, tipR = 6;
