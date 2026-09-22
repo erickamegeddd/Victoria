@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect } from "react";
 import { Avatar, Badge, Dropdown, Menu } from "antd";
-import { UserOutlined, LogoutOutlined, BellOutlined, BarChartOutlined, SnippetsOutlined, ImportOutlined, DiffOutlined, SettingOutlined, DollarOutlined, AreaChartOutlined, BulbOutlined, BankOutlined, MailOutlined } from "@ant-design/icons";
+import { UserOutlined, LogoutOutlined, BellOutlined, BarChartOutlined, SnippetsOutlined, DiffOutlined, SettingOutlined, DollarOutlined, AreaChartOutlined, BulbOutlined, BankOutlined, MailOutlined } from "@ant-design/icons";
 import { LuUsers } from "react-icons/lu";
 import { LiaFileInvoiceDollarSolid } from "react-icons/lia";
 import { MdPayment } from "react-icons/md";
@@ -20,7 +20,7 @@ const fmtMoney = (n) => n != null ? `$${Number(n).toLocaleString("en-US", { mini
 const ic = (icon, color) => (<span style={{color, fontSize:15, display:"inline-flex", alignItems:"center"}}>{icon}</span>);
 
 const navItems = [
-  { key: "/home",              label: "Overview",      icon: ic(<TbLayoutDashboard />, "#60a5fa") },
+  { key: "/home",              label: "Overview",   icon: ic(<TbLayoutDashboard />, "#60a5fa") },
   // HIDDEN: { key: "/home/iso-merchants",label: "ISOs",         icon: ic(<BankOutlined />, "#818cf8") },
   // HIDDEN: { key: "/home/merchants",    label: "Merchants",      icon: ic(<DiffOutlined />, "#fb923c") },
   { key: "/home/revenue-mid",  label: "Revenue/MID",   icon: ic(<DollarOutlined />, "#fbbf24") },
@@ -31,11 +31,10 @@ const navItems = [
   {
     key: "admin", label: "Administrator", icon: ic(<SettingOutlined />, "#a78bfa"),
     children: [
-      { key: "/home/users",       label: "Users",       icon: ic(<LuUsers />, "#f472b6") },
-      { key: "/home/adjustments", label: "Adjustments", icon: ic(<LiaFileInvoiceDollarSolid />, "#f87171") },
-      { key: "/home/agents",      label: "Agents Data", icon: ic(<BarChartOutlined />, "#22d3ee") },
-      { key: "/home/logs",        label: "Logs",        icon: ic(<SnippetsOutlined />, "#94a3b8") },
-      { key: "/home/import-data", label: "Import Data", icon: ic(<ImportOutlined />, "#34d399") },
+      { key: "/home/users",        label: "Users",        icon: ic(<LuUsers />, "#f472b6") },
+      { key: "/home/adjustments",  label: "Adjustments",  icon: ic(<LiaFileInvoiceDollarSolid />, "#f87171") },
+      { key: "/home/agents",       label: "Agents Data",  icon: ic(<BarChartOutlined />, "#22d3ee") },
+      { key: "/home/logs",         label: "Logs",         icon: ic(<SnippetsOutlined />, "#94a3b8") },
     ]
   },
 ];
@@ -98,7 +97,7 @@ const HeaderComponent = () => {
   );
 
   const getSelectedKey = () => {
-    const adminPaths = ["/home/users","/home/adjustments","/home/agents","/home/logs","/home/import-data"];
+    const adminPaths = ["/home/users","/home/adjustments","/home/agents","/home/logs"];
     if (adminPaths.some(p => currentPath.startsWith(p))) return currentPath;
     if (currentPath.startsWith("/home/merchants")) return "/home/merchants";
     return currentPath;
@@ -133,14 +132,14 @@ const HeaderComponent = () => {
         {/* Logo — white pill so white background looks intentional */}
         <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
           <div style={{ background: "#fff", borderRadius: 10, padding: "6px 14px", display: "inline-flex", alignItems: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.2)" }}>
-            <img src="/paydiverse-logo.webp" alt="PayDiverse" style={{ height: 42, objectFit: "contain", maxWidth: 170 }} />
+            <img src="/paydiversse-logo.webp" alt="PayDiverse" style={{ height: 42, objectFit: "contain", maxWidth: 170 }} />
           </div>
         </div>
 
         {/* Horizontal Nav */}
         <Menu
           mode="horizontal"
-          selectedKeys={[getSelectedKey()]} 
+          selectedKeys={[getSelectedKey()]} 
           onClick={({ key }) => { if (key !== "admin") navigate(key); }}
           items={visibleNavItems}
           theme="dark"
