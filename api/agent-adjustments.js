@@ -1,10 +1,12 @@
-// Stores and retrieves manual adjustments to agent payout data.
-// Requires the `agent_adjustments` table (see supabase/migrations/).
+// Admin endpoint: agent adjustments CRUD + user listing
+// Requires `agent_adjustments` table in Supabase.
 
 const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
 
-async function sbRequest(method, path, body) {
-  const key = process.env.VITE_SUPABASE_ANON_KEY;
+async function sbRequest(method, path, body, useServiceKey) {
+  const key = useServiceKey
+    ? process.env.SUPABASE_SERVICE_KEY
+    : process.env.VITE_SUPABASE_ANON_KEY;
   const headers = {
     apikey: key,
     Authorization: `Bearer ${key}`,
@@ -32,6 +34,15 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
+      if (req.query.action === "list_users") {
+        const serviceKey = process.env.SUPABASE_SERVICE_KEY;
+        if (!serviceKey) return res.status(500).json({ error: "Service key not configured" });
+        const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?per_page=100`, {
+          headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
+        });
+        const data = await r.json();
+        return res.json(data);
+      }
       const { agent_name, date } = req.query;
       let path = "agent_adjustments?order=created_at.desc&limit=500";
       if (agent_name) path += `&agent_name=eq.${encodeURIComponent(agent_name)}`;

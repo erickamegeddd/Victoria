@@ -10,7 +10,7 @@ const ViewUsersPage = () => {
 
   const load = () => {
     setLoading(true);
-    fetch("/api/admin-users")
+    fetch("/api/agent-adjustments?action=list_users")
       .then(r => r.json())
       .then(d => {
         const list = d.users || (Array.isArray(d) ? d : []);
