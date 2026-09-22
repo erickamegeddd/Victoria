@@ -47,10 +47,13 @@ const TrendChart = ({ data, height = 140, color = "#1d4ed8", labelKey = "label",
         {data.map((d, i) => {
           const cx = toX(i), cy = toY(d[valueKey]||0);
           const isHov = hovered === i;
+          const fmtedLabel = fmtTip(d[valueKey] || 0);
+          const labelAbove = cy > PT + 28;
           return (
             <g key={i} onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)} style={{ cursor: "pointer" }}>
               <circle cx={cx} cy={cy} r="12" fill="transparent"/>
               <circle cx={cx} cy={cy} r={isHov ? 6 : 4} fill="#fff" stroke={color} strokeWidth="2.5"/>
+              <text x={cx} y={labelAbove ? cy - 9 : cy + 16} textAnchor="middle" fontSize="8" fill={color} fontWeight="700" opacity={isHov ? 0 : 1}>{fmtedLabel}</text>
               <text x={cx} y={H-4} textAnchor="middle" fontSize="9" fill="#9ca3af">{d[labelKey]}</text>
               {isHov && (() => {
                 const tipW = 72, tipH = 32, tipR = 6;
@@ -208,8 +211,8 @@ const ISOCard=({iso,labelA,labelB})=>{
 const getPeriodDates=(period)=>{
   const now=dayjs();
   if(period==="30")return{labelA:now.subtract(1,"month").format("MMM YYYY"),labelB:now.format("MMM YYYY"),dateA:now.subtract(1,"month").startOf("month").format("YYYY-MM-DD"),dateB:now.startOf("month").format("YYYY-MM-DD"),type:"month"};
-  if(period==="60")return{labelA:now.subtract(2,"month").format("MMM YYYY"),labelB:now.subtract(1,"month").format("MMM YYYY"),dateA:now.subtract(2,"month").startOf("month").format("YYYY-MM-DD"),dateB:now.subtract(1,"month").startOf("month").format("YYYY-MM-DD"),type:"month"};
-  if(period==="90")return{labelA:now.subtract(3,"month").format("MMM YYYY"),labelB:now.subtract(2,"month").format("MMM YYYY"),dateA:now.subtract(3,"month").startOf("month").format("YYYY-MM-DD"),dateB:now.subtract(2,"month").startOf("month").format("YYYY-MM-DD"),type:"month"};
+  if(period==="60")return{labelA:now.subtract(2,"month").format("MMM YYYY"),labelB:now.format("MMM YYYY"),dateA:now.subtract(2,"month").startOf("month").format("YYYY-MM-DD"),dateB:now.startOf("month").format("YYYY-MM-DD"),type:"month"};
+  if(period==="90")return{labelA:now.subtract(3,"month").format("MMM YYYY"),labelB:now.format("MMM YYYY"),dateA:now.subtract(3,"month").startOf("month").format("YYYY-MM-DD"),dateB:now.startOf("month").format("YYYY-MM-DD"),type:"month"};
   if(period==="quarter"){const curQ=now.startOf("quarter"),prevQ=curQ.subtract(1,"quarter");return{labelA:`Q${prevQ.quarter()} ${prevQ.year()}`,labelB:`Q${curQ.quarter()} ${curQ.year()}`,monthsA:[0,1,2].map(i=>prevQ.add(i,"month").format("YYYY-MM-DD")),monthsB:[0,1,2].map(i=>curQ.add(i,"month").format("YYYY-MM-DD")),type:"quarter"};}
   if(period==="year")return{labelA:String(now.year()-1),labelB:String(now.year()),yearA:now.year()-1,yearB:now.year(),type:"year"};
   return null;
