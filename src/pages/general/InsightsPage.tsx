@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, Row, Col, Tabs, Button, DatePicker, Typography, Space, Statistic, Tag, Alert, Spin, Radio, Tooltip } from "antd";
 import { ArrowUpOutlined, ArrowDownOutlined, MinusOutlined, WarningOutlined, UserDeleteOutlined, UserAddOutlined, BulbOutlined } from "@ant-design/icons";
 import { supabase } from "../../utils/supabase";
@@ -232,6 +232,7 @@ const InsightsPage=()=>{
   const [comparisonFilter,setComparisonFilter]=useState(null);
   const [monthlyTrend,setMonthlyTrend]=useState([]);
   const [gatewayMids,setGatewayMids]=useState(new Set());
+  const overviewGenRef=useRef(0);
 
   useEffect(()=>{
     // Load gateway MIDs once so they can be excluded from merchant counts
@@ -296,12 +297,15 @@ if(!r.mid?.includes("-summary")&&!gatewayMids.has(String(r.mid||"").trim())){map
   };
 
   const loadOverview=async()=>{
+    const gen=++overviewGenRef.current;
     setLoadingOverview(true);
+    setOverviewData(null);
     const pd=getPeriodDates(overviewPeriod);if(!pd){setLoadingOverview(false);return;}
     let rowsA=[],rowsB=[];
     if(pd.type==="month"){[rowsA,rowsB]=await Promise.all([fetchByMonths([pd.dateA]),fetchByMonths([pd.dateB])]);}
     else if(pd.type==="quarter"){[rowsA,rowsB]=await Promise.all([fetchByMonths(pd.monthsA),fetchByMonths(pd.monthsB)]);}
     else{[rowsA,rowsB]=await Promise.all([fetchByYear(pd.yearA),fetchByYear(pd.yearB)]);}
+    if(gen!==overviewGenRef.current)return;
     setOverviewData(buildComparison(rowsA,rowsB,pd.labelA,pd.labelB));
     setLoadingOverview(false);
   };
