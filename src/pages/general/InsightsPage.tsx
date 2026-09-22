@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, Row, Col, Tabs, Button, DatePicker, Typography, Space, Statistic, Tag, Alert, Spin, Radio, Tooltip } from "antd";
 import { ArrowUpOutlined, ArrowDownOutlined, MinusOutlined, WarningOutlined, UserDeleteOutlined, UserAddOutlined, BulbOutlined } from "@ant-design/icons";
-import { supabase } from "../../utils/supabase";
 import dayjs from "dayjs";
 import quarterOfYear from "dayjs/plugin/quarterOfYear";
 dayjs.extend(quarterOfYear);
@@ -235,19 +234,17 @@ const InsightsPage=()=>{
   const overviewGenRef=useRef(0);
 
   useEffect(()=>{
-    // Load gateway MIDs once so they can be excluded from merchant counts
-    supabase.from("merchants").select("mid").eq("merchant_type","gateway").then(({data})=>{
-      if(data) setGatewayMids(new Set(data.map(r=>String(r.mid||"").trim())));
-    });
+    fetch("/api/agent-adjustments?action=insights_gateways")
+      .then(r=>r.json())
+      .then(data=>{if(Array.isArray(data))setGatewayMids(new Set(data.map(r=>String(r.mid||"").trim())));});
   },[]);
   useEffect(()=>{loadOverview();loadTrend();setActiveFilter(null);},[overviewPeriod]);
 
-  const fetchAllPaginated=async(query)=>{let all=[],from=0;while(true){const{data:batch}=await query.range(from,from+999);if(!batch||batch.length===0)break;all=all.concat(batch);if(batch.length<1000)break;from+=1000;}return all;};
-  const fetchByMonths=async(months)=>{return fetchAllPaginated(supabase.from("residuals").select("*,isos(id,name)").in("report_month",months));};
-  const fetchByYear=async(year)=>{return fetchAllPaginated(supabase.from("residuals").select("*,isos(id,name)").gte("report_month",`${year}-01-01`).lte("report_month",`${year}-12-31`));};
+  const fetchByMonths=async(months)=>{if(!months||!months.length)return[];const r=await fetch(`/api/agent-adjustments?action=insights_month&months=${months.join(",")}`);return r.json();};
+  const fetchByYear=async(year)=>{const r=await fetch(`/api/agent-adjustments?action=insights_year&year=${year}`);return r.json();};
 
   const loadTrend=async()=>{
-    const data=await fetchAllPaginated(supabase.from("residuals").select("report_month,paydiversenet,gross_revenue").order("report_month"));
+    const r=await fetch("/api/agent-adjustments?action=insights_trend");const data=await r.json();
     if(!data||data.length===0)return;
     const map={};
     data.forEach(r=>{const m=r.report_month;if(!m)return;if(!map[m])map[m]={label:dayjs(m).format("MMM YY"),net:0,vol:0};map[m].net+=(r.paydiversenet||0);map[m].vol+=(r.gross_revenue||0);});

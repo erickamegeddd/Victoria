@@ -1,6 +1,4 @@
-// Admin endpoint: agent adjustments CRUD + user listing
-// Requires `agent_adjustments` table in Supabase.
-
+// Admin endpoint: agent adjustments CRUD + user listing + insights data (service_role bypass)
 const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
 
 async function sbRequest(method, path, body, useServiceKey) {
@@ -18,12 +16,27 @@ async function sbRequest(method, path, body, useServiceKey) {
     headers,
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(err);
-  }
+  if (!res.ok) { const err = await res.text(); throw new Error(err); }
   if (res.status === 204) return {};
   return res.json();
+}
+
+// Paginate through Supabase REST using service_role key — bypasses RLS entirely
+async function fetchAllSvc(baseUrl, serviceKey) {
+  let all = [], offset = 0;
+  while (true) {
+    const sep = baseUrl.includes("?") ? "&" : "?";
+    const r = await fetch(`${baseUrl}${sep}limit=1000&offset=${offset}`, {
+      headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, Accept: "application/json" }
+    });
+    if (!r.ok) break;
+    const batch = await r.json();
+    if (!Array.isArray(batch) || !batch.length) break;
+    all = all.concat(batch);
+    if (batch.length < 1000) break;
+    offset += 1000;
+  }
+  return all;
 }
 
 export default async function handler(req, res) {
@@ -34,15 +47,62 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
+      const svcKey = process.env.SUPABASE_SERVICE_KEY;
+
+      // ── Auth admin ───────────────────────────────────────────────────────
       if (req.query.action === "list_users") {
-        const serviceKey = process.env.SUPABASE_SERVICE_KEY;
-        if (!serviceKey) return res.status(500).json({ error: "Service key not configured" });
+        if (!svcKey) return res.status(500).json({ error: "Service key not configured" });
         const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?per_page=100`, {
-          headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
+          headers: { apikey: svcKey, Authorization: `Bearer ${svcKey}` }
         });
-        const data = await r.json();
+        return res.json(await r.json());
+      }
+
+      // ── Insights: residuals for one or more months ───────────────────────
+      if (req.query.action === "insights_month") {
+        if (!svcKey) return res.status(500).json({ error: "Service key not configured" });
+        const months = (req.query.months || "").split(",").filter(Boolean);
+        if (!months.length) return res.json([]);
+        const data = await fetchAllSvc(
+          `${SUPABASE_URL}/rest/v1/residuals?select=*,isos(id,name)&report_month=in.(${months.join(",")})&order=id`,
+          svcKey
+        );
         return res.json(data);
       }
+
+      // ── Insights: residuals for a full year ──────────────────────────────
+      if (req.query.action === "insights_year") {
+        if (!svcKey) return res.status(500).json({ error: "Service key not configured" });
+        const { year } = req.query;
+        if (!year) return res.json([]);
+        const data = await fetchAllSvc(
+          `${SUPABASE_URL}/rest/v1/residuals?select=*,isos(id,name)&report_month=gte.${year}-01-01&report_month=lte.${year}-12-31&order=id`,
+          svcKey
+        );
+        return res.json(data);
+      }
+
+      // ── Insights: monthly trend (all months, slim columns) ───────────────
+      if (req.query.action === "insights_trend") {
+        if (!svcKey) return res.status(500).json({ error: "Service key not configured" });
+        const data = await fetchAllSvc(
+          `${SUPABASE_URL}/rest/v1/residuals?select=report_month,paydiversenet,gross_revenue&order=report_month`,
+          svcKey
+        );
+        return res.json(data);
+      }
+
+      // ── Insights: gateway MID list ───────────────────────────────────────
+      if (req.query.action === "insights_gateways") {
+        if (!svcKey) return res.status(500).json({ error: "Service key not configured" });
+        const data = await fetchAllSvc(
+          `${SUPABASE_URL}/rest/v1/merchants?select=mid&merchant_type=eq.gateway`,
+          svcKey
+        );
+        return res.json(data);
+      }
+
+      // ── Agent adjustments list ───────────────────────────────────────────
       const { agent_name, date } = req.query;
       let path = "agent_adjustments?order=created_at.desc&limit=500";
       if (agent_name) path += `&agent_name=eq.${encodeURIComponent(agent_name)}`;
@@ -57,13 +117,8 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: "Missing required fields" });
       }
       const data = await sbRequest("POST", "agent_adjustments", {
-        agent_name,
-        report_month,
-        mid: mid || null,
-        field_name,
-        original_value: original_value ?? null,
-        adjusted_value,
-        notes: notes || null,
+        agent_name, report_month, mid: mid || null, field_name,
+        original_value: original_value ?? null, adjusted_value, notes: notes || null,
       });
       return res.json(data);
     }
