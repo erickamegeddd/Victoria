@@ -17,7 +17,7 @@ const fmtPct=(n)=>n!=null?`${n>=0?"+":""}${n.toFixed(1)}%`:"--";
 const TrendChart = ({ data, height = 140, color = "#1d4ed8", labelKey = "label", valueKey = "net" }) => {
   const [hovered, setHovered] = useState(null);
   if (!data || data.length < 2) return null;
-  const W = 900, H = height, PL = 48, PR = 16, PT = 12, PB = 28;
+  const W = 900, H = height, PL = 48, PR = 16, PT = 30, PB = 28;
   const w = W - PL - PR, h = H - PT - PB;
   const vals = data.map(d => d[valueKey] || 0);
   const minV = Math.min(0, ...vals), maxV = Math.max(...vals, 1), range = maxV - minV || 1;
@@ -48,12 +48,11 @@ const TrendChart = ({ data, height = 140, color = "#1d4ed8", labelKey = "label",
           const cx = toX(i), cy = toY(d[valueKey]||0);
           const isHov = hovered === i;
           const fmtedLabel = fmtTip(d[valueKey] || 0);
-          const labelAbove = cy > PT + 34;
           return (
             <g key={i} onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)} style={{ cursor: "pointer" }}>
               <circle cx={cx} cy={cy} r="12" fill="transparent"/>
               <circle cx={cx} cy={cy} r={isHov ? 6 : 4} fill="#fff" stroke={color} strokeWidth="2.5"/>
-              <text x={cx} y={labelAbove ? cy - 13 : cy + 18} textAnchor="middle" fontSize="11" fill={color} fontWeight="800" opacity={isHov ? 0 : 1}>{fmtedLabel}</text>
+              <text x={cx} y={cy - 16} textAnchor="middle" fontSize="14" fill={color} fontWeight="800" opacity={isHov ? 0 : 1}>{fmtedLabel}</text>
               <text x={cx} y={H-4} textAnchor="middle" fontSize="9" fill="#9ca3af">{d[labelKey]}</text>
               {isHov && (() => {
                 const tipW = 72, tipH = 32, tipR = 6;
