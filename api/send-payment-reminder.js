@@ -25,7 +25,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ ok: false, error: "Missing required fields" });
   }
 
-  const monthLabel = new Date(month + "-01").toLocaleString("en-US", { month: "long", year: "numeric" });
+  const monthLabel = new Date(month.slice(0, 7) + "-01T00:00:00Z").toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
   const amt = (amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2 });
 
   try {
@@ -64,7 +64,7 @@ export default async function handler(req, res) {
               </td>
             </tr>
           </table>`;
-        return `<div style="font-family:Arial,sans-serif;max-width:620px;line-height:1.7;color:#333;padding:20px">
+        return `<div style="font-family:Arial,sans-serif;max-width:620px;line-height:1.7;color:#333;\idding:20px">
           <p style="margin:0 0 16px 0">${htmlBody}</p>
           ${signature}
         </div>`;
