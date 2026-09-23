@@ -154,7 +154,7 @@ const Dashboard = () => {
         {monthlyData.map(d => (
           <Col key={d.month} style={{marginBottom:8}}>
             <Card size="small" style={{minWidth:120,textAlign:'center',background: d.paydiversenet < 0 ? '#fef2f2' : '#f0fdf4', borderColor: d.paydiversenet < 0 ? '#fca5a5' : '#86efac'}}>
-              <div style={{fontSize:11,color:'#6b7280',marginBottom:2}}>{d.month}</div>
+              <div style={{fontSize:11,color:'#6f7280',marginBottom:2}}>{d.month}</div>
               <div style={{fontSize:14,fontWeight:700,color: d.paydiversenet < 0 ? '#dc2626' : '#059669'}}>{fmtK(d.paydiversenet)}</div>
               <div style={{fontSize:10,color:'#9ca3af',marginTop:2}}>{d.midCount} MIDs</div>
             </Card>
@@ -169,7 +169,7 @@ const Dashboard = () => {
         <ResponsiveContainer width="100%" height={360}>
           <LineChart data={monthlyData} margin={{top:10,right:30,left:10,bottom:10}}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-            <XAxis dataKey="month" tick={{fill:'#6b7280',fontSize:12}} axisLine=={{stroke:'#e5e7eb'}}/>
+            <XAxis dataKey="month" tick={{fill:'#6b7280',fontSize:12}} axisLine={{stroke:'#e5e7eb'}}/>
             <YAxis tickFormatter={v=>fmtK(v)} tick={{fill:'#6b7280',fontSize:12}} axisLine={{stroke:'#e5e7eb'}} width={70}/>
             <Tooltip content={<CustomTooltip/>}/>
             <ReferenceLine y={0} stroke="#e5e7eb" strokeDasharray="4 4"/>
