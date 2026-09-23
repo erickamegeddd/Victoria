@@ -63,13 +63,8 @@ const Dashboard = () => {
 
   useEffect(()=>{fetchIsos();},[]);
   useEffect(()=>{
-    Promise.all([
-      supabase.from('merchants').select('id',{count:'exact',head:true}).eq('status','inactive').or('merchant_type.is.null,merchant_type.neq.gateway'),
-      supabase.from('merchants').select('id',{count:'exact',head:true}).eq('status','active').eq('merchant_type','gateway')
-    ]).then(([{count:inactive},{count:gateway}])=>{
-      setInactiveMerchantCount(inactive||0);
-      setActiveGatewayCount(gateway||0);
-    });
+    supabase.from('merchants').select('id',{count:'exact',head:true}).eq('status','active').eq('merchant_type','gateway')
+      .then(({count:gateway})=>setActiveGatewayCount(gateway||0));
   },[]);
   useEffect(()=>{fetchResiduals();},[selectedIso,selectedMonth]);
   useEffect(()=>{setFilteredResiduals(residuals);},[residuals]);
@@ -102,7 +97,7 @@ const Dashboard = () => {
 
   const fetchIsos=async()=>{const{data}=await supabase.from('isos').select('*').eq('status','active').order('name');if(data)setIsos(data);};
   const fetchAllRows=async(base)=>{let all=[],from=0;while(true){const{data:batch}=await base.range(from,from+999);if(!batch||batch.length===0)break;all=all.concat(batch);if(batch.length<1000)break;from+=1000;}return all;};
-  const fetchResiduals=async()=>{setLoading(true);let q=supabase.from('residuals').select('*,isos(id,name,slug)').order('report_month',{ascending:false});if(selectedIso)q=q.eq('iso_id',selectedIso);if(selectedMonth)q=q.eq('report_month',selectedMonth);const data=await fetchAllRows(q);setResiduals(data);const pm=dayjs(selectedMonth||LATEST_MONTH).subtract(1,'month').startOf('month').format('YYYY-MM-DD');let pq=supabase.from('residuals').select('*,isos(id,name,slug)').eq('report_month',pm);if(selectedIso)pq=pq.eq('iso_id',selectedIso);const pdata=await fetchAllRows(pq);setPrevResiduals(pdata);setPrevMonthMids(new Set(pdata.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)).map(r=>r.mid)));let aq=supabase.from('residuals').select('mid').lt('report_month',selectedMonth||LATEST_MONTH).not('mid','is',null);if(selectedIso)aq=aq.eq('iso_id',selectedIso);const aprior=await fetchAllRows(aq);setAllPriorMids(new Set(aprior.filter(r=>r.mid&&!isAggregateMid(r.mid)).map(r=>r.mid)));const nm=dayjs(selectedMonth||LATEST_MONTH);const{data:newMs}=await supabase.from('merchants').select('mid').gte('created_at',nm.format('YYYY-MM-DD')).lt('created_at',nm.add(1,'month').startOf('month').format('YYYY-MM-DD')).not('mid','is',null);setNewMerchantMids(new Set((newMs||[]).map(r=>r.mid)));setLoading(false);};
+  const fetchResiduals=async()=>{setLoading(true);let q=supabase.from('residuals').select('*,isos(id,name,slug)').order('report_month',{ascending:false});if(selectedIso)q=q.eq('iso_id',selectedIso);if(selectedMonth)q=q.eq('report_month',selectedMonth);const data=await fetchAllRows(q);setResiduals(data);const pm=dayjs(selectedMonth||LATEST_MONTH).subtract(1,'month').startOf('month').format('YYYY-MM-DD');let pq=supabase.from('residuals').select('*,isos(id,name,slug)').eq('report_month',pm);if(selectedIso)pq=pq.eq('iso_id',selectedIso);const pdata=await fetchAllRows(pq);setPrevResiduals(pdata);setPrevMonthMids(new Set(pdata.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)).map(r=>r.mid)));let aq=supabase.from('residuals').select('mid').lt('report_month',selectedMonth||LATEST_MONTH).not('mid','is',null);if(selectedIso)aq=aq.eq('iso_id',selectedIso);const aprior=await fetchAllRows(aq);setAllPriorMids(new Set(aprior.filter(r=>r.mid&&!isAggregateMid(r.mid)).map(r=>r.mid)));const nm=dayjs(selectedMonth||LATEST_MONTH);const{data:newMs}=await supabase.from('merchants').select('mid').gte('created_at',nm.format('YYYY-MM-DD')).lt('created_at',nm.add(1,'month').startOf('month').format('YYYY-MM-DD')).not('mid','is',null);setNewMerchantMids(new Set((newMs||[]).map(r=>r.mid)));const currentMids=new Set(data.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.mid).map(r=>r.mid));const{data:allActive}=await supabase.from('merchants').select('mid').eq('status','active').or('merchant_type.is.null,merchant_type.neq.gateway').not('mid','is',null);setInactiveMerchantCount(((allActive||[]).filter(m=>m.mid&&!currentMids.has(m.mid))).length);setLoading(false);};
 
   const getSearchProps=(dataIndex,label)=>({
     filterDropdown:({setSelectedKeys,selectedKeys,confirm,clearFilters})=>(<div style={{padding:8,minWidth:200}}><Input ref={searchInput} placeholder={`Search ${label}`} value={selectedKeys[0]} onChange={e=>setSelectedKeys(e.target.value?[e.target.value]:[])} onPressEnter={confirm} style={{marginBottom:8,display:'block'}}/><Space><Button type="primary" onClick={confirm} icon={<SearchOutlined/>} size="small" style={{width:90}}>Search</Button><Button onClick={()=>{clearFilters();confirm();}} size="small" style={{width:90}}>Reset</Button></Space></div>),
