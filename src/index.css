@@ -30,7 +30,14 @@ a{font-weight:500;color:var(--primary-color);text-decoration:inherit;}
 .ant-card .ant-card-head{border-bottom:1px solid var(--line-color)!important;background:transparent!important;font-weight:700;color:var(--black-color);font-size:14px;}
 .ant-statistic-title{font-size:14px!important;font-weight:800!important;text-transform:uppercase;letter-spacing:0.5px;color:var(--black-color)!important;}
 .ant-statistic-content-value{font-weight:800!important;}
-.ant-table-thead>tr>th{background:var(--primary-color)!important;color:#ffffff!important;font-weight:700!important;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:none!important;}
+.ant-table-thead>tr>th{background:var(--primary-color)!important;color:#ffffff!important;font-weight:700!important;font-size:13px!important;text-transform:uppercase;letter-spacing:0.5px;border-bottom:none!important;padding:13px 16px!important;}
+.ant-table-filter-trigger{color:rgba(255,255,255,0.85)!important;font-size:15px!important;width:2.2em!important;height:2.2em!important;}
+.ant-table-filter-trigger:hover,.ant-table-filter-trigger.active{color:#ffffff!important;background:rgba(255,255,255,0.22)!important;border-radius:4px!important;}
+.ant-table-column-sorter{color:rgba(255,255,255,0.65)!important;}
+.ant-table-column-sorter-up.active,.ant-table-column-sorter-down.active{color:#ffffff!important;}
+.ant-table-filter-dropdown{border-radius:10px!important;box-shadow:0 6px 24px rgba(29,78,216,0.18)!important;font-size:13px!important;}
+.ant-table-filter-dropdown .ant-input{border-radius:8px!important;font-size:13px!important;}
+.ant-table-filter-dropdown-btns{border-top:1px solid var(--line-color)!important;padding:8px!important;}
 .ant-table-tbody>tr>td{border-bottom:1px solid rgba(226,232,240,0.7)!important;color:var(--black-color);font-size:13px;background:rgba(255,255,255,0.55)!important;}
 .ant-table-tbody>tr:hover>td{background:rgba(219,234,254,0.70)!important;}
 .ant-table-wrapper{border:1px solid rgba(29,78,216,0.15);border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(29,78,216,0.06);}
