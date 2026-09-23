@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import { Table, Button, Popconfirm, Tag, Input, message, Modal, Drawer, Spin } from "antd";
+import { Table, Button, Popconfirm, Tag, Input, message, Modal, Drawer, Spin, Switch } from "antd";
 import { MailOutlined, EditOutlined, CheckCircleOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 
@@ -43,8 +43,42 @@ const OutreachPage = () => {
   const [historyRecord, setHistoryRecord] = useState(null);
   const [emailLogs, setEmailLogs] = useState([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [autoSendEnabled, setAutoSendEnabled] = useState(null);
+  const [togglingAutoSend, setTogglingAutoSend] = useState(false);
 
-  useEffect(() => { fetchOverdue(); }, []);
+  useEffect(() => { fetchOverdue(); fetchAutoSendState(); }, []);
+
+  const fetchAutoSendState = async () => {
+    try {
+      const res = await fetch("/api/auto-send-toggle");
+      const data = await res.json();
+      setAutoSendEnabled(data.enabled !== false);
+    } catch (_) {
+      setAutoSendEnabled(true);
+    }
+  };
+
+  const toggleAutoSend = async (checked) => {
+    setTogglingAutoSend(true);
+    try {
+      const res = await fetch("/api/auto-send-toggle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: checked }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setAutoSendEnabled(data.enabled);
+        message.success(data.enabled ? "Auto-send enabled" : "Auto-send paused");
+      } else {
+        message.error("Failed to update auto-send setting");
+      }
+    } catch (_) {
+      message.error("Failed to update auto-send setting");
+    } finally {
+      setTogglingAutoSend(false);
+    }
+  };
 
   const fetchEmailLogs = async (paymentId) => {
     setLogsLoading(true);
@@ -72,7 +106,7 @@ const OutreachPage = () => {
       const data = await res.json();
       if (!Array.isArray(data)) return;
 
-      const today = dayjs().format("YYVY-MM-DD");
+      const today = dayjs().format("YYYY-MM-DD");
       const overdue = data.filter(p => {
         const m = p.notes?.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/);
         return !!m;
@@ -287,7 +321,22 @@ const OutreachPage = () => {
             <MailOutlined style={{ fontSize: 11 }} /> Sending from: residuals@elmpayments.com
           </span>
         </div>
-        <Button onClick={fetchOverdue} size="small">Refresh</Button>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+            <Switch
+              checked={autoSendEnabled === true}
+              loading={autoSendEnabled === null || togglingAutoSend}
+              onChange={toggleAutoSend}
+              checkedChildren="Auto-Send ON"
+              unCheckedChildren="Auto-Send OFF"
+              style={autoSendEnabled === false ? { backgroundColor: "#ef4444" } : {}}
+            />
+            <span style={{ fontSize: 11, color: "#9ca3af" }}>
+              {autoSendEnabled === true ? "Sends 2 days after due date (Sep 2026+)" : "Auto-send paused"}
+            </span>
+          </div>
+          <Button onClick={fetchOverdue} size="small">Refresh</Button>
+        </div>
       </div>
 
       <Table
