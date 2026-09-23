@@ -8,6 +8,14 @@
       "destination": "/api/webhook?iso=coastal-pay"
     },
     {
+      "source": "/api/auto-reminders",
+      "destination": "/api/send-payment-reminder?action=cron"
+    },
+    {
+      "source": "/api/auto-send-toggle",
+      "destination": "/api/send-payment-reminder?action=toggle"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },
@@ -20,8 +28,6 @@
     "api/webhook.js": { "maxDuration": 60 },
     "api/victoria.js": { "maxDuration": 60 },
     "api/send-payment-reminder.js": { "maxDuration": 60 },
-    "api/auto-reminders.js": { "maxDuration": 60 },
-    "api/auto-send-toggle.js": { "maxDuration": 30 },
     "api/sync-iso-payments.js": { "maxDuration": 60 },
     "api/sync-from-sheet.js": { "maxDuration": 60 },
     "api/agents-payout.js": { "maxDuration": 60 },
