@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import { Table, Button, Popconfirm, Tag, Input, message, Modal } from "antd";
+import { Table, Button, Popconfirm, Tag, Input, message, Modal, Drawer, Spin } from "antd";
 import { MailOutlined, EditOutlined, CheckCircleOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 
@@ -40,8 +40,27 @@ const OutreachPage = () => {
   const [previewRecord, setPreviewRecord] = useState(null);
   const [editingBody, setEditingBody] = useState(null);
   const [filteredOutreach, setFilteredOutreach] = useState([]);
+  const [historyRecord, setHistoryRecord] = useState(null);
+  const [emailLogs, setEmailLogs] = useState([]);
+  const [logsLoading, setLogsLoading] = useState(false);
 
   useEffect(() => { fetchOverdue(); }, []);
+
+  const fetchEmailLogs = async (paymentId) => {
+    setLogsLoading(true);
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/email_logs?payment_id=eq.${paymentId}&order=sent_at.desc&limit=50`,
+        { headers: sbHeaders }
+      );
+      const data = await res.json();
+      setEmailLogs(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setEmailLogs([]);
+    } finally {
+      setLogsLoading(false);
+    }
+  };
 
   const fetchOverdue = async () => {
     setLoading(true);
@@ -100,13 +119,19 @@ const OutreachPage = () => {
         headers: { ...sbHeaders, "Content-Type": "application/json", Prefer: "return=minimal" },
         body: JSON.stringify({ email: email || null })
       });
+      // Reset email_sent since the address changed (prior sends were to the old address)
+      await fetch(`${SUPABASE_URL}/rest/v1/iso_payments?id=eq.${recordId}`, {
+        method: "PATCH",
+        headers: { ...sbHeaders, "Content-Type": "application/json", Prefer: "return=minimal" },
+        body: JSON.stringify({ email_sent: false, email_sent_at: null })
+      });
       // Clear just this row's editing state
       setEditingEmail(prev => { const n = { ...prev }; delete n[recordId]; return n; });
-      // Update local records so the email shows immediately without full reload
+      // Update local records — also reset email_sent status
       setRecords(prev => prev.map(r =>
-        r.iso_id === isoId ? { ...r, iso_email: email } : r
+        r.iso_id === isoId ? { ...r, iso_email: email, email_sent: false, email_sent_at: null } : r
       ));
-      message.success("Email saved");
+      message.success("Email saved — status reset to Pending");
     } catch (e) {
       message.error("Failed to save email");
     } finally {
@@ -275,6 +300,10 @@ const OutreachPage = () => {
         scroll={{x:1000,y:'calc(100vh - 300px)'}}
         locale={{ emptyText: "No past-due payments — great!" }}
         onChange={(_,__,___,{currentDataSource})=>setFilteredOutreach(currentDataSource)}
+        onRow={(record)=>({
+          onClick:(e)=>{if(e.target.closest('button')||e.target.closest('input'))return;setHistoryRecord(record);fetchEmailLogs(record.id);},
+          style:{cursor:'pointer'}
+        })}
         summary={()=>{
           const src = filteredOutreach.length ? filteredOutreach : records;
           const total = src.reduce((s,r)=>s+(r.computed_amount||0),0);
@@ -338,6 +367,33 @@ const OutreachPage = () => {
           </pre>
         )}
       </Modal>
+      <Drawer
+        open={!!historyRecord}
+        title={`Email History — ${historyRecord?.iso_name || ""}`}
+        onClose={()=>{setHistoryRecord(null);setEmailLogs([]);}}
+        width={580}
+      >
+        <p style={{color:"#6b7280",marginTop:0,fontSize:13}}>
+          Emails sent for {historyRecord?.report_month ? dayjs(historyRecord.report_month).format("MMM YYYY") : ""} residuals
+        </p>
+        {logsLoading ? (
+          <div style={{textAlign:"center",padding:40}}><Spin /></div>
+        ) : emailLogs.length === 0 ? (
+          <p style={{color:"#9ca3af",textAlign:"center",padding:40}}>No emails sent yet for this record.</p>
+        ) : (
+          <Table
+            dataSource={emailLogs}
+            rowKey="id"
+            size="small"
+            pagination={false}
+            columns={[
+              {title:"Sent At",dataIndex:"sent_at",width:175,render:(v)=>dayjs(v).format("MMM D, YYYY h:mm A")},
+              {title:"Sent To",dataIndex:"to_email",render:(v)=><span style={{fontSize:12}}>{v}</span>},
+              {title:"Sent From",dataIndex:"from_email",render:(v)=><span style={{fontSize:12,color:"#6b7280"}}>{v}</span>},
+            ]}
+          />
+        )}
+      </Drawer>
     </>
   );
 };
