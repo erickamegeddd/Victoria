@@ -71,6 +71,21 @@ export default async function handler(req, res) {
       })()
     });
 
+    // Log to email_logs
+    await fetch(`${SUPABASE_URL}/rest/v1/email_logs`, {
+      method: "POST",
+      headers: {
+        apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}`,
+        "Content-Type": "application/json", Prefer: "return=minimal"
+      },
+      body: JSON.stringify({
+        payment_id: paymentId,
+        to_email: isoEmail,
+        from_email: GMAIL_USER,
+        subject: `Payment Reminder — ${isoName} Residuals ${monthLabel} ($${amt} past due)`
+      })
+    });
+
     // Mark email_sent in iso_payments
     await fetch(`${SUPABASE_URL}/rest/v1/iso_payments?id=eq.${paymentId}`, {
       method: "PATCH",
