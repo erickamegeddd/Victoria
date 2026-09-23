@@ -39,6 +39,7 @@ const OutreachPage = () => {
   const [savingEmail, setSavingEmail] = useState(null);
   const [previewRecord, setPreviewRecord] = useState(null);
   const [editingBody, setEditingBody] = useState(null);
+  const [filteredOutreach, setFilteredOutreach] = useState([]);
 
   useEffect(() => { fetchOverdue(); }, []);
 
@@ -270,6 +271,24 @@ const OutreachPage = () => {
         pagination={{ pageSize: 25, showSizeChanger: false }}
         scroll={{x:1000,y:'calc(100vh - 300px)'}}
         locale={{ emptyText: "No past-due payments — great!" }}
+        onChange={(_,__,___,{currentDataSource})=>setFilteredOutreach(currentDataSource)}
+        summary={()=>{
+          const src = filteredOutreach.length ? filteredOutreach : records;
+          const total = src.reduce((s,r)=>s+(r.computed_amount||0),0);
+          return (
+            <Table.Summary fixed>
+              <Table.Summary.Row style={{background:'#0f2040'}}>
+                <Table.Summary.Cell index={0} colSpan={2}>
+                  <span style={{color:'rgba(255,255,255,0.7)',fontWeight:700,fontSize:12,textTransform:'uppercase',letterSpacing:'0.5px'}}>Total — {src.length} rows</span>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={2} align="right">
+                  <span style={{color:'#fca5a5',fontWeight:800,fontSize:13}}>${total.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={3} colSpan={5} />
+              </Table.Summary.Row>
+            </Table.Summary>
+          );
+        }}
       />
 
       <Modal
