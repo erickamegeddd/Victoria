@@ -370,7 +370,7 @@ const OutreachPage = () => {
       <Drawer
         open={!!historyRecord}
         title={`Email History — ${historyRecord?.iso_name || ""}`}
-        onClose={(()=>{setHistoryRecord(null);setEmailLogs([]);}}
+        onClose={()=>{setHistoryRecord(null);setEmailLogs([]);}}
         width={780}
       >
         <p style={{color:"#6b7280",marginTop:0,fontSize:13}}>
