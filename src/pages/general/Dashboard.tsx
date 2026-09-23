@@ -56,8 +56,8 @@ const Dashboard = () => {
   const totalRevenue = residuals.reduce((s,r)=>s+(r.paydiversenet||0),0);
   const totalVolume = residuals.reduce((s,r)=>s+(r.gross_volume||0),0);
   const activeMids = new Set(residuals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)).map(r=>r.mid)).size;
-  const currentMidSet = new Set(residuals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.mid).map(r=>r.mid));
-  const droppedFromPrevMonth = prevResiduals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.paydiversenet&&!currentMidSet.has(r.mid)).length;
+  const prevActiveMids = new Set(prevResiduals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.mid).map(r=>r.mid)).size;
+  const droppedFromPrevMonth = Math.max(0, prevActiveMids - activeMids);
   const merchantsRevenue = residuals.filter(r=>!isGatewayRow(r)).reduce((s,r)=>s+(r.paydiversenet||0),0);
   const resellerRevenue = residuals.filter(r=>isGatewayRow(r)).reduce((s,r)=>s+(r.paydiversenet||0),0);
   const activeGatewayMids = new Set(residuals.filter(r=>isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.mid).map(r=>r.mid)).size;
