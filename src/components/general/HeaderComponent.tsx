@@ -132,7 +132,7 @@ const HeaderComponent = () => {
         {/* Logo — white pill so white background looks intentional */}
         <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
           <div style={{ background: "#fff", borderRadius: 10, padding: "6px 14px", display: "inline-flex", alignItems: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.2)" }}>
-            <img src="/paydiversse-logo.webp" alt="PayDiverse" style={{ height: 42, objectFit: "contain", maxWidth: 170 }} />
+            <img src="/paydiverse-logo.webp" alt="PayDiverse" style={{ height: 42, objectFit: "contain", maxWidth: 170 }} />
           </div>
         </div>
 
