@@ -258,6 +258,9 @@ const OutreachPage = () => {
           <p style={{ color: "#6b7280", margin: "4px 0 0", fontSize: 13 }}>
             {records.filter(r => r.payment_status === "overdue").length} overdue &nbsp;·&nbsp; {records.filter(r => r.payment_status === "due_soon").length} due soon — add emails and send reminders
           </p>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 6, background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 6, padding: "2px 10px", fontSize: 12, color: "#15803d", fontWeight: 600 }}>
+            <MailOutlined style={{ fontSize: 11 }} /> Sending from: residuals@elmpayments.com
+          </span>
         </div>
         <Button onClick={fetchOverdue} size="small">Refresh</Button>
       </div>
