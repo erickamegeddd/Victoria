@@ -277,12 +277,12 @@ const OutreachPage = () => {
           const total = src.reduce((s,r)=>s+(r.computed_amount||0),0);
           return (
             <Table.Summary fixed>
-              <Table.Summary.Row style={{background:'#0f2040'}}>
+              <Table.Summary.Row style={{background:'#0f2040',height:48}}>
                 <Table.Summary.Cell index={0} colSpan={2}>
-                  <span style={{color:'rgba(255,255,255,0.7)',fontWeight:700,fontSize:12,textTransform:'uppercase',letterSpacing:'0.5px'}}>Total — {src.length} rows</span>
+                  <span style={{color:'rgba(255,255,255,0.8)',fontWeight:700,fontSize:14,textTransform:'uppercase',letterSpacing:'1px'}}>Total — {src.length} rows</span>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={2} align="right">
-                  <span style={{color:'#fca5a5',fontWeight:800,fontSize:13}}>${total.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+                  <span style={{color:'#fca5a5',fontWeight:900,fontSize:16}}>${total.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={3} colSpan={5} />
               </Table.Summary.Row>
