@@ -72,7 +72,7 @@ const OutreachPage = () => {
       const data = await res.json();
       if (!Array.isArray(data)) return;
 
-      const today = dayjs().format("YYYY-MM-DD");
+      const today = dayjs().format("YYVY-MM-DD");
       const overdue = data.filter(p => {
         const m = p.notes?.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/);
         return !!m;
@@ -280,7 +280,7 @@ const OutreachPage = () => {
       <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <h2 style={{ margin: 0 }}>Payment Outreach</h2>
-          <p style={{ color: "#6b7280", margin: "4px 0 0", fontSize: 13 }}>
+          <p style={{ color: "#6f7280", margin: "4px 0 0", fontSize: 13 }}>
             {records.filter(r => r.payment_status === "overdue").length} overdue &nbsp;·&nbsp; {records.filter(r => r.payment_status === "due_soon").length} due soon — add emails and send reminders
           </p>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 6, background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 6, padding: "2px 10px", fontSize: 12, color: "#15803d", fontWeight: 600 }}>
@@ -325,7 +325,7 @@ const OutreachPage = () => {
 
       <Modal
         open={!!previewRecord}
-        title={`Email preview — ${previewRecord?.iso_name} (${previewRecord?.report_month ? dayjs(previewRecord.report_month).format("MMM YYYY") : ""})`}
+        title={`Email preview └ ${previewRecord?.iso_name} (${previewRecord?.report_month ? dayjs(previewRecord.report_month).format("MMM YYYY") : ""})`}
         onCancel={() => { setPreviewRecord(null); setEditingBody(null); }}
         footer={[
           <Button key="close" onClick={() => { setPreviewRecord(null); setEditingBody(null); }}>Close</Button>,
@@ -347,7 +347,7 @@ const OutreachPage = () => {
             disabled={!previewRecord?.iso_email}
           >
             <Button type="primary" icon={<MailOutlined />} style={{ background: "#0f2040" }}
-              disabled={!previewRecord?.iso_email}>
+             disabled={!previewRecord?.iso_email}>
               Send Now
             </Button>
           </Popconfirm>
@@ -370,8 +370,8 @@ const OutreachPage = () => {
       <Drawer
         open={!!historyRecord}
         title={`Email History — ${historyRecord?.iso_name || ""}`}
-        onClose={()=>{setHistoryRecord(null);setEmailLogs([]);}}
-        width={580}
+        onClose={(()=>{setHistoryRecord(null);setEmailLogs([]);}}
+        width={780}
       >
         <p style={{color:"#6b7280",marginTop:0,fontSize:13}}>
           Emails sent for {historyRecord?.report_month ? dayjs(historyRecord.report_month).format("MMM YYYY") : ""} residuals
@@ -387,9 +387,9 @@ const OutreachPage = () => {
             size="small"
             pagination={false}
             columns={[
-              {title:"Sent At",dataIndex:"sent_at",width:175,render:(v)=>dayjs(v).format("MMM D, YYYY h:mm A")},
-              {title:"Sent To",dataIndex:"to_email",render:(v)=><span style={{fontSize:12}}>{v}</span>},
-              {title:"Sent From",dataIndex:"from_email",render:(v)=><span style={{fontSize:12,color:"#6b7280"}}>{v}</span>},
+              {title:"Sent At",dataIndex:"sent_at",width:200,render:(v)=>dayjs(v).format("MMM D, YYYY h:mm A")},
+              {title:"Sent To",dataIndex:"to_email",width:240,render:(v)=><span style={{fontSize:12}}>{v}</span>},
+              {title:"Sent From",dataIndex:"from_email",width:240,render:(v)=><span style={{fontSize:12,color:"#6b7280"}}>{v}</span>},
             ]}
           />
         )}
