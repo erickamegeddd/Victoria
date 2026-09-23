@@ -25,7 +25,7 @@ const CustomTooltip = ({ active, payload, label }) => {
       <div style={{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:8, padding:'10px 14px', boxShadow:'0 4px 12px rgba(0,0,0,0.1)' }}>
         <div style={{ fontWeight:700, marginBottom:4, color:'#111' }}>{label}</div>
         <div style={{ color: val >= 0 ? '#059669' : '#dc2626', fontWeight:600, fontSize:15 }}>{fmt(val)}</div>
-        <div style={{ color:'#6f7280', fontSize:11, marginTop:2 }}>PayDiverse Net Income</div>
+        <div style={{ color:'#6b7280', fontSize:11, marginTop:2 }}>PayDiverse Net Income</div>
       </div>
     );
   }
@@ -41,7 +41,7 @@ const Dashboard = () => {
   const LATEST_MONTH = '2026-07-01';
   const [selectedMonth, setSelectedMonth] = useState(LATEST_MONTH);
   const [activeTab, setActiveTab] = useState('residuals');
-  const [outerTab, setOuterTab] = useState('monthly',);
+  const [outerTab, setOuterTab] = useState('monthly');
   const [allTimeRevenue, setAllTimeRevenue] = useState(0);
   const [allTimeVolume, setAllTimeVolume] = useState(0);
   const [monthlyData, setMonthlyData] = useState([]);
@@ -56,8 +56,8 @@ const Dashboard = () => {
   const totalRevenue = residuals.reduce((s,r)=>s+(r.paydiversenet||0),0);
   const totalVolume = residuals.reduce((s,r)=>s+(r.gross_volume||0),0);
   const activeMids = new Set(residuals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)).map(r=>r.mid)).size;
-  const merchantsRevenue = residuals.filter(r=>!isGatewayRow(r)').reduce((s,r)=>s+(r.paydiversenet||0),0);
-  const resellerRevenue = residuals.filter(r=>isGatewayRow(r)').reduce((s,r)=>s+(r.paydiversenet||0),0);
+  const merchantsRevenue = residuals.filter(r=>!isGatewayRow(r)).reduce((s,r)=>s+(r.paydiversenet||0),0);
+  const resellerRevenue = residuals.filter(r=>isGatewayRow(r)).reduce((s,r)=>s+(r.paydiversenet||0),0);
   const activeGatewayMids = new Set(residuals.filter(r=>isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.mid).map(r=>r.mid)).size;
 
   useEffect(()=>{fetchIsos();},[]);
@@ -103,17 +103,17 @@ const Dashboard = () => {
   const fetchResiduals=async()=>{setLoading(true);let q=supabase.from('residuals').select('*,isos(id,name,slug)').order('report_month',{ascending:false});if(selectedIso)q=q.eq('iso_id',selectedIso);if(selectedMonth)q=q.eq('report_month',selectedMonth);const data=await fetchAllRows(q);setResiduals(data);const pm=dayjs(selectedMonth||LATEST_MONTH).subtract(1,'month').startOf('month').format('YYYY-MM-DD');let pq=supabase.from('residuals').select('*,isos(id,name,slug)').eq('report_month',pm);if(selectedIso)pq=pq.eq('iso_id',selectedIso);const pdata=await fetchAllRows(pq);setPrevResiduals(pdata);setPrevMonthMids(new Set(pdata.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)).map(r=>r.mid)));let aq=supabase.from('residuals').select('mid').lt('report_month',selectedMonth||LATEST_MONTH).not('mid','is',null);if(selectedIso)aq=aq.eq('iso_id',selectedIso);const aprior=await fetchAllRows(aq);setAllPriorMids(new Set(aprior.filter(r=>r.mid&&!isAggregateMid(r.mid)).map(r=>r.mid)));const nm=dayjs(selectedMonth||LATEST_MONTH);const{data:newMs}=await supabase.from('merchants').select('mid').gte('created_at',nm.format('YYYY-MM-DD')).lt('created_at',nm.add(1,'month').startOf('month').format('YYYY-MM-DD')).not('mid','is',null);setNewMerchantMids(new Set((newMs||[]).map(r=>r.mid)));setLoading(false);};
 
   const getSearchProps=(dataIndex,label)=>({
-    filterDropdown:({ setSelectedKeys,selectedKeys,confirm,clearFilters})=> (<div style={{padding:8,minWidth:200}}><Input ref={searchInput} placeholder={`Search ${label}`} value={selectedKeys[0]} onChange={e=>setSelectedKeys(e.target.value?[e.target.value]:[])} onPressEnter={confirm} style={{marginBottom:8,display:'block'}}/><Space><Button type="primary" onClick={confirm} icon={<SearchOutlined/>} size="small" style={{width:90}}>Search</Button><Button onClick={()=>{coearFilters();confirm();}} size="small" style={{width:90}}>Reset</Button></Space></div>),
+    filterDropdown:({setSelectedKeys,selectedKeys,confirm,clearFilters})=>(<div style={{padding:8,minWidth:200}}><Input ref={searchInput} placeholder={`Search ${label}`} value={selectedKeys[0]} onChange={e=>setSelectedKeys(e.target.value?[e.target.value]:[])} onPressEnter={confirm} style={{marginBottom:8,display:'block'}}/><Space><Button type="primary" onClick={confirm} icon={<SearchOutlined/>} size="small" style={{width:90}}>Search</Button><Button onClick={()=>{clearFilters();confirm();}} size="small" style={{width:90}}>Reset</Button></Space></div>),
     filterIcon:filtered=><SearchOutlined style={{color:filtered?'var(--primary-color)':undefined}}/>,
     onFilter:(value,record)=>String(record[dataIndex]||'').toLowerCase().includes(String(value).toLowerCase()),
-    onFilterDropdownOpenChange:open=>{if(open)swtTimeout(()=>searchInput.current?.select(),100);},
+    onFilterDropdownOpenChange:open=>{if(open)setTimeout(()=>searchInput.current?.select(),100);},
   });
 
   const rCols=[
-    {title:'Month',dataIndex:'report_month',key:'m',width:100,render:v=>v?dayjs(v).format('MMM yYYY'):'--',filters:[...new Set(residuals.map(r=>r.report_month).filter(Boolean))].sort().reverse().map(m=>({text:dayjs(m).format('MMM yYYY'),value:m})),onFilter:(v,i)=>r.report_month===v},
-    {title:'ISO',key:'iso',width:120,render:(_,r)=>r.isos?.name||'--',filters:[...new Set(residuals.map(r=>r.isos?.name).filter(Boolean))].sort().map(n=>({text:n,value:n})),onFilter:(v,i)=>r.isos?.name===v},{title:'Processor',dataIndex:'source_file',key:'src',width:130,render:v=>{if(!v)\n return'--';const parts=v.split(' - ');return parts.length>1?<span style={{fontSize:11,color:'#6b7280',background:'#f3f4f6',padding:'2px 6px',borderRadius:4,whiteSpace:'nowrap'}}>{parts[parts.length-1]}</span>:'--';}},
+    {title:'Month',dataIndex:'report_month',key:'m',width:100,render:v=>v?dayjs(v).format('MMM YYYY'):'--',filters:[...new Set(residuals.map(r=>r.report_month).filter(Boolean))].sort().reverse().map(m=>({text:dayjs(m).format('MMM YYYY'),value:m})),onFilter:(v,r)=>r.report_month===v},
+    {title:'ISO',key:'iso',width:120,render:(_,r)=>r.isos?.name||'--',filters:[...new Set(residuals.map(r=>r.isos?.name).filter(Boolean))].sort().map(n=>({text:n,value:n})),onFilter:(v,r)=>r.isos?.name===v},{title:'Processor',dataIndex:'source_file',key:'src',width:130,render:v=>{if(!v)return'--';const parts=v.split(' - ');return parts.length>1?<span style={{fontSize:11,color:'#6b7280',background:'#f3f4f6',padding:'2px 6px',borderRadius:4,whiteSpace:'nowrap'}}>{parts[parts.length-1]}</span>:'--';},},
     {title:'MID',dataIndex:'mid',key:'mid',width:120,...getSearchProps('mid','MID'),render:v=><Text style={{fontWeight:600,fontSize:13}}>{v||'--'}</Text>},
-    {title:'Business Name',dataIndex:'business_name',key:'biz',width:170,...getSearchProps('business_name','Business'), render:v=><Text style={{fontSize:13}}>{v||'--'}</Text>},
+    {title:'Business Name',dataIndex:'business_name',key:'biz',width:170,...getSearchProps('business_name','Business'),render:v=><Text style={{fontSize:13}}>{v||'--'}</Text>},
     {title:'Volume',dataIndex:'gross_volume',key:'vol',width:120,align:'right',render:v=>fmt(v),sorter:(a,b)=>(a.gross_volume||0)-(b.gross_volume||0)},
     {title:'Gross Rev',dataIndex:'gross_revenue',key:'gr',width:120,align:'right',render:v=>fmt(v),sorter:(a,b)=>(a.gross_revenue||0)-(b.gross_revenue||0)},
     {title:'PayDiverse Net',dataIndex:'paydiversenet',key:'pd',width:130,align:'right',sorter:(a,b)=>(a.paydiversenet||0)-(b.paydiversenet||0),render:v=><span style={{color:v>0?'#059669':'#dc2626',fontWeight:600}}>{fmt(v)}</span>},
@@ -134,7 +134,7 @@ const Dashboard = () => {
       <Row gutter={16} style={{marginBottom:12}}>
         <Col span={8}><div style={{background:'#fef3c7',border:'1.5px solid #fbbf24',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}><Statistic title="Total Merchants Income" value={merchantsRevenue} prefix="$" precision={2} valueStyle={{color:'#059669',fontWeight:700}}/></div></Col>
         <Col span={8}><div style={{background:'#fef3c7',border:'1.5px solid #fbbf24',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}><Statistic title="Total Volume Processed" value={totalVolume} prefix="$" precision={2} valueStyle={{color:'#6b7a99',fontWeight:700}}/></div></Col>
-        <Col span={8}><div style={{background:'#fef3c7',border:'1.5px solid #fbbf24',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}><div style={{fontSize:14,fontWeight:800,textTransform:'uppercase',letterSpacing:'0.5px',color:'var(--black-color)',marginBottom:10}}>Active Merchants</div><div><span style={{fontSize:26,fontWeight:800,color:'var(--primary-color)'}}>{activeMids}</span><span style={{fontSize:13,fontWeight:600,color:'var(--muted-color(')', marginLeft:6}}>active</span><span style={{fontSize:13,fontWeight:700,color:'#dc2626',marginLeft:10}}> | {inactiveMerchantCount} inactive</span></div></div></Col>
+        <Col span={8}><div style={{background:'#fef3c7',border:'1.5px solid #fbbf24',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}><div style={{fontSize:14,fontWeight:800,textTransform:'uppercase',letterSpacing:'0.5px',color:'var(--black-color)',marginBottom:10}}>Active Merchants</div><div><span style={{fontSize:26,fontWeight:800,color:'var(--primary-color)'}}>{activeMids}</span><span style={{fontSize:13,fontWeight:600,color:'var(--muted-color)',marginLeft:6}}>active</span><span style={{fontSize:13,fontWeight:700,color:'#dc2626',marginLeft:10}}> | {inactiveMerchantCount} inactive</span></div></div></Col>
       </Row>
       <Row gutter={16} style={{marginBottom:20}}>
         <Col span={12}><div style={{background:'#f3e8ff',border:'1.5px solid #c084fc',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}><Statistic title="Total Reseller Revenue" value={resellerRevenue} prefix="$" precision={2} valueStyle={{color:'#059669',fontWeight:700}}/></div></Col>
@@ -142,13 +142,8 @@ const Dashboard = () => {
       </Row>
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
         {key:'residuals',label:`Residuals (${residuals.length})`,children:(
-          <><Card style={{marginBottom:12}}><Space wrap><Select placeholder="All ISOs" allowClear style={{width:200}} onChange={v=>setSelectedIso(v)}>{isos.map(iso => <Option key={iso.id} value={iso.id}>{iso.name}</Option>)}</Select><Text style={{color:'var(--muted-color)',fontSize:12}}>{rowiduals.length} rows</Text></Space></Card>
-          {residuals.length===0&&!loading?(<Card><div style={{textAlign:'center',padding:'60px 20px',color:'var(--muted-color(')'}}><FileExcelOutlined style={{fontSize:40,marginBottom:12,display:'block'}}/><div style={{fontSize:16,fontWeight:600,marginBottom:8}}>No residual data yet</div><Button type="primary" onClick={()=>navigate('/home/import-data')}>Import Report</Button></div></Card>):(()=> {
-            return (
-              <><Card><Table dataSource={residuals} columns={rCols} rowKey="id" loading={loading} pagination={{pageSize:50,showTotal:(t)=>`${t} rows`}} scroll={{x:960,y:'calc(100vh - 420px)'}} size="small" onRow={(r)=>{const isNew=!isGatewayRow(r)&&!isAggregateMid(r.mid)&&newMerchantMids.size>0&&newMerchantMids.has(r.mid);return{style:{backgroundColor:isNew?'#6ee7b7':undefined}};}} /></Card>{(()=>{const cM=new Set(residuals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)).map(r=>r.mid));const dr=prevResiduals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.paydiversenet&&!cM.has(r.mid));if(!dr.length||!prevMonthMids.size)return null;return(<Card style={{marginTop:12,borderColor:'#fca5a5',borderWidth:2}} key="dr"><div style={{color:'#dc2626',fontWeight:700,marginBottom:8}}>{dr[.length} merchant(s) not in this month (still active per 8-month rule)</div><Table dataSource={dr} columns={rCols} rowKey="id" pagination={false} size="small" onRow={()=>({style:{backgroundColor:'#fecaca'}})}/></Card>);})()}{(()=>{const am=residuals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.paydiversenet&&newMerchantMids.size>0&&newMerchantMids.has(r.mid));if(!am.length||!newMerchantMids.size)return null;return(<Card style={{marginTop:12,borderColor:'#86efac',borderWidth:2}} key="added"><div style={{color:'#059669',fontWeight:700,marginBottom:8}}>{new Set(am.map(r=>r.mid)).size} new merchant(s) added this month</div><Table dataSource={am} columns={rCols} rowKey="id" pagination={false} size="small" onRow={()=>({style:{backgroundColor:'#bbf7d0'}})}/></Card>);})()}</>
-            );
-          })()}
-          </>
+          <><Card style={{marginBottom:12}}><Space wrap><Select placeholder="All ISOs" allowClear style={{width:200}} onChange={v=>setSelectedIso(v)}>{isos.map(iso => <Option key={iso.id} value={iso.id}>{iso.name}</Option>)}</Select><Text style={{color:'var(--muted-color)',fontSize:12}}>{residuals.length} rows</Text></Space></Card>
+          {residuals.length===0&&!loading?(<Card><div style={{textAlign:'center',padding:'60px 20px',color:'var(--muted-color)'}}><FileExcelOutlined style={{fontSize:40,marginBottom:12,display:'block'}}/><div style={{fontSize:16,fontWeight:600,marginBottom:8}}>No residual data yet</div><Button type="primary" onClick={()=>navigate('/home/import-data')}>Import Report</Button></div></Card>):(<><Card><Table dataSource={residuals} columns={rCols} rowKey="id" loading={loading} pagination={{pageSize:50,showTotal:(t)=>`${t} rows`}} scroll={{x:960,y:'calc(100vh - 420px)'}} size="small" onRow={(r)=>{const isNew=!isGatewayRow(r)&&!isAggregateMid(r.mid)&&newMerchantMids.size>0&&newMerchantMids.has(r.mid);return{style:{backgroundColor:isNew?'#6ee7b7':undefined}};}} /></Card>{(()=>{const cM=new Set(residuals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)).map(r=>r.mid));const dr=prevResiduals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.paydiversenet&&!cM.has(r.mid));if(!dr.length||!prevMonthMids.size)return null;return(<Card style={{marginTop:12,borderColor:'#fca5a5',borderWidth:2}} key="dr"><div style={{color:'#dc2626',fontWeight:700,marginBottom:8}}>{dr.length} merchant(s) not in this month (still active per 8-month rule)</div><Table dataSource={dr} columns={rCols} rowKey="id" pagination={false} size="small" onRow={()=>({style:{backgroundColor:'#fecaca'}})}/></Card>);})()}{(()=>{const am=residuals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.paydiversenet&&newMerchantMids.size>0&&newMerchantMids.has(r.mid));if(!am.length||!newMerchantMids.size)return null;return(<Card style={{marginTop:12,borderColor:'#86efac',borderWidth:2}} key="added"><div style={{color:'#059669',fontWeight:700,marginBottom:8}}>{new Set(am.map(r=>r.mid)).size} new merchant(s) added this month</div><Table dataSource={am} columns={rCols} rowKey="id" pagination={false} size="small" onRow={()=>({style:{backgroundColor:'#bbf7d0'}})}/></Card>);})()}</>)}</>
         )},
       ]}/>
     </>
@@ -170,7 +165,7 @@ const Dashboard = () => {
       <Card>
         <div style={{marginBottom:16}}>
           <div style={{fontWeight:700,fontSize:16,color:'#111'}}>Monthly PayDiverse Net Income</div>
-          <div style={{color:'var(--muted-color)',fontSize:13}}>Jan 2026 - Jul 2026 · All ISOs combined</div>
+          <div style={{color:'#6b7280',fontSize:13}}>Jan 2026 - Jul 2026 · All ISOs combined</div>
         </div>
         <ResponsiveContainer width="100%" height={360}>
           <LineChart data={monthlyData} margin={{top:10,right:30,left:10,bottom:10}}>
