@@ -49,7 +49,7 @@ export default async function handler(req, res) {
     if (req.method === "GET") {
       const svcKey = process.env.SUPABASE_SERVICE_KEY;
 
-      // ── Auth admin ───────────────────────────────────────────────────────
+      // ── Auth admin ─────────────────────────────────────────────────────────
       if (req.query.action === "list_users") {
         if (!svcKey) return res.status(500).json({ error: "Service key not configured" });
         const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?per_page=100`, {
@@ -97,6 +97,18 @@ export default async function handler(req, res) {
         if (!svcKey) return res.status(500).json({ error: "Service key not configured" });
         const data = await fetchAllSvc(
           `${SUPABASE_URL}/rest/v1/merchants?select=mid&merchant_type=eq.gateway`,
+          svcKey
+        );
+        return res.json(data);
+      }
+
+      // ── Insights: all MIDs that appeared before a given date (for truly-new detection) ──
+      if (req.query.action === "insights_mids_before") {
+        if (!svcKey) return res.status(500).json({ error: "Service key not configured" });
+        const { before } = req.query;
+        if (!before) return res.json([]);
+        const data = await fetchAllSvc(
+          `${SUPABASE_URL}/rest/v1/residuals?select=mid,iso_id&report_month=lt.${before}&order=mid`,
           svcKey
         );
         return res.json(data);
