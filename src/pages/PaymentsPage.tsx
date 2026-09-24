@@ -280,7 +280,7 @@ const PaymentsPage = () => {
               const payMonthStr=dayjs(selectedMonth).add(1,'month').format('YYYY-MM-');
               const resolvedDate=expDate||(isoDueDayMap[iso.id]?payMonthStr+String(isoDueDayMap[iso.id]).padStart(2,'0'):null);
               if(!resolvedDate)return null;
-              const amount=fromResiduals?fromResiduals.expected:(p?.expected_amount||0);
+              const amount=fromResiduals?.expected ?? (p?.expected_amount||0);
               const status=p?getStatus(amount,p.received_amount):'pending';
               return{name:iso.name,isoId:iso.id,dayNum:parseInt(resolvedDate.split('-')[2]),expDate:resolvedDate,amount,status};
             }).filter(Boolean);
@@ -320,7 +320,7 @@ const PaymentsPage = () => {
                             <div style={{width:26,height:26,borderRadius:'50%',marginBottom:4,background:isToday?'#0f2040':'transparent',color:isToday?'#fff':isPast?'#94a3b8':'#374151',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:isToday?700:500}}>{day}</div>
                             <div style={{display:'flex',flexDirection:'column',gap:2}}>
                               {items.map((item,i)=>(
-                                <div key={i} title={`${item.name} — $${item.amount.toLocaleString('en-US',{minimumFractionDigits:2})}`} style={{padding:'2px 6px',borderRadius:4,background:statusBg[item.status],borderLeft:`3px solid ${statusColor[item.status]}`,fontSize:10,fontWeight:600,color:statusColor[item.status],whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+                                <div key={i} title={`${item.name} — $${(item.amount??0).toLocaleString('en-US',{minimumFractionDigits:2})}`} style={{padding:'2px 6px',borderRadius:4,background:statusBg[item.status],borderLeft:`3px solid ${statusColor[item.status]}`,fontSize:10,fontWeight:600,color:statusColor[item.status],whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
                                   {item.name} · ${Math.round(item.amount).toLocaleString('en-US')}
                                 </div>
                               ))}
