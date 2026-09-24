@@ -112,29 +112,30 @@ const generateSummary=(netChange,netPct,lostMerchants,newMerchants,hasDataA,hasD
   if(!hasDataA&&hasDataB)return{type:"warning",text:"No data for the earlier period — this ISO may be new or the report hasn't been uploaded yet."};
   if(hasDataA&&!hasDataB)return{type:"warning",text:`No report uploaded for the later period yet. Last recorded net income was ${fmt(netA)}.`};
   if(!hasDataA&&!hasDataB)return{type:"info",text:"No data found for either period."};
-  const parts=[];
-  if(lostMerchants.length>0){const names=lostMerchants.slice(0,3).map(m=>m.name).join(", ");const more=lostMerchants.length>3?` and ${lostMerchants.length-3} more`:"";parts.push(`${lostMerchants.length} merchant${lostMerchants.length>1?"s":""} stopped processing (${names}${more})`);}
-  if(newMerchants.length>0){const names=newMerchants.slice(0,3).map(m=>m.name).join(", ");const more=newMerchants.length>3?` and ${newMerchants.length-3} more`:"";parts.push(`${newMerchants.length} new merchant${newMerchants.length>1?"s":""} started processing (${names}${more})`);}
-  if(parts.length===0){if(Math.abs(netPct)<2)return{type:"success",text:"Income is stable — same merchants, no significant changes detected."};if(netChange<0)return{type:"warning",text:`Same merchants, but income dropped ${Math.abs(netPct).toFixed(1)}%. Likely lower processing volume, rate adjustments, or higher fees.`};return{type:"success",text:`Same merchants with higher activity — income grew ${netPct.toFixed(1)}%.`};}
-  // Only attribute income change to merchants if the change direction makes sense
-  const onlyNewMerchants=lostMerchants.length===0&&newMerchants.length>0;
-  const onlyLostMerchants=lostMerchants.length>0&&newMerchants.length===0;
+  const pct=Math.abs(netPct).toFixed(1);const amt=fmt(Math.abs(netChange));
+  const lostNames=(arr)=>{const n=arr.slice(0,3).map(m=>m.name).join(", ");return arr.length>3?`${n} and ${arr.length-3} more`:n;};
   if(netChange<-50){
-    if(onlyNewMerchants){
-      // New merchants don't cause drops — report both facts separately
-      const names=newMerchants.slice(0,3).map(m=>m.name).join(", ");
-      return{type:"error",text:`Income dropped ${Math.abs(netPct).toFixed(1)}% (${fmt(Math.abs(netChange))}). ${newMerchants.length} new merchant${newMerchants.length>1?"s":""} started processing (${names}) but overall volume was lower than the prior period.`};
-    }
-    return{type:"error",text:`Income dropped because: ${parts.join(", and ")}. This explains the ${fmt(Math.abs(netChange))} decrease.`};
+    let text=`Income dropped ${pct}% (${amt}).`;
+    if(lostMerchants.length>0)text+=` ${lostMerchants.length} merchant${lostMerchants.length>1?"s":""} stopped processing: ${lostNames(lostMerchants)}.`;
+    if(newMerchants.length>0)text+=` ${newMerchants.length} new merchant${newMerchants.length>1?"s":""} joined (${lostNames(newMerchants)}) but didn't offset the drop.`;
+    if(!lostMerchants.length&&!newMerchants.length)text+=` Same merchants — likely lower processing volume, rate changes, or higher fees.`;
+    return{type:"error",text};
   }
   if(netChange>50){
-    if(onlyLostMerchants){
-      const names=lostMerchants.slice(0,3).map(m=>m.name).join(", ");
-      return{type:"warning",text:`Income grew ${netPct.toFixed(1)}% despite ${lostMerchants.length} merchant${lostMerchants.length>1?"s":""} leaving (${names}). Remaining merchants are processing more.`};
-    }
-    return{type:"success",text:`Income grew because: ${parts.join(", and ")}. This contributed ${fmt(netChange)} to earnings.`};
+    let text=`Income grew ${pct}% (${amt}).`;
+    if(newMerchants.length>0)text+=` ${newMerchants.length} new merchant${newMerchants.length>1?"s":""} contributed: ${lostNames(newMerchants)}.`;
+    if(lostMerchants.length>0)text+=` ${lostMerchants.length} merchant${lostMerchants.length>1?"s":""} stopped processing (${lostNames(lostMerchants)}) but didn't prevent the gain.`;
+    if(!newMerchants.length&&!lostMerchants.length)text+=` Existing merchants processed more volume.`;
+    return{type:"success",text};
   }
-  return{type:"info",text:`${parts.join(" and ")}, but the overall income impact was small.`};
+  if(Math.abs(netPct)<2)return{type:"success",text:"Income is stable — no significant changes detected."};
+  let text=`Income ${netChange<0?"dipped":"nudged"} ${pct}%.`;
+  const parts=[];
+  if(lostMerchants.length>0)parts.push(`${lostMerchants.length} merchant${lostMerchants.length>1?"s":""} stopped processing`);
+  if(newMerchants.length>0)parts.push(`${newMerchants.length} new merchant${newMerchants.length>1?"s":""} joined`);
+  if(parts.length)text+=` (${parts.join(", ")}) — overall impact was small.`;
+  else text+=` Same merchants, small volume shift.`;
+  return{type:"info",text};
 };
 
 const MetricBox=({label,valA,valB,change,changePct,formatter=fmtK})=>(
@@ -251,11 +252,13 @@ const InsightsPage=()=>{
     setMonthlyTrend(Object.entries(map).sort(([a],[b])=>a.localeCompare(b)).map(([,v])=>v));
   };
 
-  const isAdjEntry=(name)=>{if(!name)return false;const n=name.toLowerCase();return n.includes("monthly payout")||n.includes("deduction")||n.includes("adjustment")||/\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+20\d{2}\b/.test(n);};
+  const isAdjEntry=(name)=>{if(!name)return false;const n=name.toLowerCase();return n.includes("monthly payout")||n.includes("deduction")||n.includes("adjustment")||n.endsWith(" total")||/\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+20\d{2}\b/.test(n);};
   const groupData=(rows)=>{const map={};rows.forEach(r=>{const k=r.iso_id;if(!map[k])map[k]={isoId:k,isoName:r.isos?.name||"Unknown",rows:[],totalNet:0,totalVolume:0,mids:new Map()};map[k].rows.push(r);map[k].totalNet+=(r.paydiversenet||0);map[k].totalVolume+=(r.gross_volume||0);// Skip summary placeholders, gateway MIDs, and fee/adjustment entries from merchant count
 const _mid=String(r.mid||"").trim();if(!r.mid?.includes("-summary")&&!gatewayMids.has(_mid)&&!isAdjEntry(r.business_name)&&!isAdjEntry(_mid)){map[k].mids.set(r.mid,r.business_name||r.mid);}});return map;};
 
-  const buildComparison=(rowsA,rowsB,labelA,labelB)=>{
+  const fetchMidsBefore=async(beforeDate)=>{const r=await fetch(`/api/agent-adjustments?action=insights_mids_before&before=${beforeDate}`);const rows=await r.json();const map=new Map();rows.forEach(r=>{const iso=r.iso_id;if(!map.has(iso))map.set(iso,new Set());map.get(iso).add(r.mid);});return map;};
+
+  const buildComparison=(rowsA,rowsB,labelA,labelB,historicalMids)=>{
     const gA=groupData(rowsA),gB=groupData(rowsB);
     const allIds=new Set([...Object.keys(gA),...Object.keys(gB)]);
     const isoList=Array.from(allIds).map(isoId=>{
@@ -266,7 +269,8 @@ const _mid=String(r.mid||"").trim();if(!r.mid?.includes("-summary")&&!gatewayMid
       const netChange=netB-netA,netPct=netA!==0?(netChange/Math.abs(netA)*100):(netB!==0?100:0);
       const volChange=volB-volA,volPct=volA!==0?(volChange/Math.abs(volA)*100):0;
       const lostMerchants=b?[...midsA.entries()].filter(([mid])=>!midsB.has(mid)).map(([mid,name])=>({mid,name})):[];
-      const newMerchants=a?[...midsB.entries()].filter(([mid])=>!midsA.has(mid)).map(([mid,name])=>({mid,name})):[];
+      const histIso=historicalMids?.get(isoId)||null;
+      const newMerchants=histIso?[...midsB.entries()].filter(([mid])=>!histIso.has(mid)).map(([mid,name])=>({mid,name})):a?[...midsB.entries()].filter(([mid])=>!midsA.has(mid)).map(([mid,name])=>({mid,name})):[];
       const summary=generateSummary(netChange,netPct,lostMerchants,newMerchants,!!a,!!b,netA);
       return{isoId,isoName,netA,netB,netChange,netPct,volA,volB,volChange,volPct,midsA:midsA.size,midsB:midsB.size,lostMerchants,newMerchants,hasDataA:!!a,hasDataB:!!b,summary};
     }).sort((a,b)=>Math.abs(b.netChange)-Math.abs(a.netChange));
@@ -291,7 +295,8 @@ const _mid=String(r.mid||"").trim();if(!r.mid?.includes("-summary")&&!gatewayMid
       byMerchant.push({mid,name,isoName,netA,netB,netChange,netPct,volA,volB,volChange:volB-volA,hasDataA:ra.length>0,hasDataB:rb.length>0});
     });
     byMerchant.sort((a,b)=>Math.abs(b.netChange)-Math.abs(a.netChange));
-    return{labelA,labelB,isos:isoList,merchants:byMerchant,overall:{netA:totNetA,netB:totNetB,netChange:totNetB-totNetA,netPct:totNetA!==0?((totNetB-totNetA)/Math.abs(totNetA)*100):0,volA:totVolA,volB:totVolB,volChange:totVolB-totVolA,volPct:totVolA!==0?((totVolB-totVolA)/Math.abs(totVolA)*100):0,midsA:midSetA.size,midsB:midSetB.size,lostMerchants:[...midSetA].filter(m=>!midSetB.has(m)).length,newMerchants:[...midSetB].filter(m=>!midSetA.has(m)).length},drops:isoList.filter(i=>i.netChange<-50).length,gains:isoList.filter(i=>i.netChange>50).length};
+    const histFlat=historicalMids?new Set([...historicalMids.values()].flatMap(s=>[...s])):null;
+    return{labelA,labelB,isos:isoList,merchants:byMerchant,overall:{netA:totNetA,netB:totNetB,netChange:totNetB-totNetA,netPct:totNetA!==0?((totNetB-totNetA)/Math.abs(totNetA)*100):0,volA:totVolA,volB:totVolB,volChange:totVolB-totVolA,volPct:totVolA!==0?((totVolB-totVolA)/Math.abs(totVolA)*100):0,midsA:midSetA.size,midsB:midSetB.size,lostMerchants:[...midSetA].filter(m=>!midSetB.has(m)).length,newMerchants:histFlat?[...midSetB].filter(m=>!histFlat.has(m)).length:[...midSetB].filter(m=>!midSetA.has(m)).length},drops:isoList.filter(i=>i.netChange<-50).length,gains:isoList.filter(i=>i.netChange>50).length};
   };
 
   const loadOverview=async()=>{
@@ -299,26 +304,27 @@ const _mid=String(r.mid||"").trim();if(!r.mid?.includes("-summary")&&!gatewayMid
     setLoadingOverview(true);
     setOverviewData(null);
     const pd=getPeriodDates(overviewPeriod);if(!pd){setLoadingOverview(false);return;}
-    let rowsA=[],rowsB=[];
-    if(pd.type==="month"){[rowsA,rowsB]=await Promise.all([fetchByMonths([pd.dateA]),fetchByMonths([pd.dateB])]);}
-    else if(pd.type==="quarter"){[rowsA,rowsB]=await Promise.all([fetchByMonths(pd.monthsA),fetchByMonths(pd.monthsB)]);}
-    else{[rowsA,rowsB]=await Promise.all([fetchByYear(pd.yearA),fetchByYear(pd.yearB)]);}
+    let rowsA=[],rowsB=[],histMids=null;
+    const beforeB=pd.type==="month"?pd.dateB:pd.type==="quarter"?pd.monthsB[0]:String(pd.yearB)+"-01-01";
+    if(pd.type==="month"){[rowsA,rowsB,histMids]=await Promise.all([fetchByMonths([pd.dateA]),fetchByMonths([pd.dateB]),fetchMidsBefore(beforeB)]);}
+    else if(pd.type==="quarter"){[rowsA,rowsB,histMids]=await Promise.all([fetchByMonths(pd.monthsA),fetchByMonths(pd.monthsB),fetchMidsBefore(beforeB)]);}
+    else{[rowsA,rowsB,histMids]=await Promise.all([fetchByYear(pd.yearA),fetchByYear(pd.yearB),fetchMidsBefore(beforeB)]);}
     if(gen!==overviewGenRef.current)return;
-    setOverviewData(buildComparison(rowsA,rowsB,pd.labelA,pd.labelB));
+    setOverviewData(buildComparison(rowsA,rowsB,pd.labelA,pd.labelB,histMids));
     setLoadingOverview(false);
   };
 
   const runComparison=async()=>{
     if(!compareA||!compareB)return;
     setRunningComparison(true);
-    let rowsA=[],rowsB=[];
+    let rowsA=[],rowsB=[],histMids=null;
     const pt=comparePeriodType;
-    if(pt==="month"){[rowsA,rowsB]=await Promise.all([fetchByMonths([compareA]),fetchByMonths([compareB])]);}
-    else if(pt==="quarter"){const qA=dayjs(compareA).startOf("quarter"),qB=dayjs(compareB).startOf("quarter");[rowsA,rowsB]=await Promise.all([fetchByMonths([0,1,2].map(i=>qA.add(i,"month").format("YYYY-MM-DD"))),fetchByMonths([0,1,2].map(i=>qB.add(i,"month").format("YYYY-MM-DD")))]);}
-    else{[rowsA,rowsB]=await Promise.all([fetchByYear(dayjs(compareA).year()),fetchByYear(dayjs(compareB).year())]);}
+    if(pt==="month"){[rowsA,rowsB,histMids]=await Promise.all([fetchByMonths([compareA]),fetchByMonths([compareB]),fetchMidsBefore(compareB)]);}
+    else if(pt==="quarter"){const qA=dayjs(compareA).startOf("quarter"),qB=dayjs(compareB).startOf("quarter");[rowsA,rowsB,histMids]=await Promise.all([fetchByMonths([0,1,2].map(i=>qA.add(i,"month").format("YYYY-MM-DD"))),fetchByMonths([0,1,2].map(i=>qB.add(i,"month").format("YYYY-MM-DD"))),fetchMidsBefore(qB.format("YYYY-MM-DD"))]);}
+    else{[rowsA,rowsB,histMids]=await Promise.all([fetchByYear(dayjs(compareA).year()),fetchByYear(dayjs(compareB).year()),fetchMidsBefore(`${dayjs(compareB).year()}-01-01`)]);}
     const labelA=pt==="month"?dayjs(compareA).format("MMM YYYY"):pt==="quarter"?`Q${dayjs(compareA).quarter()} ${dayjs(compareA).year()}`:String(dayjs(compareA).year());
     const labelB=pt==="month"?dayjs(compareB).format("MMM YYYY"):pt==="quarter"?`Q${dayjs(compareB).quarter()} ${dayjs(compareB).year()}`:String(dayjs(compareB).year());
-    setComparison(buildComparison(rowsA,rowsB,labelA,labelB));
+    setComparison(buildComparison(rowsA,rowsB,labelA,labelB,histMids));
     setRunningComparison(false);
   };
 
