@@ -24,7 +24,7 @@ const ViewUsersPage = () => {
 
   const columns = [
     {
-      title: "Email", dataIndex: "email",
+      title: "Email", dataIndex: "email", width: 280, ellipsis: true,
       render: v => <span style={{ fontWeight: 600 }}>{v}</span>,
     },
     {
