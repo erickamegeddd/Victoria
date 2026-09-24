@@ -184,6 +184,11 @@ const HeaderComponent = () => {
           background-color: rgba(255,255,255,0.18) !important;
           color: #fff !important;
         }
+        header .ant-menu-item,
+        header .ant-menu-submenu-title {
+          font-size: 16px !important;
+          font-weight: 700 !important;
+        }
       `}</style>
 
       <header style={{ backgroundColor: "#0f2040", borderBottom: "2px solid rgba(255,255,255,0.08)", boxShadow: "0 2px 16px rgba(0,0,0,0.25)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", height: 80, position: "sticky", top: 0, zIndex: 100 }}>
@@ -202,7 +207,7 @@ const HeaderComponent = () => {
           onClick={({ key }) => { if (key !== "admin") navigate(key); }}
           items={visibleNavItems}
           theme="dark"
-          style={{ flex: 1, background: "transparent", border: "none", minWidth: 0, margin: "0 28px", fontSize: 14 }}
+          style={{ flex: 1, background: "transparent", border: "none", minWidth: 0, margin: "0 28px", fontSize: 16, fontWeight: 700 }}
         />
 
         {/* Right: bell + user */}
