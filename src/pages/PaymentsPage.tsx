@@ -91,7 +91,7 @@ const PaymentsPage = () => {
     setSyncLoading(true);
     try{
       const m=dayjs(selectedMonth).format('YYYY-MM');
-      const r=await fetch(`/api/sync-bank-payments?month=${m}`);
+      const r=await fetch(`/api/sync-iso-payments?action=bank-preview&month=${m}`);
       const data=await r.json();
       if(!r.ok)throw new Error(data.error||'Sync failed');
       setSyncData(data);
@@ -108,7 +108,7 @@ const PaymentsPage = () => {
     setConfirming(true);
     try{
       const m=dayjs(selectedMonth).format('YYYY-MM');
-      const r=await fetch(`/api/sync-bank-payments?month=${m}`,{
+      const r=await fetch(`/api/sync-iso-payments?action=bank-confirm&month=${m}`,{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({preview:syncData.preview})
