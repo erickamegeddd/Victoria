@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect } from "react";
 import { Avatar, Badge, Dropdown, Menu } from "antd";
-import { UserOutlined, LogoutOutlined, BellOutlined, BarChartOutlined, SnippetsOutlined, DiffOutlined, SettingOutlined, DollarOutlined, AreaChartOutlined, BulbOutlined, BankOutlined, MailOutlined } from "@ant-design/icons";
+import { UserOutlined, LogoutOutlined, BellOutlined, BarChartOutlined, SnippetsOutlined, DiffOutlined, SettingOutlined, DollarOutlined, AreaChartOutlined, BulbOutlined, BankOutlined, MailOutlined, CloseOutlined } from "@ant-design/icons";
 import { LuUsers } from "react-icons/lu";
 import { LiaFileInvoiceDollarSolid } from "react-icons/lia";
 import { MdPayment } from "react-icons/md";
@@ -15,7 +15,6 @@ import ResetPassWordIcon from "../ui/ResetPasswordIcon";
 import dayjs from "dayjs";
 
 const parseExpDate = (notes) => { if (!notes) return null; const m = notes.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/); return m ? m[1] : null; };
-const fmtMoney = (n) => n != null ? `$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : "--";
 
 const ic = (icon, color) => (<span style={{color, fontSize:15, display:"inline-flex", alignItems:"center"}}>{icon}</span>);
 
@@ -51,6 +50,10 @@ const HeaderComponent = () => {
   const [isModalVisible, setModalVisible] = useState(false);
   const [overduePayments, setOverduePayments] = useState([]);
   const [bellOpen, setBellOpen] = useState(false);
+  const [dismissed, setDismissed] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("dismissed_notifs") || "[]")); }
+    catch { return new Set(); }
+  });
 
   useEffect(() => { fetchOverdue(); }, []);
 
@@ -58,10 +61,44 @@ const HeaderComponent = () => {
     const { data } = await supabase.from("iso_payments").select("*, isos(name)").is("received_amount", null);
     if (!data) return;
     const today = dayjs().format("YYYY-MM-DD");
-    setOverduePayments(
-      data.filter(p => { const exp = parseExpDate(p.notes); return exp && exp < today; })
-          .map(p => ({ id: p.id, isoName: p.isos?.name || "Unknown ISO", month: p.report_month, expDate: parseExpDate(p.notes), expected: p.expected_amount }))
-    );
+    const overdue = data
+      .filter(p => { const exp = parseExpDate(p.notes); return exp && exp < today; })
+      .map(p => ({ id: p.id, isoName: p.isos?.name || "Unknown ISO", iso_id: p.iso_id, month: p.report_month, expDate: parseExpDate(p.notes), computedAmount: 0 }));
+
+    if (overdue.length > 0) {
+      const isoIds = [...new Set(overdue.map(p => p.iso_id))];
+      const { data: residuals } = await supabase
+        .from("residuals")
+        .select("iso_id, report_month, paydiversenet")
+        .in("iso_id", isoIds);
+      const resMap = {};
+      if (residuals) {
+        residuals.forEach(r => {
+          const k = `${r.iso_id}|${r.report_month}`;
+          resMap[k] = (resMap[k] || 0) + (r.paydiversenet || 0);
+        });
+      }
+      setOverduePayments(
+        overdue.map(p => ({ ...p, computedAmount: Math.round((resMap[`${p.iso_id}|${p.month}`] || 0) * 100) / 100 }))
+      );
+    } else {
+      setOverduePayments([]);
+    }
+  };
+
+  const dismiss = (id, e) => {
+    e.stopPropagation();
+    const next = new Set(dismissed);
+    next.add(id);
+    setDismissed(next);
+    localStorage.setItem("dismissed_notifs", JSON.stringify([...next]));
+  };
+
+  const dismissAll = (e) => {
+    e.stopPropagation();
+    const next = new Set(overduePayments.map(p => p.id));
+    setDismissed(next);
+    localStorage.setItem("dismissed_notifs", JSON.stringify([...next]));
   };
 
   const userMenuItems = [
@@ -69,26 +106,47 @@ const HeaderComponent = () => {
     { key: "2", label: (<span onClick={(e) => { e.stopPropagation(); handleLogout(navigate); }} style={{ color: "#f87171", width: "100%" }}><LogoutOutlined style={{ marginRight: "10px" }} />Logout</span>) },
   ];
 
+  const visible = overduePayments.filter(p => !dismissed.has(p.id));
+
   const bellContent = (
-    <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.15)", minWidth: 300, maxWidth: 380, border: "1px solid #e5e7eb", overflow: "hidden" }}>
-      <div style={{ padding: "12px 16px 10px", borderBottom: "1px solid #f3f4f6", display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontWeight: 700, fontSize: 14 }}>Payment Notifications</span>
-        {overduePayments.length > 0 && <span style={{ background: "#dc2626", color: "#fff", borderRadius: 10, padding: "1px 8px", fontSize: 11, fontWeight: 700 }}>{overduePayments.length}</span>}
+    <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.15)", minWidth: 340, maxWidth: 420, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+      <div style={{ padding: "12px 16px 10px", borderBottom: "1px solid #f3f4f6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontWeight: 700, fontSize: 14 }}>Payment Notifications</span>
+          {visible.length > 0 && <span style={{ background: "#dc2626", color: "#fff", borderRadius: 10, padding: "1px 8px", fontSize: 11, fontWeight: 700 }}>{visible.length}</span>}
+        </div>
+        {visible.length > 0 && (
+          <span onClick={dismissAll} style={{ fontSize: 11, color: "#9ca3af", cursor: "pointer", userSelect: "none" }}
+            onMouseEnter={e => e.currentTarget.style.color = "#dc2626"}
+            onMouseLeave={e => e.currentTarget.style.color = "#9ca3af"}>
+            Clear all
+          </span>
+        )}
       </div>
-      {overduePayments.length === 0 ? (
+      {visible.length === 0 ? (
         <div style={{ padding: "24px 16px", textAlign: "center", color: "#6b7280", fontSize: 13 }}>No overdue payments</div>
       ) : (
-        <div style={{ maxHeight: 340, overflowY: "auto" }}>
-          {overduePayments.map(p => (
+        <div style={{ maxHeight: 360, overflowY: "auto" }}>
+          {visible.map(p => (
             <div key={p.id} style={{ padding: "10px 16px", borderBottom: "1px solid #f9fafb", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
               onClick={() => { navigate("/home/payments"); setBellOpen(false); }}>
-              <div>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 600, fontSize: 13, color: "#111" }}>{p.isoName}</div>
                 <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
-                  {p.month ? dayjs(p.month).format("MMMM YYYY") : "--"} - Due {dayjs(p.expDate).format("MMM D, YYYY")}
+                  {p.month ? dayjs(p.month).format("MMMM YYYY") : "--"} &middot; Due {dayjs(p.expDate).format("MMM D, YYYY")}
                 </div>
               </div>
-              <div style={{ color: "#dc2626", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", marginLeft: 12 }}>{fmtMoney(p.expected)}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: 12, flexShrink: 0 }}>
+                <span style={{ color: "#dc2626", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
+                  {p.computedAmount > 0 ? `$${p.computedAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "--"}
+                </span>
+                <span onClick={(e) => dismiss(p.id, e)}
+                  style={{ color: "#d1d5db", fontSize: 13, cursor: "pointer", lineHeight: 1, padding: "2px 3px", borderRadius: 4, display: "inline-flex", alignItems: "center" }}
+                  onMouseEnter={e => e.currentTarget.style.color = "#dc2626"}
+                  onMouseLeave={e => e.currentTarget.style.color = "#d1d5db"}>
+                  <CloseOutlined />
+                </span>
+              </div>
             </div>
           ))}
         </div>
@@ -139,7 +197,7 @@ const HeaderComponent = () => {
         {/* Horizontal Nav */}
         <Menu
           mode="horizontal"
-          selectedKeys={[getSelectedKey()]} 
+          selectedKeys={[getSelectedKey()]}
           onClick={({ key }) => { if (key !== "admin") navigate(key); }}
           items={visibleNavItems}
           theme="dark"
@@ -150,8 +208,8 @@ const HeaderComponent = () => {
         <div style={{ display: "flex", alignItems: "center", gap: 20, flexShrink: 0 }}>
           <Dropdown open={bellOpen} onOpenChange={setBellOpen} dropdownRender={() => bellContent} trigger={["click"]} placement="bottomRight">
             <div style={{ cursor: "pointer", padding: "4px 6px", borderRadius: 8 }}>
-              <Badge count={overduePayments.length} size="small" color="#dc2626">
-                <BellOutlined style={{ fontSize: 22, color: overduePayments.length > 0 ? "#fca5a5" : "rgba(255,255,255,0.8)" }} />
+              <Badge count={visible.length} size="small" color="#dc2626">
+                <BellOutlined style={{ fontSize: 22, color: visible.length > 0 ? "#fca5a5" : "rgba(255,255,255,0.8)" }} />
               </Badge>
             </div>
           </Dropdown>
