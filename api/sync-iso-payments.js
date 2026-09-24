@@ -1,12 +1,11 @@
 // api/sync-iso-payments.js
-// Two modes:
+// Modes:
 //   GET  ?month=YYYY-MM-DD        → sync expected_amount from residuals
 //   GET  ?action=bank-preview&month=YYYY-MM  → preview bank transactions matched to ISOs
 //   POST ?action=bank-confirm&month=YYYY-MM  → write received_amounts from bank
 
 const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
 const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ1cWZsb2Z1emh5YnV0a2t6cm9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwNDE3NTYsImV4cCI6MjEwMTYxNzU2fQ.46kKCy_3cY7oKuONb9e2e18yKVNui3oSOzySK33fMFE";
-const CELESTRA_API = "https://celestra-life-dashboard-two.vercel.app/api/data";
 
 function getKey() {
   return process.env.SUPABASE_SERVICE_KEY || ANON_KEY;
@@ -45,26 +44,75 @@ async function sbPost(path, body, extraHeaders = {}) {
   });
 }
 
-// ── Bank sync helpers ─────────────────────────────────────────────────────────
+// ─── SimpleFIN helpers ─────────────────────────────────────────────────────────
+
+// accessUrl format: https://USER:PASS@beta-bridge.simplefin.org/simplefin
+async function fetchSimpleFIN(accessUrl, startTs, endTs) {
+  const u = new URL(accessUrl);
+  const base = `${u.protocol}//${u.host}${u.pathname}`;
+  const creds = Buffer.from(`${u.username}:${u.password}`).toString("base64");
+  const res = await fetch(`${base}/accounts?start-date=${startTs}&end-date=${endTs}`, {
+    headers: { Authorization: `Basic ${creds}` }
+  });
+  if (!res.ok) throw new Error(`SimpleFIN HTTP ${res.status}`);
+  return res.json();
+}
+
+async function getSimpleFINTransactions(month) {
+  // month is YYYY-MM — get Unix timestamps for start of month and start of next month (UTC)
+  const [year, mon] = month.split("-").map(Number);
+  const startTs = Math.floor(Date.UTC(year, mon - 1, 1) / 1000);
+  const endTs = Math.floor(Date.UTC(year, mon, 1) / 1000);
+
+  const urls = [process.env.SFIN_URL_1, process.env.SFIN_URL_2].filter(Boolean);
+  if (!urls.length) throw new Error("No SimpleFIN URLs configured (SFIN_URL_1 / SFIN_URL_2)");
+
+  const allTxs = [];
+  const errs = [];
+
+  for (const url of urls) {
+    try {
+      const data = await fetchSimpleFIN(url, startTs, endTs);
+      for (const acct of data.accounts || []) {
+        for (const tx of acct.transactions || []) {
+          const amount = parseFloat(tx.amount);
+          // Only positive amounts = deposits/credits coming into the account
+          if (amount > 0) {
+            const d = new Date(tx.posted * 1000);
+            allTxs.push({
+              date: d.toISOString().slice(0, 10),
+              description: tx.description || tx.memo || tx.payee || "",
+              payee: tx.payee || "",
+              amount,
+              account: acct.name || ""
+            });
+          }
+        }
+      }
+    } catch (e) {
+      errs.push(e.message);
+    }
+  }
+
+  if (!allTxs.length && errs.length) throw new Error(errs.join("; "));
+  return allTxs;
+}
+
+// ─── Bank sync handlers ────────────────────────────────────────────────────────
 
 async function bankPreview(month, res) {
   const mappings = await sbGet("iso_bank_mappings?select=*,isos(id,name)&order=created_at.asc").catch(() => []);
   const active = (Array.isArray(mappings) ? mappings : []).filter(m => m.keywords && m.keywords.trim());
   if (!active.length) {
-    return res.json({ preview: [], month, message: "No bank mappings configured yet." });
+    return res.json({ preview: [], month, message: "No bank mappings configured yet. Set them up under Administrator > Bank Mappings." });
   }
 
-  const startDate = `${month}-01`;
-  let celData;
+  let txs;
   try {
-    const r = await fetch(`${CELESTRA_API}?start_date=${startDate}`);
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    celData = await r.json();
+    txs = await getSimpleFINTransactions(month);
   } catch (e) {
-    return res.status(502).json({ error: `Could not reach Celestra: ${e.message}` });
+    return res.status(502).json({ error: `Could not reach SimpleFIN: ${e.message}` });
   }
-
-  const txs = (celData.rows || []).filter(tx => tx.month === month && tx.amount < 0);
 
   const isoMap = {};
   for (const m of active) {
@@ -74,10 +122,10 @@ async function bankPreview(month, res) {
   }
 
   for (const tx of txs) {
-    const haystack = `${tx.description || ""} ${tx.payee || ""}`.toLowerCase();
+    const haystack = `${tx.description} ${tx.payee}`.toLowerCase();
     for (const iso of Object.values(isoMap)) {
       if (iso.keywords.some(kw => haystack.includes(kw))) {
-        iso.transactions.push({ date: tx.date, description: tx.description || tx.payee || "", amount: Math.abs(tx.amount) });
+        iso.transactions.push({ date: tx.date, description: tx.description, amount: tx.amount });
         break;
       }
     }
@@ -148,7 +196,7 @@ async function bankConfirm(month, preview, res) {
   return res.json({ ok: true, written, errors: errors.length ? errors : undefined });
 }
 
-// ── Main handler ──────────────────────────────────────────────────────────────
+// ─── Main handler ──────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -157,7 +205,6 @@ export default async function handler(req, res) {
 
   const { action, month } = req.query;
 
-  // Bank sync routes
   if (action === "bank-preview" && req.method === "GET") {
     if (!month || !/^\d{4}-\d{2}$/.test(month)) return res.status(400).json({ error: "month required (YYYY-MM)" });
     return bankPreview(month, res);
