@@ -38,7 +38,7 @@ const Dashboard = () => {
   const [residuals, setResiduals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedIso, setSelectedIso] = useState(undefined);
-  const LATEST_MONTH = '2026-07-01';
+  const LATEST_MONTH = dayjs().format('YYYY-MM-01');
   const [selectedMonth, setSelectedMonth] = useState(LATEST_MONTH);
   const [activeTab, setActiveTab] = useState('residuals');
   const [outerTab, setOuterTab] = useState('monthly');
@@ -167,7 +167,7 @@ const Dashboard = () => {
       <Card>
         <div style={{marginBottom:16}}>
           <div style={{fontWeight:700,fontSize:16,color:'#111'}}>Monthly PayDiverse Net Income</div>
-          <div style={{color:'#6b7280',fontSize:13}}>Jan 2026 - Jul 2026 · All ISOs combined</div>
+          <div style={{color:'#6b7280',fontSize:13}}>{chartRange}</div>
         </div>
         <ResponsiveContainer width="100%" height={360}>
           <LineChart data={monthlyData} margin={{top:10,right:30,left:10,bottom:10}}>
@@ -190,6 +190,10 @@ const Dashboard = () => {
     </div>
   );
 
+  const chartRange = monthlyData.length > 0
+    ? `${monthlyData[0].month} - ${monthlyData[monthlyData.length-1].month} · All ISOs combined`
+    : 'All ISOs combined';
+
   return (
     <div>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
@@ -203,7 +207,7 @@ const Dashboard = () => {
           <div>
             <div style={{color:'rgba(255,255,255,0.7)',fontSize:13,fontWeight:500,marginBottom:4,textTransform:'uppercase',letterSpacing:'0.5px'}}>All Time Total Revenue</div>
             <div style={{color:'#fff',fontSize:34,fontWeight:800,letterSpacing:'-0.5px'}}>{fmt(allTimeRevenue)}</div>
-            <div style={{color:'rgba(255,255,255,0.55)',fontSize:12,marginTop:4}}>Jan 2026 - Jul 2026 · All ISOs combined</div>
+            <div style={{color:'rgba(255,255,255,0.55)',fontSize:12,marginTop:4}}>{chartRange}</div>
           </div>
           <div>
             <div style={{color:'rgba(255,255,255,0.6)',fontSize:11,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:2}}>Total Processed Volume</div>
