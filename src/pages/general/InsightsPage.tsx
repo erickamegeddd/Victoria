@@ -253,7 +253,7 @@ const InsightsPage=()=>{
     setMonthlyTrend(Object.entries(map).sort(([a],[b])=>a.localeCompare(b)).map(([,v])=>v));
   };
 
-  const isAdjEntry=(name)=>{if(!name)return false;const n=name.toLowerCase();return n.includes("monthly payout")||n.includes("deduction")||n.includes("adjustment")||n.endsWith(" total")||/\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+20\d{2}\b/.test(n);};
+  const isAdjEntry=(name)=>{if(!name)return false;const n=name.toLowerCase();return n.includes("monthly payout")||n.includes("monthly residual")||n.includes("residual")||n.includes("deduction")||n.includes("adjustment")||n.endsWith(" total")||/\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+20\d{2}\b/.test(n);};
   const groupData=(rows)=>{const map={};rows.forEach(r=>{const k=r.iso_id;if(!map[k])map[k]={isoId:k,isoName:r.isos?.name||"Unknown",rows:[],totalNet:0,totalVolume:0,mids:new Map()};map[k].rows.push(r);map[k].totalNet+=(r.paydiversenet||0);map[k].totalVolume+=(r.gross_volume||0);// Skip summary placeholders, gateway MIDs, and fee/adjustment entries from merchant count
 const _mid=String(r.mid||"").trim();if(!r.mid?.includes("-summary")&&!gatewayMids.has(_mid)&&!isAdjEntry(r.business_name)&&!isAdjEntry(_mid)){map[k].mids.set(r.mid,r.business_name||r.mid);}});return map;};
 
