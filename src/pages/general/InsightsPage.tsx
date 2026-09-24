@@ -108,31 +108,32 @@ const CompareChart = ({ items, labelA, labelB }) => {
   );
 };
 
-const generateSummary=(netChange,netPct,lostMerchants,newMerchants,hasDataA,hasDataB,netA)=>{
+const generateSummary=(netChange,netPct,lostMerchants,newMerchants,hasDataA,hasDataB,netA,labelA,labelB)=>{
   if(!hasDataA&&hasDataB)return{type:"warning",text:"No data for the earlier period — this ISO may be new or the report hasn't been uploaded yet."};
   if(hasDataA&&!hasDataB)return{type:"warning",text:`No report uploaded for the later period yet. Last recorded net income was ${fmt(netA)}.`};
   if(!hasDataA&&!hasDataB)return{type:"info",text:"No data found for either period."};
   const pct=Math.abs(netPct).toFixed(1);const amt=fmt(Math.abs(netChange));
   const lostNames=(arr)=>{const n=arr.slice(0,3).map(m=>m.name).join(", ");return arr.length>3?`${n} and ${arr.length-3} more`:n;};
+  const pA=labelA||"prior period",pB=labelB||"this period";
   if(netChange<-50){
     let text=`Income dropped ${pct}% (${amt}).`;
-    if(lostMerchants.length>0)text+=` ${lostMerchants.length} merchant${lostMerchants.length>1?"s":""} stopped processing: ${lostNames(lostMerchants)}.`;
-    if(newMerchants.length>0)text+=` ${newMerchants.length} new merchant${newMerchants.length>1?"s":""} joined (${lostNames(newMerchants)}) but didn't offset the drop.`;
+    if(lostMerchants.length>0)text+=` ${lostMerchants.length} merchant${lostMerchants.length>1?"s":""} not processing in ${pB}: ${lostNames(lostMerchants)}.`;
+    if(newMerchants.length>0)text+=` ${newMerchants.length} merchant${newMerchants.length>1?"s":""} active in ${pB} but not ${pA} (${lostNames(newMerchants)}) — not enough to offset the drop.`;
     if(!lostMerchants.length&&!newMerchants.length)text+=` Same merchants — likely lower processing volume, rate changes, or higher fees.`;
     return{type:"error",text};
   }
   if(netChange>50){
     let text=`Income grew ${pct}% (${amt}).`;
-    if(newMerchants.length>0)text+=` ${newMerchants.length} new merchant${newMerchants.length>1?"s":""} contributed: ${lostNames(newMerchants)}.`;
-    if(lostMerchants.length>0)text+=` ${lostMerchants.length} merchant${lostMerchants.length>1?"s":""} stopped processing (${lostNames(lostMerchants)}) but didn't prevent the gain.`;
+    if(newMerchants.length>0)text+=` ${newMerchants.length} merchant${newMerchants.length>1?"s":""} active in ${pB} but not ${pA}: ${lostNames(newMerchants)}.`;
+    if(lostMerchants.length>0)text+=` ${lostMerchants.length} merchant${lostMerchants.length>1?"s":""} not processing in ${pB} (${lostNames(lostMerchants)}) — didn't prevent the gain.`;
     if(!newMerchants.length&&!lostMerchants.length)text+=` Existing merchants processed more volume.`;
     return{type:"success",text};
   }
   if(Math.abs(netPct)<2)return{type:"success",text:"Income is stable — no significant changes detected."};
   let text=`Income ${netChange<0?"dipped":"nudged"} ${pct}%.`;
   const parts=[];
-  if(lostMerchants.length>0)parts.push(`${lostMerchants.length} merchant${lostMerchants.length>1?"s":""} stopped processing`);
-  if(newMerchants.length>0)parts.push(`${newMerchants.length} new merchant${newMerchants.length>1?"s":""} joined`);
+  if(lostMerchants.length>0)parts.push(`${lostMerchants.length} merchant${lostMerchants.length>1?"s":""} not processing in ${pB}`);
+  if(newMerchants.length>0)parts.push(`${newMerchants.length} merchant${newMerchants.length>1?"s":""} active in ${pB} but not ${pA}`);
   if(parts.length)text+=` (${parts.join(", ")}) — overall impact was small.`;
   else text+=` Same merchants, small volume shift.`;
   return{type:"info",text};
@@ -184,7 +185,7 @@ const ISOCard=({iso,labelA,labelB})=>{
           {iso.lostMerchants.length>0&&(
             <div style={{marginBottom:iso.newMerchants.length>0?8:0}}>
               <Text style={{fontSize:12,fontWeight:700,color:"#dc2626",display:"block",marginBottom:6}}>
-                <UserDeleteOutlined style={{marginRight:4}}/>{iso.lostMerchants.length} Left
+                <UserDeleteOutlined style={{marginRight:4}}/>{iso.lostMerchants.length} Not processing in {labelB}
               </Text>
               <Space wrap size={4}>
                 {iso.lostMerchants.map(m=><Tag key={m.mid} style={{margin:0,background:"#fef2f2",borderColor:"#fecaca",color:"#dc2626"}}>{m.name}</Tag>)}
@@ -194,7 +195,7 @@ const ISOCard=({iso,labelA,labelB})=>{
           {iso.newMerchants.length>0&&(
             <div>
               <Text style={{fontSize:12,fontWeight:700,color:"#059669",display:"block",marginBottom:6}}>
-                <UserAddOutlined style={{marginRight:4}}/>{iso.newMerchants.length} New
+                <UserAddOutlined style={{marginRight:4}}/>{iso.newMerchants.length} Active in {labelB} (not in {labelA})
               </Text>
               <Space wrap size={4}>
                 {iso.newMerchants.map(m=><Tag key={m.mid} style={{margin:0,background:"#f0fdf4",borderColor:"#bbf7d0",color:"#059669"}}>{m.name}</Tag>)}
@@ -271,7 +272,7 @@ const _mid=String(r.mid||"").trim();if(!r.mid?.includes("-summary")&&!gatewayMid
       const lostMerchants=b?[...midsA.entries()].filter(([mid])=>!midsB.has(mid)).map(([mid,name])=>({mid,name})):[];
       const histIso=historicalMids?.get(isoId)||null;
       const newMerchants=histIso?[...midsB.entries()].filter(([mid])=>!histIso.has(mid)).map(([mid,name])=>({mid,name})):a?[...midsB.entries()].filter(([mid])=>!midsA.has(mid)).map(([mid,name])=>({mid,name})):[];
-      const summary=generateSummary(netChange,netPct,lostMerchants,newMerchants,!!a,!!b,netA);
+      const summary=generateSummary(netChange,netPct,lostMerchants,newMerchants,!!a,!!b,netA,labelA,labelB);
       return{isoId,isoName,netA,netB,netChange,netPct,volA,volB,volChange,volPct,midsA:midsA.size,midsB:midsB.size,lostMerchants,newMerchants,hasDataA:!!a,hasDataB:!!b,summary};
     }).sort((a,b)=>Math.abs(b.netChange)-Math.abs(a.netChange));
     const totNetA=rowsA.reduce((s,r)=>s+(r.paydiversenet||0),0),totNetB=rowsB.reduce((s,r)=>s+(r.paydiversenet||0),0);
@@ -480,8 +481,8 @@ const _mid=String(r.mid||"").trim();if(!r.mid?.includes("-summary")&&!gatewayMid
                         <div>
                           <Text strong style={{fontSize:14}}>{m.name}</Text>
                           {m.isoName&&<Tag style={{marginLeft:8}} color="blue">{m.isoName}</Tag>}
-                          {!m.hasDataB&&<Tag color="red" style={{marginLeft:4}}>Lost</Tag>}
-                          {!m.hasDataA&&<Tag color="green" style={{marginLeft:4}}>New</Tag>}
+                          {!m.hasDataB&&<Tag color="red" style={{marginLeft:4}}>Not in {comparison.labelB}</Tag>}
+                          {!m.hasDataA&&<Tag color="green" style={{marginLeft:4}}>Not in {comparison.labelA}</Tag>}
                           <div style={{fontSize:11,color:"var(--muted-color)",marginTop:2}}>MID: {m.mid}</div>
                         </div>
                         <Space align="center">
