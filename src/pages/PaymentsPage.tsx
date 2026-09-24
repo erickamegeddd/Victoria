@@ -94,10 +94,10 @@ const PaymentsPage = () => {
     }
   };
 
-  const getExpectedByISO=()=>{const map={};residuals.forEach(r=>{const k=r.iso_id;if(!map[k])map[k]={isoId:k,isoName:r.isos?.name||'Unknown',expected:0};map[k].expected+=(r.paydiversenet||0);});payments.forEach(p=>{if(map[p.iso_id]&&p.expected_amount!=null)map[p.iso_id].expected=p.expected_amount;});return Object.values(map).sort((a,b)=>a.isoName.localeCompare(b.isoName));};
+  const getExpectedByISO=()=>{const map={};residuals.forEach(r=>{const k=r.iso_id;if(!map[k])map[k]={isoId:k,isoName:r.isos?.name||'Unknown',expected:0};map[k].expected+=(r.paydiversenet||0);});payments.forEach(p=>{if(map[p.iso_id]&&p.expected_amount!=null)map[p.iso_id].expected=p.expected_amount;});payments.forEach(p=>{if(!map[p.iso_id]&&p.received_amount!=null){map[p.iso_id]={isoId:p.iso_id,isoName:p.isos?.name||'Unknown',expected:null};}});return Object.values(map).sort((a,b)=>a.isoName.localeCompare(b.isoName));};
   const getPaymentForISO=(isoId)=>payments.find(p=>p.iso_id===isoId);
-  const getStatus=(expected,received)=>{if(received==null)return'pending';const d=received-expected;if(Math.abs(d)<0.01)return'paid';if(d<0)return'short_paid';return'overpaid';};
-  const STATUS_CONFIG={pending:{label:'Pending',color:'default'},paid:{label:'Paid',color:'green'},short_paid:{label:'Short Paid',color:'red'},overpaid:{label:'Overpaid',color:'blue'}};
+  const getStatus=(expected,received)=>{if(received==null)return'pending';if(expected==null)return'received';const d=received-expected;if(Math.abs(d)<0.01)return'paid';if(d<0)return'short_paid';return'overpaid';};
+  const STATUS_CONFIG={pending:{label:'Pending',color:'default'},paid:{label:'Paid',color:'green'},short_paid:{label:'Short Paid',color:'red'},overpaid:{label:'Overpaid',color:'blue'},received:{label:'Received',color:'cyan'}};
 
   const saveExpected=async(isoId, isoName, newAmount)=>{
     const val=parseFloat(String(newAmount).replace(/[^0-9.-]/g,''));
@@ -159,7 +159,7 @@ const PaymentsPage = () => {
   const shortPaid=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return p&&getStatus(i.expected,p.received_amount)==='short_paid';}).length;
   const pending=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return !p||p.received_amount==null;}).length;
   const overpaid=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return p&&getStatus(i.expected,p.received_amount)==='overpaid';}).length;
-  const totalOutstanding=expectedByISO.reduce((s,i)=>{const p=getPaymentForISO(i.isoId);const received=p?.received_amount||0;const diff=i.expected-received;return diff>0?s+diff:s;},0);
+  const totalOutstanding=expectedByISO.reduce((s,i)=>{if(i.expected==null)return s;const p=getPaymentForISO(i.isoId);const received=p?.received_amount||0;const diff=i.expected-received;return diff>0?s+diff:s;},0);
 
   const filteredISOs=activeStatusFilter?expectedByISO.filter(r=>{const p=getPaymentForISO(r.isoId);return getStatus(r.expected,p?.received_amount)===activeStatusFilter;}):expectedByISO;
 
@@ -169,7 +169,7 @@ const PaymentsPage = () => {
       onFilter:(val,r)=>r.isoId===val,
       filterSearch:true,
       render:(_,r)=><Text strong>{r.isoName}</Text>},
-    {title:'Expected',key:'exp',align:'right',width:150,sorter:(a,b)=>a.expected-b.expected,render:(_,r)=>{
+    {title:'Expected',key:'exp',align:'right',width:150,sorter:(a,b)=>(a.expected??-1)-(b.expected??-1),render:(_,r)=>{
       const p=getPaymentForISO(r.isoId);
       const displayVal=p?.expected_amount!=null?p.expected_amount:r.expected;
       const isEditing=editingExpected[r.isoId]!==undefined;
@@ -181,9 +181,9 @@ const PaymentsPage = () => {
           <Button size="small" onClick={()=>setEditingExpected(prev=>{const n={...prev};delete n[r.isoId];return n;})}>&#10005;</Button>
         </Space>
       );
-      return<Text strong style={{color:'var(--primary-color)',cursor:'pointer'}} onClick={()=>setEditingExpected(prev=>({...prev,[r.isoId]:String(displayVal)}))} title="Click to edit">{fmt(displayVal)}</Text>;}},
+      return<Text strong style={{color:'var(--primary-color)',cursor:'pointer'}} onClick={()=>setEditingExpected(prev=>({...prev,[r.isoId]:displayVal!=null?String(displayVal):''}))} title="Click to edit">{fmt(displayVal)}</Text>;}},
     {title:'Received',key:'rec',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return(pa?.received_amount||0)-(pb?.received_amount||0);},render:(_,r)=>{const p=getPaymentForISO(r.isoId);return p?.received_amount!=null?<Text strong style={{color:'#059669'}}>{fmt(p.received_amount)}</Text>:<Text style={{color:'var(--muted-color)'}}>--</Text>;}},
-    {title:'Difference',key:'diff',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return((pa?.received_amount||0)-a.expected)-((pb?.received_amount||0)-b.expected);},render:(_,r)=>{const p=getPaymentForISO(r.isoId);if(p?.received_amount==null)return<Text style={{color:'var(--muted-color)'}}>--</Text>;const diff=(p?.received_amount||0)-r.expected;return<Text strong style={{color:Math.abs(diff)<0.01?'#059669':diff<0?'#dc2626':'#2563eb'}}>{diff>=0?'+':''}{fmt(diff)}</Text>;}},
+    {title:'Difference',key:'diff',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return((pa?.received_amount||0)-(a.expected??0))-((pb?.received_amount||0)-(b.expected??0));},render:(_,r)=>{const p=getPaymentForISO(r.isoId);if(p?.received_amount==null||r.expected==null)return<Text style={{color:'var(--muted-color)'}}>--</Text>;const diff=(p?.received_amount||0)-r.expected;return<Text strong style={{color:Math.abs(diff)<0.01?'#059669':diff<0?'#dc2626':'#2563eb'}}>{diff>=0?'+':''}{fmt(diff)}</Text>;}},
     {title:'Status',key:'status',
       filters:[{text:'Paid',value:'paid'},{text:'Short Paid',value:'short_paid'},{text:'Pending',value:'pending'},{text:'Overpaid',value:'overpaid'}],
       onFilter:(val,r)=>{const p=getPaymentForISO(r.isoId);return getStatus(r.expected,p?.received_amount)===val;},
@@ -251,7 +251,7 @@ const PaymentsPage = () => {
               scroll={{x:1000,y:'calc(100vh - 340px)'}}
               onRow={r=>({style:{background:(()=>{const p=getPaymentForISO(r.isoId);const s=p?getStatus(r.expected,p.received_amount):'pending';if(s==='short_paid')return'#fff5f5';if(s==='pending')return'#fffbeb';if(s==='paid')return'#f0fdf4';return undefined;})()}})}
               summary={()=>{
-                const tExp=filteredISOs.reduce((s,r)=>{const p=getPaymentForISO(r.isoId);return s+(p?.expected_amount!=null?p.expected_amount:r.expected);},0);
+                const tExp=filteredISOs.reduce((s,r)=>{const p=getPaymentForISO(r.isoId);const exp=p?.expected_amount!=null?p.expected_amount:r.expected;return s+(exp??0);},0);
                 const tRec=filteredISOs.reduce((s,r)=>{const p=getPaymentForISO(r.isoId);return s+(p?.received_amount||0);},0);
                 const tDiff=tRec-tExp;
                 return(
