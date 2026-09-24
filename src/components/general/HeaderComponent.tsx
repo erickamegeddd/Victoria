@@ -63,7 +63,8 @@ const HeaderComponent = () => {
     const today = dayjs().format("YYYY-MM-DD");
     const overdue = data
       .filter(p => { const exp = parseExpDate(p.notes); return exp && exp < today; })
-      .map(p => ({ id: p.id, isoName: p.isos?.name || "Unknown ISO", iso_id: p.iso_id, month: p.report_month, expDate: parseExpDate(p.notes), computedAmount: 0 }));
+      .map(p => ({ id: p.id, isoName: p.isos?.name || "Unknown ISO", iso_id: p.iso_id, month: p.report_month, expDate: parseExpDate(p.notes), computedAmount: 0 }))
+      .sort((a, b) => b.month.localeCompare(a.month) || b.expDate.localeCompare(a.expDate));
 
     if (overdue.length > 0) {
       const isoIds = [...new Set(overdue.map(p => p.iso_id))];
