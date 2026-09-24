@@ -194,6 +194,22 @@ payments.forEach(p=>{if(map[p.iso_id]&&p.expected_amount!=null)map[p.iso_id].exp
           <Card><Table dataSource={filteredISOs} columns={reconCols} rowKey="isoId" pagination={false} size="middle"
             scroll={{x:1000,y:'calc(100vh - 340px)'}}
             onRow={r=>({style:{background:(()=>{const p=getPaymentForISO(r.isoId);const s=p?getStatus(r.expected,p.received_amount):'pending';if(s==='short_paid')return'#fff5f5';if(s==='pending')return'#fffbeb';if(s==='paid')return'#f0fdf4';return undefined;})()}})}
+            summary={()=>{
+              const tExp=filteredISOs.reduce((s,r)=>{const p=getPaymentForISO(r.isoId);return s+(p?.expected_amount!=null?p.expected_amount:r.expected);},0);
+              const tRec=filteredISOs.reduce((s,r)=>{const p=getPaymentForISO(r.isoId);return s+(p?.received_amount||0);},0);
+              const tDiff=tRec-tExp;
+              return(
+                <Table.Summary fixed>
+                  <Table.Summary.Row style={{background:'#0f2040',height:44}}>
+                    <Table.Summary.Cell index={0}><span style={{color:'rgba(255,255,255,0.8)',fontWeight:700,fontSize:13,textTransform:'uppercase',letterSpacing:'1px'}}>Total — {filteredISOs.length} ISO{filteredISOs.length!==1?'s':''}</span></Table.Summary.Cell>
+                    <Table.Summary.Cell index={1} align="right"><span style={{color:'#93c5fd',fontWeight:900,fontSize:15}}>{fmt(tExp)}</span></Table.Summary.Cell>
+                    <Table.Summary.Cell index={2} align="right"><span style={{color:'#6ee7b7',fontWeight:900,fontSize:15}}>{fmt(tRec)}</span></Table.Summary.Cell>
+                    <Table.Summary.Cell index={3} align="right"><span style={{color:tDiff>=0?'#6ee7b7':'#fca5a5',fontWeight:900,fontSize:15}}>{tDiff>=0?'+':''}{fmt(tDiff)}</span></Table.Summary.Cell>
+                    <Table.Summary.Cell index={4}/><Table.Summary.Cell index={5}/><Table.Summary.Cell index={6}/><Table.Summary.Cell index={7}/><Table.Summary.Cell index={8}/>
+                  </Table.Summary.Row>
+                </Table.Summary>
+              );
+            }}
           /></Card>
           {(()=>{
             const statusColor={paid:'#059669',short_paid:'#dc2626',overpaid:'#2563eb',pending:'#d97706'};
