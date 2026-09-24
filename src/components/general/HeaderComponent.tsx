@@ -34,6 +34,7 @@ const navItems = [
       { key: "/home/adjustments",  label: "Adjustments",  icon: ic(<LiaFileInvoiceDollarSolid />, "#f87171") },
       { key: "/home/agents",       label: "Agents Data",  icon: ic(<BarChartOutlined />, "#22d3ee") },
       { key: "/home/logs",         label: "Logs",         icon: ic(<SnippetsOutlined />, "#94a3b8") },
+      { key: "/home/bank-mappings", label: "Bank Mappings", icon: ic(<BankOutlined />, "#6ee7b7") },
     ]
   },
 ];
@@ -133,7 +134,7 @@ const HeaderComponent = () => {
               onClick={() => { navigate("/home/payments"); setBellOpen(false); }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 600, fontSize: 13, color: "#111" }}>{p.isoName}</div>
-                <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: "#6f7280", marginTop: 2 }}>
                   {p.month ? dayjs(p.month).format("MMMM YYYY") : "--"} &middot; Due {dayjs(p.expDate).format("MMM D, YYYY")}
                 </div>
               </div>
@@ -156,7 +157,7 @@ const HeaderComponent = () => {
   );
 
   const getSelectedKey = () => {
-    const adminPaths = ["/home/users","/home/adjustments","/home/agents","/home/logs"];
+    const adminPaths = ["/home/users","/home/adjustments","/home/agents","/home/logs","/home/bank-mappings"];
     if (adminPaths.some(p => currentPath.startsWith(p))) return currentPath;
     if (currentPath.startsWith("/home/merchants")) return "/home/merchants";
     return currentPath;
