@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
 import { Card, Row, Col, Table, Button, Typography, Space, Statistic, Tag, Alert, Modal, Select, DatePicker, Input, Tooltip, message } from "antd";
-import { DollarOutlined, LeftOutlined, RightOutlined, SyncOutlined, BankOutlined, CaretDownOutlined, CaretRightOutlined, CheckCircleOutlined, LoadingOutlined } from "@ant-design/icons";
+import { DollarOutlined, LeftOutlined, RightOutlined, SyncOutlined, CheckCircleOutlined, LoadingOutlined } from "@ant-design/icons";
 import { supabase } from "../utils/supabase";
 import dayjs from "dayjs";
 const { Title, Text } = Typography;
@@ -30,16 +30,12 @@ const PaymentsPage = () => {
   const [savingExpected, setSavingExpected] = useState({}); // iso_id → day of month from historical records
 
   // Bank sync state
-  const [bankMappings, setBankMappings] = useState([]); // [{id, iso_id, keywords, isos:{name}}]
-  const [mappingsExpanded, setMappingsExpanded] = useState(false);
-  const [editingKeyword, setEditingKeyword] = useState({}); // iso_id → string
-  const [savingKeyword, setSavingKeyword] = useState({});
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncData, setSyncData] = useState(null); // { preview, month, totalTxsFetched, matched, unmatched }
   const [syncModal, setSyncModal] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
-  useEffect(()=>{fetchIsos();fetchAllPaymentDates();fetchBankMappings();},[]);
+  useEffect(()=>{fetchIsos();fetchAllPaymentDates();},[]);
   useEffect(()=>{fetchResiduals();fetchPayments();setActiveStatusFilter(null);},[selectedMonth]);
 
   const fetchIsos=async()=>{const{data}=await supabase.from('isos').select('*').eq('status','active').order('name');if(data)setIsos(data);};
@@ -56,35 +52,6 @@ const PaymentsPage = () => {
   };
   const fetchResiduals=async()=>{if(!selectedMonth)return;const{data}=await supabase.from('residuals').select('*,isos(id,name)').eq('report_month',selectedMonth).limit(500);if(data)setResiduals(data);};
   const fetchPayments=async()=>{if(!selectedMonth)return;const{data}=await supabase.from('iso_payments').select('*,isos(name)').eq('report_month',selectedMonth);if(data)setPayments(data);};
-
-  const fetchBankMappings=async()=>{
-    const{data}=await supabase.from('iso_bank_mappings').select('*,isos(id,name)').order('created_at');
-    if(data)setBankMappings(data);
-  };
-
-  const saveKeyword=async(isoId, isoName)=>{
-    const kw=(editingKeyword[isoId]||'').trim();
-    setSavingKeyword(p=>({...p,[isoId]:true}));
-    try{
-      const existing=bankMappings.find(m=>m.iso_id===isoId);
-      if(existing){
-        if(kw){
-          await supabase.from('iso_bank_mappings').update({keywords:kw,updated_at:new Date().toISOString()}).eq('id',existing.id);
-        } else {
-          await supabase.from('iso_bank_mappings').delete().eq('id',existing.id);
-        }
-      } else if(kw){
-        await supabase.from('iso_bank_mappings').insert({iso_id:isoId,keywords:kw});
-      }
-      await fetchBankMappings();
-      setEditingKeyword(p=>{const n={...p};delete n[isoId];return n;});
-      message.success(`Saved keywords for ${isoName}`);
-    }catch(e){
-      message.error('Save failed: '+e.message);
-    }finally{
-      setSavingKeyword(p=>{const n={...p};delete n[isoId];return n;});
-    }
-  };
 
   const syncFromBank=async()=>{
     if(!selectedMonth){message.warning('Select a month first');return;}
@@ -196,9 +163,6 @@ const PaymentsPage = () => {
 
   const filteredISOs=activeStatusFilter?expectedByISO.filter(r=>{const p=getPaymentForISO(r.isoId);return getStatus(r.expected,p?.received_amount)===activeStatusFilter;}):expectedByISO;
 
-  // Bank mappings lookup by iso_id
-  const mappingByIsoId=Object.fromEntries(bankMappings.map(m=>[m.iso_id,m]));
-
   const reconCols=[
     {title:'ISO',key:'iso',
       filters: expectedByISO.map(r=>({text:r.isoName,value:r.isoId})),
@@ -282,63 +246,6 @@ const PaymentsPage = () => {
           </div>
           {activeStatusFilter&&(<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12,padding:'8px 14px',background:'#eff6ff',borderRadius:10,border:'1px solid #bfdbfe'}}><Text style={{fontSize:13,fontWeight:600,color:'#1d4ed8'}}>{activeStatusFilter==='paid'?`Showing ${matched} ISO${matched!==1?'s':''} paid in full`:activeStatusFilter==='short_paid'?`Showing ${shortPaid} ISO${shortPaid!==1?'s':''} with short payments`:activeStatusFilter==='overpaid'?`Showing ${overpaid} overpaid ISO${overpaid!==1?'s':''}`:`Showing ${pending} pending ISO${pending!==1?'s':''}`}</Text><Button size="small" onClick={()=>setActiveStatusFilter(null)} style={{marginLeft:'auto'}}>Clear x</Button></div>)}
           {(shortPaid>0||pending>0)&&<Alert type="warning" showIcon style={{marginBottom:16}} message={`Action needed: ${shortPaid>0?`${shortPaid} ISO${shortPaid>1?'s':''} paid less than expected. `:''}${pending>0?`${pending} ISO${pending>1?' have':' has'} no payment recorded yet.`:''}`}/>}
-
-          {/* Bank Mappings collapsible section */}
-          <Card style={{marginBottom:16,borderRadius:10}} bodyStyle={{padding:0}}>
-            <div
-              style={{display:'flex',alignItems:'center',gap:8,padding:'10px 16px',cursor:'pointer',borderBottom:mappingsExpanded?'1px solid #f0f0f0':'none'}}
-              onClick={()=>setMappingsExpanded(v=>!v)}
-            >
-              {mappingsExpanded?<CaretDownOutlined style={{color:'#6b7280',fontSize:12}}/>:<CaretRightOutlined style={{color:'#6b7280',fontSize:12}}/>}
-              <BankOutlined style={{color:'#6ee7b7',fontSize:14}}/>
-              <Text style={{fontWeight:700,fontSize:13,color:'#374151'}}>Bank Keyword Mappings</Text>
-              <Text style={{fontSize:12,color:'#9ca3af',marginLeft:4}}>— map each ISO to its bank transaction description</Text>
-              <Tag style={{marginLeft:'auto',background:'#f0fdf4',color:'#059669',border:'1px solid #bbf7d0',fontWeight:600}}>{bankMappings.length} configured</Tag>
-            </div>
-            {mappingsExpanded&&(
-              <div style={{padding:'12px 16px'}}>
-                <Text style={{fontSize:12,color:'#6b7280',display:'block',marginBottom:10}}>
-                  Enter keywords from your bank statements (comma-separated for multiple). Example: <code style={{background:'#f3f4f6',padding:'1px 5px',borderRadius:3}}>CARDWORKS, CARD WORKS</code>
-                </Text>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px 24px'}}>
-                  {isos.map(iso=>{
-                    const mapping=mappingByIsoId[iso.id];
-                    const currentKw=mapping?.keywords||'';
-                    const isEditing=editingKeyword[iso.id]!==undefined;
-                    const isSaving=savingKeyword[iso.id];
-                    return(
-                      <div key={iso.id} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderBottom:'1px solid #f9fafb'}}>
-                        <Text style={{width:140,fontSize:12,fontWeight:600,flexShrink:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={iso.name}>{iso.name}</Text>
-                        {isEditing?(
-                          <Space size={4} style={{flex:1}}>
-                            <Input
-                              size="small"
-                              value={editingKeyword[iso.id]}
-                              onChange={e=>setEditingKeyword(p=>({...p,[iso.id]:e.target.value}))}
-                              placeholder="e.g. CARDWORKS, CARD WORKS"
-                              style={{fontSize:12}}
-                              onPressEnter={()=>saveKeyword(iso.id,iso.name)}
-                              autoFocus
-                            />
-                            <Button size="small" type="primary" loading={isSaving} onClick={()=>saveKeyword(iso.id,iso.name)}>&#10003;</Button>
-                            <Button size="small" onClick={()=>setEditingKeyword(p=>{const n={...p};delete n[iso.id];return n;})}>&#10005;</Button>
-                          </Space>
-                        ):(
-                          <div
-                            style={{flex:1,cursor:'pointer',padding:'2px 6px',borderRadius:4,background:currentKw?'#f0fdf4':'#fafafa',border:currentKw?'1px solid #bbf7d0':'1px dashed #d1d5db',fontSize:12,color:currentKw?'#059669':'#9ca3af',minHeight:24,display:'flex',alignItems:'center'}}
-                            onClick={()=>setEditingKeyword(p=>({...p,[iso.id]:currentKw}))}
-                            title="Click to edit"
-                          >
-                            {currentKw||<span style={{fontStyle:'italic'}}>Click to add keywords...</span>}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </Card>
 
           <Card><Table dataSource={filteredISOs} columns={reconCols} rowKey="isoId" pagination={false} size="middle"
               scroll={{x:1000,y:'calc(100vh - 340px)'}}
