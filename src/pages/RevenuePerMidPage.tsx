@@ -7,7 +7,7 @@ import dayjs from "dayjs";
 const { Title, Text } = Typography;
 const { Option } = Select;
 const GATEWAY_ISO_NAMES = new Set(["nmi","authorize.net","e-fitness today","efitness today","fraud deflect","midmetrics"]);
-const LATEST_MONTH = "2026-07-01";
+const LATEST_MONTH = dayjs().format("YYYY-MM-01");
 const fmt = (n) => n != null ? `$${Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}` : "--";
 
 const RevenuePerMidPage = () => {
