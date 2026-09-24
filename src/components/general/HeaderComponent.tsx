@@ -25,8 +25,8 @@ const navItems = [
   { key: "/home/revenue-mid",  label: "Revenue/MID",   icon: ic(<DollarOutlined />, "#fbbf24") },
   { key: "/home/payments",     label: "Payments",       icon: ic(<MdPayment />, "#4ade80") },
   { key: "/home/insights",     label: "Insights",       icon: ic(<BulbOutlined />, "#fcd34d") },
-  { key: "/home/industry",     label: "Industry",       icon: ic(<AreaChartOutlined />, "#38bdf8") },
   { key: "/home/outreach",     label: "Outreach",       icon: ic(<MailOutlined />, "#f472b6") },
+  { key: "/home/industry",     label: "Industry",       icon: ic(<AreaChartOutlined />, "#38bdf8") },
   {
     key: "admin", label: "Administrator", icon: ic(<SettingOutlined />, "#a78bfa"),
     children: [
