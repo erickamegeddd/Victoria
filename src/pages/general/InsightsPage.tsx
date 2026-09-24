@@ -224,13 +224,14 @@ const InsightsPage=()=>{
   const [overviewData,setOverviewData]=useState(null);
   const [loadingOverview,setLoadingOverview]=useState(false);
   const [activeFilter,setActiveFilter]=useState(null);
-  const [compareBy,setCompareBy]=useState("iso");
+  const [compareBy,setCompareBy]=useState("overall");
   const [comparePeriodType,setComparePeriodType]=useState("month");
   const [compareA,setCompareA]=useState(null);
   const [compareB,setCompareB]=useState(null);
   const [comparison,setComparison]=useState(null);
   const [runningComparison,setRunningComparison]=useState(false);
   const [comparisonFilter,setComparisonFilter]=useState(null);
+  const [pickerKey,setPickerKey]=useState(0);
   const [monthlyTrend,setMonthlyTrend]=useState([]);
   const [gatewayMids,setGatewayMids]=useState(new Set());
   const overviewGenRef=useRef(0);
@@ -428,16 +429,17 @@ const _mid=String(r.mid||"").trim();if(!r.mid?.includes("-summary")&&!gatewayMid
         <Space direction="vertical" style={{width:"100%"}} size={12}>
           <Row gutter={16} align="middle">
             <Col><Text strong>Compare by:</Text></Col>
-            <Col><Radio.Group value={compareBy} onChange={e=>setCompareBy(e.target.value)} buttonStyle="solid"><Radio.Button value="iso">By ISO</Radio.Button><Radio.Button value="overall">Overall</Radio.Button><Radio.Button value="merchant">By Merchant</Radio.Button></Radio.Group></Col>
+            <Col><Radio.Group value={compareBy} onChange={e=>setCompareBy(e.target.value)} buttonStyle="solid"><Radio.Button value="overall">Overall</Radio.Button><Radio.Button value="iso">By ISO</Radio.Button><Radio.Button value="merchant">By Merchant</Radio.Button></Radio.Group></Col>
             <Col><Text strong style={{marginLeft:16}}>Period:</Text></Col>
             <Col><Radio.Group value={comparePeriodType} onChange={e=>{setComparePeriodType(e.target.value);setCompareA(null);setCompareB(null);}} buttonStyle="solid"><Radio.Button value="month">Month</Radio.Button><Radio.Button value="quarter">Quarter</Radio.Button><Radio.Button value="year">Year</Radio.Button></Radio.Group></Col>
           </Row>
           <Row gutter={12} align="middle">
             <Col><Text strong>From:</Text></Col>
-            <Col><DatePicker picker={comparePeriodType==="month"?"month":comparePeriodType==="quarter"?"quarter":"year"} onChange={d=>setCompareA(d?d.startOf(comparePeriodType==="year"?"year":comparePeriodType==="quarter"?"quarter":"month").format("YYYY-MM-DD"):null)} style={{width:160}}/></Col>
+            <Col><DatePicker key={`a-${pickerKey}`} picker={comparePeriodType==="month"?"month":comparePeriodType==="quarter"?"quarter":"year"} onChange={d=>setCompareA(d?d.startOf(comparePeriodType==="year"?"year":comparePeriodType==="quarter"?"quarter":"month").format("YYYY-MM-DD"):null)} style={{width:160}}/></Col>
             <Col><Text style={{color:"var(--muted-color)",fontSize:16}}>→</Text></Col>
-            <Col><DatePicker picker={comparePeriodType==="month"?"month":comparePeriodType==="quarter"?"quarter":"year"} onChange={d=>setCompareB(d?d.startOf(comparePeriodType==="year"?"year":comparePeriodType==="quarter"?"quarter":"month").format("YYYY-MM-DD"):null)} style={{width:160}}/></Col>
+            <Col><DatePicker key={`b-${pickerKey}`} picker={comparePeriodType==="month"?"month":comparePeriodType==="quarter"?"quarter":"year"} onChange={d=>setCompareB(d?d.startOf(comparePeriodType==="year"?"year":comparePeriodType==="quarter"?"quarter":"month").format("YYYY-MM-DD"):null)} style={{width:160}}/></Col>
             <Col><Button type="primary" onClick={runComparison} loading={runningComparison} disabled={!compareA||!compareB} size="large">Run Comparison</Button></Col>
+            <Col><Button onClick={()=>{setCompareA(null);setCompareB(null);setComparison(null);setComparisonFilter(null);setPickerKey(k=>k+1);}}>Clear</Button></Col>
           </Row>
         </Space>
       </Card>
