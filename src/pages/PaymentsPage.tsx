@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
-import { Card, Row, Col, Table, Button, Typography, Space, Statistic, Tag, Alert, Modal, Select, DatePicker, Input } from "antd";
-import { DollarOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
+import { Card, Row, Col, Table, Button, Typography, Space, Statistic, Tag, Alert, Modal, Select, DatePicker, Input, Tooltip, message } from "antd";
+import { DollarOutlined, LeftOutlined, RightOutlined, SyncOutlined, BankOutlined, CaretDownOutlined, CaretRightOutlined, CheckCircleOutlined, LoadingOutlined } from "@ant-design/icons";
 import { supabase } from "../utils/supabase";
 import dayjs from "dayjs";
 const { Title, Text } = Typography;
@@ -29,18 +29,26 @@ const PaymentsPage = () => {
   const [editingExpected, setEditingExpected] = useState({}); // isoId → string value being edited
   const [savingExpected, setSavingExpected] = useState({}); // iso_id → day of month from historical records
 
-  useEffect(()=>{fetchIsos();fetchAllPaymentDates();},[]);
+  // Bank sync state
+  const [bankMappings, setBankMappings] = useState([]); // [{id, iso_id, keywords, isos:{name}}]
+  const [mappingsExpanded, setMappingsExpanded] = useState(false);
+  const [editingKeyword, setEditingKeyword] = useState({}); // iso_id → string
+  const [savingKeyword, setSavingKeyword] = useState({});
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncData, setSyncData] = useState(null); // { preview, month, totalTxsFetched, matched, unmatched }
+  const [syncModal, setSyncModal] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  useEffect(()=>{fetchIsos();fetchAllPaymentDates();fetchBankMappings();},[]);
   useEffect(()=>{fetchResiduals();fetchPayments();setActiveStatusFilter(null);},[selectedMonth]);
 
   const fetchIsos=async()=>{const{data}=await supabase.from('isos').select('*').eq('status','active').order('name');if(data)setIsos(data);};
   const fetchAllPaymentDates=async()=>{
-    // Fetch all historical iso_payments ordered most-recent first
-    // so we capture the latest known due day for each ISO
     const{data}=await supabase.from('iso_payments').select('iso_id,notes,report_month').order('report_month',{ascending:false}).limit(1000);
     if(!data)return;
     const map={};
     data.forEach(p=>{
-      if(!p.notes||map[p.iso_id])return; // skip if no notes or already found a more recent date
+      if(!p.notes||map[p.iso_id])return;
       const m=p.notes.match(/^EXP:\d{4}-\d{2}-(\d{2})\|/);
       if(m)map[p.iso_id]=parseInt(m[1]);
     });
@@ -49,8 +57,77 @@ const PaymentsPage = () => {
   const fetchResiduals=async()=>{if(!selectedMonth)return;const{data}=await supabase.from('residuals').select('*,isos(id,name)').eq('report_month',selectedMonth).limit(500);if(data)setResiduals(data);};
   const fetchPayments=async()=>{if(!selectedMonth)return;const{data}=await supabase.from('iso_payments').select('*,isos(name)').eq('report_month',selectedMonth);if(data)setPayments(data);};
 
-  const getExpectedByISO=()=>{const map={};residuals.forEach(r=>{const k=r.iso_id;if(!map[k])map[k]={isoId:k,isoName:r.isos?.name||'Unknown',expected:0};map[k].expected+=(r.paydiversenet||0);});// Override with manually edited expected_amount from iso_payments
-payments.forEach(p=>{if(map[p.iso_id]&&p.expected_amount!=null)map[p.iso_id].expected=p.expected_amount;});return Object.values(map).sort((a,b)=>a.isoName.localeCompare(b.isoName));};
+  const fetchBankMappings=async()=>{
+    const{data}=await supabase.from('iso_bank_mappings').select('*,isos(id,name)').order('created_at');
+    if(data)setBankMappings(data);
+  };
+
+  const saveKeyword=async(isoId, isoName)=>{
+    const kw=(editingKeyword[isoId]||'').trim();
+    setSavingKeyword(p=>({...p,[isoId]:true}));
+    try{
+      const existing=bankMappings.find(m=>m.iso_id===isoId);
+      if(existing){
+        if(kw){
+          await supabase.from('iso_bank_mappings').update({keywords:kw,updated_at:new Date().toISOString()}).eq('id',existing.id);
+        } else {
+          await supabase.from('iso_bank_mappings').delete().eq('id',existing.id);
+        }
+      } else if(kw){
+        await supabase.from('iso_bank_mappings').insert({iso_id:isoId,keywords:kw});
+      }
+      await fetchBankMappings();
+      setEditingKeyword(p=>{const n={...p};delete n[isoId];return n;});
+      message.success(`Saved keywords for ${isoName}`);
+    }catch(e){
+      message.error('Save failed: '+e.message);
+    }finally{
+      setSavingKeyword(p=>{const n={...p};delete n[isoId];return n;});
+    }
+  };
+
+  const syncFromBank=async()=>{
+    if(!selectedMonth){message.warning('Select a month first');return;}
+    setSyncLoading(true);
+    try{
+      const m=dayjs(selectedMonth).format('YYYY-MM');
+      const r=await fetch(`/api/sync-bank-payments?month=${m}`);
+      const data=await r.json();
+      if(!r.ok)throw new Error(data.error||'Sync failed');
+      setSyncData(data);
+      setSyncModal(true);
+    }catch(e){
+      message.error(e.message);
+    }finally{
+      setSyncLoading(false);
+    }
+  };
+
+  const confirmSync=async()=>{
+    if(!syncData?.preview?.length)return;
+    setConfirming(true);
+    try{
+      const m=dayjs(selectedMonth).format('YYYY-MM');
+      const r=await fetch(`/api/sync-bank-payments?month=${m}`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({preview:syncData.preview})
+      });
+      const data=await r.json();
+      if(!r.ok)throw new Error(data.error||'Write failed');
+      setSyncModal(false);
+      setSyncData(null);
+      await fetchPayments();
+      message.success(`Bank sync complete — ${data.written} ISO${data.written!==1?'s':''} updated`);
+      if(data.errors?.length)message.warning('Some errors: '+data.errors.join('; '));
+    }catch(e){
+      message.error(e.message);
+    }finally{
+      setConfirming(false);
+    }
+  };
+
+  const getExpectedByISO=()=>{const map={};residuals.forEach(r=>{const k=r.iso_id;if(!map[k])map[k]={isoId:k,isoName:r.isos?.name||'Unknown',expected:0};map[k].expected+=(r.paydiversenet||0);});payments.forEach(p=>{if(map[p.iso_id]&&p.expected_amount!=null)map[p.iso_id].expected=p.expected_amount;});return Object.values(map).sort((a,b)=>a.isoName.localeCompare(b.isoName));};
   const getPaymentForISO=(isoId)=>payments.find(p=>p.iso_id===isoId);
   const getStatus=(expected,received)=>{if(received==null)return'pending';const d=received-expected;if(Math.abs(d)<0.01)return'paid';if(d<0)return'short_paid';return'overpaid';};
   const STATUS_CONFIG={pending:{label:'Pending',color:'default'},paid:{label:'Paid',color:'green'},short_paid:{label:'Short Paid',color:'red'},overpaid:{label:'Overpaid',color:'blue'}};
@@ -119,6 +196,9 @@ payments.forEach(p=>{if(map[p.iso_id]&&p.expected_amount!=null)map[p.iso_id].exp
 
   const filteredISOs=activeStatusFilter?expectedByISO.filter(r=>{const p=getPaymentForISO(r.isoId);return getStatus(r.expected,p?.received_amount)===activeStatusFilter;}):expectedByISO;
 
+  // Bank mappings lookup by iso_id
+  const mappingByIsoId=Object.fromEntries(bankMappings.map(m=>[m.iso_id,m]));
+
   const reconCols=[
     {title:'ISO',key:'iso',
       filters: expectedByISO.map(r=>({text:r.isoName,value:r.isoId})),
@@ -133,11 +213,11 @@ payments.forEach(p=>{if(map[p.iso_id]&&p.expected_amount!=null)map[p.iso_id].exp
       if(isEditing)return(
         <Space size={4}>
           <Input size="small" value={editingExpected[r.isoId]} onChange={e=>setEditingExpected(prev=>({...prev,[r.isoId]:e.target.value}))} style={{width:90,fontSize:12}} prefix="$" onPressEnter={()=>saveExpected(r.isoId,r.isoName,editingExpected[r.isoId])} autoFocus/>
-          <Button size="small" type="primary" loading={isSaving} onClick={()=>saveExpected(r.isoId,r.isoName,editingExpected[r.isoId])}>✓</Button>
-          <Button size="small" onClick={()=>setEditingExpected(prev=>{const n={...prev};delete n[r.isoId];return n;})}>✕</Button>
+          <Button size="small" type="primary" loading={isSaving} onClick={()=>saveExpected(r.isoId,r.isoName,editingExpected[r.isoId])}>&#10003;</Button>
+          <Button size="small" onClick={()=>setEditingExpected(prev=>{const n={...prev};delete n[r.isoId];return n;})}>&#10005;</Button>
         </Space>
       );
-      return<Text strong style={{color:'var(--primary-color)',cursor:'pointer'}} onClick={()=>setEditingExpected(prev=>({...prev,[r.isoId]:String(displayVal)}))} title="Click to edit">{fmt(displayVal)}</Text>;},},
+      return<Text strong style={{color:'var(--primary-color)',cursor:'pointer'}} onClick={()=>setEditingExpected(prev=>({...prev,[r.isoId]:String(displayVal)}))} title="Click to edit">{fmt(displayVal)}</Text>;}},
     {title:'Received',key:'rec',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return(pa?.received_amount||0)-(pb?.received_amount||0);},render:(_,r)=>{const p=getPaymentForISO(r.isoId);return p?.received_amount!=null?<Text strong style={{color:'#059669'}}>{fmt(p.received_amount)}</Text>:<Text style={{color:'var(--muted-color)'}}>--</Text>;}},
     {title:'Difference',key:'diff',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return((pa?.received_amount||0)-a.expected)-((pb?.received_amount||0)-b.expected);},render:(_,r)=>{const p=getPaymentForISO(r.isoId);if(p?.received_amount==null)return<Text style={{color:'var(--muted-color)'}}>--</Text>;const diff=(p?.received_amount||0)-r.expected;return<Text strong style={{color:Math.abs(diff)<0.01?'#059669':diff<0?'#dc2626':'#2563eb'}}>{diff>=0?'+':''}{fmt(diff)}</Text>;}},
     {title:'Status',key:'status',
@@ -164,8 +244,18 @@ payments.forEach(p=>{if(map[p.iso_id]&&p.expected_amount!=null)map[p.iso_id].exp
   return (
     <div>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-        <Title level={4} style={{margin:0}}>Payments & Reconciliation</Title>
+        <Title level={4} style={{margin:0}}>Payments &amp; Reconciliation</Title>
+        <Button
+          icon={syncLoading?<LoadingOutlined/>:<SyncOutlined/>}
+          loading={syncLoading}
+          onClick={syncFromBank}
+          style={{background:'#0f2040',color:'#6ee7b7',borderColor:'#1d4ed8',fontWeight:600}}
+        >
+          Sync from Bank
+        </Button>
       </div>
+
+      {/* Month navigator */}
       <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:20}}>
         <Button icon={<LeftOutlined/>} size="small" onClick={()=>{const prev=dayjs(selectedMonth||dayjs().startOf('month')).subtract(1,'month').startOf('month').format('YYYY-MM-DD');setSelectedMonth(prev);}}/>
         <DatePicker picker="month" value={selectedMonth?dayjs(selectedMonth):null} onChange={d=>setSelectedMonth(d?d.startOf('month').format('YYYY-MM-DD'):undefined)} format="MMMM YYYY" allowClear={false} style={{width:160}}/>
@@ -173,6 +263,7 @@ payments.forEach(p=>{if(map[p.iso_id]&&p.expected_amount!=null)map[p.iso_id].exp
         <Button size="small" onClick={()=>setSelectedMonth(dayjs().startOf('month').format('YYYY-MM-DD'))} style={{color:'var(--primary-color)',fontSize:12,fontWeight:600}}>Current Month</Button>
         {selectedMonth&&<Text style={{color:'var(--muted-color)',fontSize:12}}>Showing <strong>{dayjs(selectedMonth).format('MMMM YYYY')}</strong></Text>}
       </div>
+
       {!selectedMonth?(<Alert type="info" showIcon message="Select a month to view payment reconciliation."/>):(
         <>
           <Row gutter={16} style={{marginBottom:16}}>
@@ -190,31 +281,90 @@ payments.forEach(p=>{if(map[p.iso_id]&&p.expected_amount!=null)map[p.iso_id].exp
             ))}
           </div>
           {activeStatusFilter&&(<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12,padding:'8px 14px',background:'#eff6ff',borderRadius:10,border:'1px solid #bfdbfe'}}><Text style={{fontSize:13,fontWeight:600,color:'#1d4ed8'}}>{activeStatusFilter==='paid'?`Showing ${matched} ISO${matched!==1?'s':''} paid in full`:activeStatusFilter==='short_paid'?`Showing ${shortPaid} ISO${shortPaid!==1?'s':''} with short payments`:activeStatusFilter==='overpaid'?`Showing ${overpaid} overpaid ISO${overpaid!==1?'s':''}`:`Showing ${pending} pending ISO${pending!==1?'s':''}`}</Text><Button size="small" onClick={()=>setActiveStatusFilter(null)} style={{marginLeft:'auto'}}>Clear x</Button></div>)}
-          {(shortPaid>0||pending>0)&&<Alert type="warning" showIcon style={{marginBottom:16}} message={`Action needed: ${shortPaid>0?`${shortPaid} ISO${shortPaid>1?'s':''} paid less than expected. `:''}${pending>0?`${pending} ISO${pending>1?'s have':' has'} no payment recorded yet.`:''}`}/>}
+          {(shortPaid>0||pending>0)&&<Alert type="warning" showIcon style={{marginBottom:16}} message={`Action needed: ${shortPaid>0?`${shortPaid} ISO${shortPaid>1?'s':''} paid less than expected. `:''}${pending>0?`${pending} ISO${pending>1?' have':' has'} no payment recorded yet.`:''}`}/>}
+
+          {/* Bank Mappings collapsible section */}
+          <Card style={{marginBottom:16,borderRadius:10}} bodyStyle={{padding:0}}>
+            <div
+              style={{display:'flex',alignItems:'center',gap:8,padding:'10px 16px',cursor:'pointer',borderBottom:mappingsExpanded?'1px solid #f0f0f0':'none'}}
+              onClick={()=>setMappingsExpanded(v=>!v)}
+            >
+              {mappingsExpanded?<CaretDownOutlined style={{color:'#6b7280',fontSize:12}}/>:<CaretRightOutlined style={{color:'#6b7280',fontSize:12}}/>}
+              <BankOutlined style={{color:'#6ee7b7',fontSize:14}}/>
+              <Text style={{fontWeight:700,fontSize:13,color:'#374151'}}>Bank Keyword Mappings</Text>
+              <Text style={{fontSize:12,color:'#9ca3af',marginLeft:4}}>— map each ISO to its bank transaction description</Text>
+              <Tag style={{marginLeft:'auto',background:'#f0fdf4',color:'#059669',border:'1px solid #bbf7d0',fontWeight:600}}>{bankMappings.length} configured</Tag>
+            </div>
+            {mappingsExpanded&&(
+              <div style={{padding:'12px 16px'}}>
+                <Text style={{fontSize:12,color:'#6b7280',display:'block',marginBottom:10}}>
+                  Enter keywords from your bank statements (comma-separated for multiple). Example: <code style={{background:'#f3f4f6',padding:'1px 5px',borderRadius:3}}>CARDWORKS, CARD WORKS</code>
+                </Text>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px 24px'}}>
+                  {isos.map(iso=>{
+                    const mapping=mappingByIsoId[iso.id];
+                    const currentKw=mapping?.keywords||'';
+                    const isEditing=editingKeyword[iso.id]!==undefined;
+                    const isSaving=savingKeyword[iso.id];
+                    return(
+                      <div key={iso.id} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderBottom:'1px solid #f9fafb'}}>
+                        <Text style={{width:140,fontSize:12,fontWeight:600,flexShrink:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={iso.name}>{iso.name}</Text>
+                        {isEditing?(
+                          <Space size={4} style={{flex:1}}>
+                            <Input
+                              size="small"
+                              value={editingKeyword[iso.id]}
+                              onChange={e=>setEditingKeyword(p=>({...p,[iso.id]:e.target.value}))}
+                              placeholder="e.g. CARDWORKS, CARD WORKS"
+                              style={{fontSize:12}}
+                              onPressEnter={()=>saveKeyword(iso.id,iso.name)}
+                              autoFocus
+                            />
+                            <Button size="small" type="primary" loading={isSaving} onClick={()=>saveKeyword(iso.id,iso.name)}>&#10003;</Button>
+                            <Button size="small" onClick={()=>setEditingKeyword(p=>{const n={...p};delete n[iso.id];return n;})}>&#10005;</Button>
+                          </Space>
+                        ):(
+                          <div
+                            style={{flex:1,cursor:'pointer',padding:'2px 6px',borderRadius:4,background:currentKw?'#f0fdf4':'#fafafa',border:currentKw?'1px solid #bbf7d0':'1px dashed #d1d5db',fontSize:12,color:currentKw?'#059669':'#9ca3af',minHeight:24,display:'flex',alignItems:'center'}}
+                            onClick={()=>setEditingKeyword(p=>({...p,[iso.id]:currentKw}))}
+                            title="Click to edit"
+                          >
+                            {currentKw||<span style={{fontStyle:'italic'}}>Click to add keywords...</span>}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </Card>
+
           <Card><Table dataSource={filteredISOs} columns={reconCols} rowKey="isoId" pagination={false} size="middle"
-            scroll={{x:1000,y:'calc(100vh - 340px)'}}
-            onRow={r=>({style:{background:(()=>{const p=getPaymentForISO(r.isoId);const s=p?getStatus(r.expected,p.received_amount):'pending';if(s==='short_paid')return'#fff5f5';if(s==='pending')return'#fffbeb';if(s==='paid')return'#f0fdf4';return undefined;})()}})}
-            summary={()=>{
-              const tExp=filteredISOs.reduce((s,r)=>{const p=getPaymentForISO(r.isoId);return s+(p?.expected_amount!=null?p.expected_amount:r.expected);},0);
-              const tRec=filteredISOs.reduce((s,r)=>{const p=getPaymentForISO(r.isoId);return s+(p?.received_amount||0);},0);
-              const tDiff=tRec-tExp;
-              return(
-                <Table.Summary fixed>
-                  <Table.Summary.Row style={{background:'#0f2040',height:44}}>
-                    <Table.Summary.Cell index={0}><span style={{color:'rgba(255,255,255,0.8)',fontWeight:700,fontSize:13,textTransform:'uppercase',letterSpacing:'1px'}}>Total — {filteredISOs.length} ISO{filteredISOs.length!==1?'s':''}</span></Table.Summary.Cell>
-                    <Table.Summary.Cell index={1} align="right"><span style={{color:'#93c5fd',fontWeight:900,fontSize:15}}>{fmt(tExp)}</span></Table.Summary.Cell>
-                    <Table.Summary.Cell index={2} align="right"><span style={{color:'#6ee7b7',fontWeight:900,fontSize:15}}>{fmt(tRec)}</span></Table.Summary.Cell>
-                    <Table.Summary.Cell index={3} align="right"><span style={{color:tDiff>=0?'#6ee7b7':'#fca5a5',fontWeight:900,fontSize:15}}>{tDiff>=0?'+':''}{fmt(tDiff)}</span></Table.Summary.Cell>
-                    <Table.Summary.Cell index={4}/><Table.Summary.Cell index={5}/><Table.Summary.Cell index={6}/><Table.Summary.Cell index={7}/><Table.Summary.Cell index={8}/>
-                  </Table.Summary.Row>
-                </Table.Summary>
-              );
-            }}
+              scroll={{x:1000,y:'calc(100vh - 340px)'}}
+              onRow={r=>({style:{background:(()=>{const p=getPaymentForISO(r.isoId);const s=p?getStatus(r.expected,p.received_amount):'pending';if(s==='short_paid')return'#fff5f5';if(s==='pending')return'#fffbeb';if(s==='paid')return'#f0fdf4';return undefined;})()}})}
+              summary={()=>{
+                const tExp=filteredISOs.reduce((s,r)=>{const p=getPaymentForISO(r.isoId);return s+(p?.expected_amount!=null?p.expected_amount:r.expected);},0);
+                const tRec=filteredISOs.reduce((s,r)=>{const p=getPaymentForISO(r.isoId);return s+(p?.received_amount||0);},0);
+                const tDiff=tRec-tExp;
+                return(
+                  <Table.Summary fixed>
+                    <Table.Summary.Row style={{background:'#0f2040',height:44}}>
+                      <Table.Summary.Cell index={0}><span style={{color:'rgba(255,255,255,0.8)',fontWeight:700,fontSize:13,textTransform:'uppercase',letterSpacing:'1px'}}>Total — {filteredISOs.length} ISO{filteredISOs.length!==1?'s':''}</span></Table.Summary.Cell>
+                      <Table.Summary.Cell index={1} align="right"><span style={{color:'#93c5fd',fontWeight:900,fontSize:15}}>{fmt(tExp)}</span></Table.Summary.Cell>
+                      <Table.Summary.Cell index={2} align="right"><span style={{color:'#6ee7b7',fontWeight:900,fontSize:15}}>{fmt(tRec)}</span></Table.Summary.Cell>
+                      <Table.Summary.Cell index={3} align="right"><span style={{color:tDiff>=0?'#6ee7b7':'#fca5a5',fontWeight:900,fontSize:15}}>{tDiff>=0?'+':''}{fmt(tDiff)}</span></Table.Summary.Cell>
+                      <Table.Summary.Cell index={4}/><Table.Summary.Cell index={5}/><Table.Summary.Cell index={6}/><Table.Summary.Cell index={7}/><Table.Summary.Cell index={8}/>
+                    </Table.Summary.Row>
+                  </Table.Summary>
+                );
+              }}
           /></Card>
+
+          {/* Payment Calendar */}
           {(()=>{
             const statusColor={paid:'#059669',short_paid:'#dc2626',overpaid:'#2563eb',pending:'#d97706'};
             const statusBg={paid:'#f0fdf4',short_paid:'#fef2f2',overpaid:'#eff6ff',pending:'#fffbeb'};
-            // Build from ALL active ISOs that have a known due day (from residuals OR iso_payments)
             const expectedByISOMap=Object.fromEntries(expectedByISO.map(i=>[i.isoId,i]));
             const allISOsForCalendar=isos.map(iso=>{
               const fromResiduals=expectedByISOMap[iso.id];
@@ -233,13 +383,11 @@ payments.forEach(p=>{if(map[p.iso_id]&&p.expected_amount!=null)map[p.iso_id].exp
             const payMonth=dayjs(selectedMonth).add(1,'month');
             const payMonthLabel=payMonth.format('MMMM YYYY');
             const daysInMonth=payMonth.daysInMonth();
-            const firstDayOfWeek=payMonth.startOf('month').day(); // 0=Sun
+            const firstDayOfWeek=payMonth.startOf('month').day();
             const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-            // Build calendar cells: nulls for empty leading days, then 1..daysInMonth
             const cells=[];
             for(let i=0;i<firstDayOfWeek;i++)cells.push(null);
             for(let d=1;d<=daysInMonth;d++)cells.push(d);
-            // Pad to complete last row
             while(cells.length%7!==0)cells.push(null);
             const weeks=[];
             for(let i=0;i<cells.length;i+=7)weeks.push(cells.slice(i,i+7));
@@ -248,13 +396,9 @@ payments.forEach(p=>{if(map[p.iso_id]&&p.expected_amount!=null)map[p.iso_id].exp
                 <Text style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.8px',color:'var(--muted-color)',display:'block',marginBottom:12}}>
                   Payment Schedule — {payMonthLabel}
                 </Text>
-                {/* Day-of-week header */}
                 <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:0,borderBottom:'1px solid var(--line-color)'}}>
-                  {DOW.map(d=>(
-                    <div key={d} style={{textAlign:'center',padding:'6px 0',fontSize:11,fontWeight:700,color:'var(--muted-color)',textTransform:'uppercase',letterSpacing:'0.5px'}}>{d}</div>
-                  ))}
+                  {DOW.map(d=>(<div key={d} style={{textAlign:'center',padding:'6px 0',fontSize:11,fontWeight:700,color:'var(--muted-color)',textTransform:'uppercase',letterSpacing:'0.5px'}}>{d}</div>))}
                 </div>
-                {/* Weeks */}
                 {weeks.map((week,wi)=>(
                   <div key={wi} style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:0,borderBottom:wi<weeks.length-1?'1px solid var(--line-color)':'none'}}>
                     {week.map((day,di)=>{
@@ -264,36 +408,17 @@ payments.forEach(p=>{if(map[p.iso_id]&&p.expected_amount!=null)map[p.iso_id].exp
                       const items=day?byDay[day]||[]:[];
                       const isSun=di===0,isSat=di===6;
                       return(
-                        <div key={di} style={{
-                          minHeight:72,padding:'6px 8px',
-                          background:!day?'#fafbfc':isToday?'#f0f6ff':isSun||isSat?'#fafbfc':'#fff',
-                          borderRight:di<6?'1px solid var(--line-color)':'none',
-                          position:'relative'
-                        }}>
-                          {day&&(
-                            <>
-                              <div style={{
-                                width:26,height:26,borderRadius:'50%',marginBottom:4,
-                                background:isToday?'#0f2040':'transparent',
-                                color:isToday?'#fff':isPast?'#94a3b8':'#374151',
-                                display:'flex',alignItems:'center',justifyContent:'center',
-                                fontSize:12,fontWeight:isToday?700:500
-                              }}>{day}</div>
-                              <div style={{display:'flex',flexDirection:'column',gap:2}}>
-                                {items.map((item,i)=>(
-                                  <div key={i} title={`${item.name} — ${item.amount.toLocaleString('en-US',{minimumFractionDigits:2})}`} style={{
-                                    padding:'2px 6px',borderRadius:4,
-                                    background:statusBg[item.status],
-                                    borderLeft:`3px solid ${statusColor[item.status]}`,
-                                    fontSize:10,fontWeight:600,color:statusColor[item.status],
-                                    whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'
-                                  }}>
-                                    {item.name} · ${Math.round(item.amount).toLocaleString('en-US')}
-                                  </div>
-                                ))}
-                              </div>
-                            </>
-                          )}
+                        <div key={di} style={{minHeight:72,padding:'6px 8px',background:!day?'#fafbfc':isToday?'#f0f6ff':isSun||isSat?'#fafbfc':'#fff',borderRight:di<6?'1px solid var(--line-color)':'none',position:'relative'}}>
+                          {day&&(<>
+                            <div style={{width:26,height:26,borderRadius:'50%',marginBottom:4,background:isToday?'#0f2040':'transparent',color:isToday?'#fff':isPast?'#94a3b8':'#374151',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:isToday?700:500}}>{day}</div>
+                            <div style={{display:'flex',flexDirection:'column',gap:2}}>
+                              {items.map((item,i)=>(
+                                <div key={i} title={`${item.name} — $${item.amount.toLocaleString('en-US',{minimumFractionDigits:2})}`} style={{padding:'2px 6px',borderRadius:4,background:statusBg[item.status],borderLeft:`3px solid ${statusColor[item.status]}`,fontSize:10,fontWeight:600,color:statusColor[item.status],whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+                                  {item.name} · ${Math.round(item.amount).toLocaleString('en-US')}
+                                </div>
+                              ))}
+                            </div>
+                          </>)}
                         </div>
                       );
                     })}
@@ -304,6 +429,71 @@ payments.forEach(p=>{if(map[p.iso_id]&&p.expected_amount!=null)map[p.iso_id].exp
           })()}
         </>
       )}
+
+      {/* Bank Sync Preview Modal */}
+      <Modal
+        open={syncModal}
+        onCancel={()=>{setSyncModal(false);setSyncData(null);}}
+        footer={null}
+        title={<Space><SyncOutlined style={{color:'#6ee7b7'}}/><span>Bank Sync Preview — {syncData&&dayjs(selectedMonth).format('MMMM YYYY')}</span></Space>}
+        width={620}
+      >
+        {syncData&&(
+          <Space direction="vertical" style={{width:'100%'}} size="middle">
+            <div style={{display:'flex',gap:16}}>
+              <div style={{padding:'8px 14px',background:'#f0fdf4',borderRadius:8,border:'1px solid #bbf7d0'}}>
+                <div style={{fontSize:11,color:'#6b7280',fontWeight:600}}>Transactions fetched</div>
+                <div style={{fontSize:18,fontWeight:700,color:'#059669'}}>{syncData.totalTxsFetched}</div>
+              </div>
+              <div style={{padding:'8px 14px',background:'#eff6ff',borderRadius:8,border:'1px solid #bfdbfe'}}>
+                <div style={{fontSize:11,color:'#6b7280',fontWeight:600}}>Matched to ISOs</div>
+                <div style={{fontSize:18,fontWeight:700,color:'#2563eb'}}>{syncData.matched}</div>
+              </div>
+              <div style={{padding:'8px 14px',background:'#fafafa',borderRadius:8,border:'1px solid #e5e7eb'}}>
+                <div style={{fontSize:11,color:'#6b7280',fontWeight:600}}>Unmatched</div>
+                <div style={{fontSize:18,fontWeight:700,color:'#6b7280'}}>{syncData.unmatched}</div>
+              </div>
+            </div>
+
+            {syncData.message&&<Alert type="info" message={syncData.message} showIcon/>}
+
+            {syncData.preview?.length>0&&(
+              <>
+                <Text style={{fontWeight:700,fontSize:13}}>The following will be written to Received amounts:</Text>
+                <div style={{maxHeight:340,overflowY:'auto',borderRadius:8,border:'1px solid #e5e7eb'}}>
+                  {syncData.preview.map((iso,i)=>(
+                    <div key={iso.isoId} style={{padding:'10px 14px',borderBottom:i<syncData.preview.length-1?'1px solid #f3f4f6':'none'}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+                        <Text style={{fontWeight:700,fontSize:13}}>{iso.isoName}</Text>
+                        <Text style={{fontWeight:900,fontSize:15,color:'#059669'}}>{fmt(iso.total)}</Text>
+                      </div>
+                      <div style={{display:'flex',flexDirection:'column',gap:2}}>
+                        {iso.transactions.map((tx,j)=>(
+                          <div key={j} style={{fontSize:11,color:'#6b7280',display:'flex',justifyContent:'space-between'}}>
+                            <span>{tx.date} — {tx.description}</span>
+                            <span style={{fontWeight:600,color:'#374151'}}>${Number(tx.amount).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <div style={{display:'flex',justifyContent:'flex-end',gap:8}}>
+              <Button onClick={()=>{setSyncModal(false);setSyncData(null);}}>Cancel</Button>
+              {syncData.preview?.length>0&&(
+                <Button type="primary" loading={confirming} onClick={confirmSync} icon={<CheckCircleOutlined/>} style={{background:'#059669',borderColor:'#059669'}}>
+                  Confirm & Write {syncData.preview.length} ISO{syncData.preview.length!==1?'s':''}
+                </Button>
+              )}
+            </div>
+          </Space>
+        )}
+      </Modal>
+
+      {/* Record Payment Modal */}
       <Modal open={paymentModal} onCancel={()=>{setPaymentModal(false);setEditingPayment(null);}} footer={null}
         title={<Space><DollarOutlined style={{color:'var(--primary-color)'}}/><span>Record Payment - {selectedIsoForPayment.isoName}</span></Space>}>
         <Space direction="vertical" style={{width:'100%',marginTop:8}} size="middle">
