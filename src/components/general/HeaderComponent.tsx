@@ -104,7 +104,7 @@ const HeaderComponent = () => {
 
   const userMenuItems = [
     { key: "1", label: (<span style={{ display: "flex", alignItems: "center" }} onClick={() => setModalVisible(true)}><ResetPassWordIcon />Reset Password</span>) },
-    { key: "2", label: (<span onClick={(e) => { e.stopPropagation(); handleLogout(navigate); }} style={{ color: "#f87171", width: "100%" }}><LogoutOutlined style={{ marginRight: "10px" }} />Logout</span>) },
+    { key: "2", label: (<span onClick={() => handleLogout(navigate)} style={{ color: "#f87171", width: "100%" }}><LogoutOutlined style={{ marginRight: "10px" }} />Logout</span>) },
   ];
 
   const visible = overduePayments.filter(p => !dismissed.has(p.id));
