@@ -251,9 +251,9 @@ const InsightsPage=()=>{
     setMonthlyTrend(Object.entries(map).sort(([a],[b])=>a.localeCompare(b)).map(([,v])=>v));
   };
 
-  const isAdjEntry=(name)=>{if(!name)return false;const n=name.toLowerCase();return n.includes("monthly payout")||n.includes("deduction")||n.includes("adjustment");};
+  const isAdjEntry=(name)=>{if(!name)return false;const n=name.toLowerCase();return n.includes("monthly payout")||n.includes("deduction")||n.includes("adjustment")||/\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+20\d{2}\b/.test(n);};
   const groupData=(rows)=>{const map={};rows.forEach(r=>{const k=r.iso_id;if(!map[k])map[k]={isoId:k,isoName:r.isos?.name||"Unknown",rows:[],totalNet:0,totalVolume:0,mids:new Map()};map[k].rows.push(r);map[k].totalNet+=(r.paydiversenet||0);map[k].totalVolume+=(r.gross_volume||0);// Skip summary placeholders, gateway MIDs, and fee/adjustment entries from merchant count
-if(!r.mid?.includes("-summary")&&!gatewayMids.has(String(r.mid||"").trim())&&!isAdjEntry(r.business_name)){map[k].mids.set(r.mid,r.business_name||r.mid);}});return map;};
+const _mid=String(r.mid||"").trim();if(!r.mid?.includes("-summary")&&!gatewayMids.has(_mid)&&!isAdjEntry(r.business_name)&&!isAdjEntry(_mid)){map[k].mids.set(r.mid,r.business_name||r.mid);}});return map;};
 
   const buildComparison=(rowsA,rowsB,labelA,labelB)=>{
     const gA=groupData(rowsA),gB=groupData(rowsB);
@@ -266,15 +266,15 @@ if(!r.mid?.includes("-summary")&&!gatewayMids.has(String(r.mid||"").trim())&&!is
       const netChange=netB-netA,netPct=netA!==0?(netChange/Math.abs(netA)*100):(netB!==0?100:0);
       const volChange=volB-volA,volPct=volA!==0?(volChange/Math.abs(volA)*100):0;
       const lostMerchants=b?[...midsA.entries()].filter(([mid])=>!midsB.has(mid)).map(([mid,name])=>({mid,name})):[];
-      const newMerchants=[...midsB.entries()].filter(([mid])=>!midsA.has(mid)).map(([mid,name])=>({mid,name}));
+      const newMerchants=a?[...midsB.entries()].filter(([mid])=>!midsA.has(mid)).map(([mid,name])=>({mid,name})):[];
       const summary=generateSummary(netChange,netPct,lostMerchants,newMerchants,!!a,!!b,netA);
       return{isoId,isoName,netA,netB,netChange,netPct,volA,volB,volChange,volPct,midsA:midsA.size,midsB:midsB.size,lostMerchants,newMerchants,hasDataA:!!a,hasDataB:!!b,summary};
     }).sort((a,b)=>Math.abs(b.netChange)-Math.abs(a.netChange));
     const totNetA=rowsA.reduce((s,r)=>s+(r.paydiversenet||0),0),totNetB=rowsB.reduce((s,r)=>s+(r.paydiversenet||0),0);
     const totVolA=rowsA.reduce((s,r)=>s+(r.gross_volume||0),0),totVolB=rowsB.reduce((s,r)=>s+(r.gross_volume||0),0);
     const isGw=(mid)=>gatewayMids.has(String(mid||"").trim());
-    const midSetA=new Set(rowsA.filter(r=>!isGw(r.mid)&&!String(r.mid||"").includes("-summary")).map(r=>r.mid));
-    const midSetB=new Set(rowsB.filter(r=>!isGw(r.mid)&&!String(r.mid||"").includes("-summary")).map(r=>r.mid));
+    const midSetA=new Set(rowsA.filter(r=>{const m=String(r.mid||"").trim();return!isGw(r.mid)&&!String(r.mid||"").includes("-summary")&&!isAdjEntry(r.business_name)&&!isAdjEntry(m);}).map(r=>r.mid));
+    const midSetB=new Set(rowsB.filter(r=>{const m=String(r.mid||"").trim();return!isGw(r.mid)&&!String(r.mid||"").includes("-summary")&&!isAdjEntry(r.business_name)&&!isAdjEntry(m);}).map(r=>r.mid));
     const byMerchant=[];
     const allMids=new Set([...rowsA.map(r=>r.mid),...rowsB.map(r=>r.mid)]);
     allMids.forEach(mid=>{
