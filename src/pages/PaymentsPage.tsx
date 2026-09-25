@@ -284,7 +284,7 @@ const PaymentsPage = () => {
               const status=p?getStatus(amount,p.received_amount):'pending';
               return{name:iso.name,isoId:iso.id,dayNum:parseInt(resolvedDate.split('-')[2]),expDate:resolvedDate,amount,status};
             }).filter(Boolean);
-            const paymentItems=allISOsForCalendar;
+            const paymentItems=activeStatusFilter?allISOsForCalendar.filter(i=>i.status===activeStatusFilter):allISOsForCalendar;
             const byDay={};
             paymentItems.forEach(item=>{if(!byDay[item.dayNum])byDay[item.dayNum]=[];byDay[item.dayNum].push(item);});
             const payMonth=dayjs(selectedMonth).add(1,'month');
@@ -306,16 +306,16 @@ const PaymentsPage = () => {
                 {/* Legend */}
                 <div style={{display:'flex',gap:12,marginBottom:12,flexWrap:'wrap'}}>
                   {[
-                    {label:'Pending',color:'#d97706',bg:'#fffbeb'},
-                    {label:'Paid in Full',color:'#059669',bg:'#f0fdf4'},
-                    {label:'Short Paid',color:'#dc2626',bg:'#fef2f2'},
-                    {label:'Overpaid',color:'#2563eb',bg:'#eff6ff'},
-                  ].map(({label,color,bg})=>(
-                    <div key={label} style={{display:'flex',alignItems:'center',gap:6,padding:'3px 10px',borderRadius:6,background:bg,border:`1.5px solid ${color}22`}}>
-                      <div style={{width:10,height:10,borderRadius:2,background:color,flexShrink:0}}/>
-                      <span style={{fontSize:11,fontWeight:600,color,whiteSpace:'nowrap'}}>{label}</span>
+                    {label:'Pending',color:'#d97706',bg:'#fffbeb',skey:'pending'},
+                    {label:'Paid in Full',color:'#059669',bg:'#f0fdf4',skey:'paid'},
+                    {label:'Short Paid',color:'#dc2626',bg:'#fef2f2',skey:'short_paid'},
+                    {label:'Overpaid',color:'#2563eb',bg:'#eff6ff',skey:'overpaid'},
+                  ].map(({label,color,bg,skey})=>{const isActive=activeStatusFilter===skey;return(
+                    <div key={label} onClick={()=>setActiveStatusFilter(isActive?null:skey)} style={{display:'flex',alignItems:'center',gap:6,padding:'3px 10px',borderRadius:6,background:isActive?color:bg,border:`1.5px solid ${color}`,cursor:'pointer',transform:isActive?'translateY(-2px)':'none',transition:'all 0.15s',boxShadow:isActive?`0 3px 8px ${color}55`:'none',userSelect:'none'}}>
+                      <div style={{width:10,height:10,borderRadius:2,background:isActive?'#fff':color,flexShrink:0}}/>
+                      <span style={{fontSize:11,fontWeight:600,color:isActive?'#fff':color,whiteSpace:'nowrap'}}>{label}{isActive?' ✓':''}</span>
                     </div>
-                  ))}
+                  );})}
                 </div>
                 <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:0,borderBottom:'1px solid var(--line-color)'}}>
                   {DOW.map(d=>(<div key={d} style={{textAlign:'center',padding:'8px 0',fontSize:14,fontWeight:700,color:'#1e3a8a',textTransform:'uppercase',letterSpacing:'0.5px'}}>{d}</div>))}
