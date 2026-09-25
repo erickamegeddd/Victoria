@@ -282,7 +282,7 @@ const PaymentsPage = () => {
               if(!resolvedDate)return null;
               const amount=fromResiduals?.expected ?? (p?.expected_amount||0);
               const status=p?getStatus(amount,p.received_amount):'pending';
-              return{name:iso.name,isoId:iso.id,dayNum:parseInt(resolvedDate.split('-')[2]),expDate:resolvedDate,amount,status};
+              return{name:iso.name,isoId:iso.id,dayNum:parseInt(resolvedDate.split('-')[2]),expDate:resolvedDate,amount,received:p?.received_amount??null,status};
             }).filter(Boolean);
             const paymentItems=activeStatusFilter?allISOsForCalendar.filter(i=>i.status===activeStatusFilter):allISOsForCalendar;
             const byDay={};
@@ -336,8 +336,8 @@ const PaymentsPage = () => {
                             <div style={{width:32,height:32,borderRadius:'50%',marginBottom:4,background:isToday?'#0f2040':'transparent',color:isToday?'#fff':'#1e3a8a',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,fontWeight:900,WebkitTextStroke:isToday?'0':'0.3px #1e3a8a'}}>{day}</div>
                             <div style={{display:'flex',flexDirection:'column',gap:2}}>
                               {items.map((item,i)=>(
-                                <div key={i} title={`${item.name} — $${(item.amount??0).toLocaleString('en-US',{minimumFractionDigits:2})}`} style={{padding:'2px 6px',borderRadius:4,background:statusBg[item.status],borderLeft:`3px solid ${statusColor[item.status]}`,fontSize:10,fontWeight:600,color:statusColor[item.status],whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
-                                  {item.name} · ${Number(item.amount||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
+                                <div key={i} title={item.status==='short_paid'?`${item.name} — Expected $${(item.amount||0).toLocaleString('en-US',{minimumFractionDigits:2})} · Received $${(item.received||0).toLocaleString('en-US',{minimumFractionDigits:2})} · Short by $${(item.amount-(item.received||0)).toLocaleString('en-US',{minimumFractionDigits:2})}`:item.status==='overpaid'?`${item.name} — Expected $${(item.amount||0).toLocaleString('en-US',{minimumFractionDigits:2})} · Received $${(item.received||0).toLocaleString('en-US',{minimumFractionDigits:2})} · Over by $${((item.received||0)-item.amount).toLocaleString('en-US',{minimumFractionDigits:2})}`:`${item.name} — $${(item.amount||0).toLocaleString('en-US',{minimumFractionDigits:2})}`} style={{padding:'2px 6px',borderRadius:4,background:statusBg[item.status],borderLeft:`3px solid ${statusColor[item.status]}`,fontSize:10,fontWeight:600,color:statusColor[item.status],whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+                                  {item.status==='short_paid'?`${item.name} · Short $${(item.amount-(item.received||0)).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`:item.status==='overpaid'?`${item.name} · Over $${((item.received||0)-item.amount).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`:item.name+' · $'+Number(item.amount||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
                                 </div>
                               ))}
                             </div>
