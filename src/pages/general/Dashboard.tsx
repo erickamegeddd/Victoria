@@ -119,6 +119,10 @@ const Dashboard = () => {
     {title:'PayDiverse Net',dataIndex:'paydiversenet',key:'pd',width:130,align:'right',sorter:(a,b)=>(a.paydiversenet||0)-(b.paydiversenet||0),render:v=><span style={{color:v>0?'#059669':'#dc2626',fontWeight:600}}>{fmt(v)}</span>},
   ];
 
+  const chartRange = monthlyData.length > 0
+    ? `${monthlyData[0].month} - ${monthlyData[monthlyData.length-1].month} · All ISOs combined`
+    : 'All ISOs combined';
+
   const monthlyView = (
     <>
       <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:20}}>
@@ -190,9 +194,6 @@ const Dashboard = () => {
     </div>
   );
 
-  const chartRange = monthlyData.length > 0
-    ? `${monthlyData[0].month} - ${monthlyData[monthlyData.length-1].month} · All ISOs combined`
-    : 'All ISOs combined';
 
   return (
     <div>
