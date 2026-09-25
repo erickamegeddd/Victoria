@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
-import { Card, Input, Button, Typography, Space, Tag, message } from "antd";
-import { BankOutlined } from "@ant-design/icons";
+import { Card, Input, Button, Typography, Space, Tag, message, Modal, Select } from "antd";
+import { BankOutlined, PlusOutlined } from "@ant-design/icons";
 import { supabase } from "../utils/supabase";
 const { Title, Text } = Typography;
 
@@ -10,6 +10,9 @@ const BankMappingsPage = () => {
   const [bankMappings, setBankMappings] = useState([]);
   const [editingKeyword, setEditingKeyword] = useState({});
   const [savingKeyword, setSavingKeyword] = useState({});
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [addForm, setAddForm] = useState({ iso_id: '', keywords: '' });
+  const [addSaving, setAddSaving] = useState(false);
 
   useEffect(() => { fetchIsos(); fetchBankMappings(); }, []);
 
@@ -49,6 +52,29 @@ const BankMappingsPage = () => {
     }
   };
 
+  const saveNewMapping = async () => {
+    if (!addForm.iso_id) { message.warning('Please select an ISO'); return; }
+    if (!addForm.keywords.trim()) { message.warning('Please enter at least one keyword'); return; }
+    setAddSaving(true);
+    try {
+      const existing = bankMappings.find(m => m.iso_id === addForm.iso_id);
+      if (existing) {
+        await supabase.from('iso_bank_mappings').update({ keywords: addForm.keywords.trim(), updated_at: new Date().toISOString() }).eq('id', existing.id);
+      } else {
+        await supabase.from('iso_bank_mappings').insert({ iso_id: addForm.iso_id, keywords: addForm.keywords.trim() });
+      }
+      await fetchBankMappings();
+      const isoName = isos.find(i => i.id === addForm.iso_id)?.name || '';
+      message.success(`Mapping saved for ${isoName}`);
+      setAddModalOpen(false);
+      setAddForm({ iso_id: '', keywords: '' });
+    } catch (e) {
+      message.error('Save failed: ' + e.message);
+    } finally {
+      setAddSaving(false);
+    }
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
@@ -57,6 +83,11 @@ const BankMappingsPage = () => {
         <Tag style={{ background: '#f0fdf4', color: '#059669', border: '1px solid #bbf7d0', fontWeight: 600 }}>
           {bankMappings.length} configured
         </Tag>
+        <div style={{ marginLeft: 'auto' }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => { setAddForm({ iso_id: '', keywords: '' }); setAddModalOpen(true); }}>
+            Add Mapping
+          </Button>
+        </div>
       </div>
       <Card>
         <Text style={{ fontSize: 13, color: '#6b7280', display: 'block', marginBottom: 16 }}>
@@ -96,6 +127,57 @@ const BankMappingsPage = () => {
           })}
         </div>
       </Card>
+
+      <Modal
+        title={<Space><BankOutlined style={{ color: '#6ee7b7' }} /><span>Add Bank Mapping</span></Space>}
+        open={addModalOpen}
+        onCancel={() => { setAddModalOpen(false); setAddForm({ iso_id: '', keywords: '' }); }}
+        onOk={saveNewMapping}
+        okText="Save Mapping"
+        confirmLoading={addSaving}
+        okButtonProps={{ disabled: !addForm.iso_id || !addForm.keywords.trim() }}
+        width={480}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '12px 0' }}>
+          <div>
+            <Text strong style={{ display: 'block', marginBottom: 6 }}>ISO</Text>
+            <Select
+              showSearch
+              placeholder="Select an ISO..."
+              style={{ width: '100%' }}
+              value={addForm.iso_id || undefined}
+              onChange={val => {
+                const existing = mappingByIsoId[val];
+                setAddForm(p => ({ ...p, iso_id: val, keywords: existing?.keywords || '' }));
+              }}
+              filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+              options={isos.map(iso => ({
+                value: iso.id,
+                label: iso.name,
+                disabled: false,
+              }))}
+            />
+            {addForm.iso_id && mappingByIsoId[addForm.iso_id] && (
+              <Text style={{ fontSize: 12, color: '#f59e0b', marginTop: 4, display: 'block' }}>
+                This ISO already has a mapping — saving will overwrite the existing keywords.
+              </Text>
+            )}
+          </div>
+          <div>
+            <Text strong style={{ display: 'block', marginBottom: 6 }}>Keywords</Text>
+            <Input.TextArea
+              rows={3}
+              placeholder="e.g. CARDWORKS, CARD WORKS, CW MERCHANT"
+              value={addForm.keywords}
+              onChange={e => setAddForm(p => ({ ...p, keywords: e.target.value }))}
+              style={{ fontSize: 13 }}
+            />
+            <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 4, display: 'block' }}>
+              Comma-separated. These strings are matched against bank statement descriptions.
+            </Text>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
