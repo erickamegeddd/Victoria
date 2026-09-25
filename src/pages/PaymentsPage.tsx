@@ -303,6 +303,20 @@ const PaymentsPage = () => {
                 <Text style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.8px',color:'var(--muted-color)',display:'block',marginBottom:12}}>
                   Payment Schedule — {payMonthLabel}
                 </Text>
+                {/* Legend */}
+                <div style={{display:'flex',gap:12,marginBottom:12,flexWrap:'wrap'}}>
+                  {[
+                    {label:'Pending',color:'#d97706',bg:'#fffbeb'},
+                    {label:'Paid in Full',color:'#059669',bg:'#f0fdf4'},
+                    {label:'Short Paid',color:'#dc2626',bg:'#fef2f2'},
+                    {label:'Overpaid',color:'#2563eb',bg:'#eff6ff'},
+                  ].map(({label,color,bg})=>(
+                    <div key={label} style={{display:'flex',alignItems:'center',gap:6,padding:'3px 10px',borderRadius:6,background:bg,border:`1.5px solid ${color}22`}}>
+                      <div style={{width:10,height:10,borderRadius:2,background:color,flexShrink:0}}/>
+                      <span style={{fontSize:11,fontWeight:600,color,whiteSpace:'nowrap'}}>{label}</span>
+                    </div>
+                  ))}
+                </div>
                 <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:0,borderBottom:'1px solid var(--line-color)'}}>
                   {DOW.map(d=>(<div key={d} style={{textAlign:'center',padding:'6px 0',fontSize:11,fontWeight:700,color:'var(--muted-color)',textTransform:'uppercase',letterSpacing:'0.5px'}}>{d}</div>))}
                 </div>
@@ -317,7 +331,7 @@ const PaymentsPage = () => {
                       return(
                         <div key={di} style={{minHeight:72,padding:'6px 8px',background:!day?'#fafbfc':isToday?'#f0f6ff':isSun||isSat?'#fafbfc':'#fff',borderRight:di<6?'1px solid var(--line-color)':'none',position:'relative'}}>
                           {day&&(<>
-                            <div style={{width:26,height:26,borderRadius:'50%',marginBottom:4,background:isToday?'#0f2040':'transparent',color:isToday?'#fff':isPast?'#94a3b8':'#374151',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:isToday?700:500}}>{day}</div>
+                            <div style={{width:26,height:26,borderRadius:'50%',marginBottom:4,background:isToday?'#0f2040':'transparent',color:isToday?'#fff':isPast?'#64748b':'#111827',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:isToday?700:600}}>{day}</div>
                             <div style={{display:'flex',flexDirection:'column',gap:2}}>
                               {items.map((item,i)=>(
                                 <div key={i} title={`${item.name} — $${(item.amount??0).toLocaleString('en-US',{minimumFractionDigits:2})}`} style={{padding:'2px 6px',borderRadius:4,background:statusBg[item.status],borderLeft:`3px solid ${statusColor[item.status]}`,fontSize:10,fontWeight:600,color:statusColor[item.status],whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
