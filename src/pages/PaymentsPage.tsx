@@ -318,7 +318,7 @@ const PaymentsPage = () => {
                   ))}
                 </div>
                 <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:0,borderBottom:'1px solid var(--line-color)'}}>
-                  {DOW.map(d=>(<div key={d} style={{textAlign:'center',padding:'6px 0',fontSize:11,fontWeight:700,color:'var(--muted-color)',textTransform:'uppercase',letterSpacing:'0.5px'}}>{d}</div>))}
+                  {DOW.map(d=>(<div key={d} style={{textAlign:'center',padding:'8px 0',fontSize:14,fontWeight:700,color:'#1e3a8a',textTransform:'uppercase',letterSpacing:'0.5px'}}>{d}</div>))}
                 </div>
                 {weeks.map((week,wi)=>(
                   <div key={wi} style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:0,borderBottom:wi<weeks.length-1?'1px solid var(--line-color)':'none'}}>
