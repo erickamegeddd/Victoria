@@ -6,7 +6,7 @@ import { supabase } from "../utils/supabase";
 import dayjs from "dayjs";
 const { Title, Text } = Typography;
 
-const LATEST_MONTH = "2026-07-01";
+const LATEST_MONTH = dayjs().format("YYYY-MM-01");
 const GATEWAY_ISO_NAMES = new Set(["nmi","authorize.net","e-fitness today","efitness today","fraud deflect","midmetrics"]);
 const AGGREGATE_PREFIXES = ["PC_COMBINED_","RAC_COMBINED_","NMI_COMBINED_","ALTO_COMBINED_"];
 const isAggregateMid = (mid) => AGGREGATE_PREFIXES.some(p => String(mid||"").toUpperCase().startsWith(p));
