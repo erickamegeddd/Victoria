@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
 import { Card, Row, Col, Table, Button, Typography, Space, Statistic, Tag, Alert, Modal, Select, DatePicker, Input, Tooltip, message } from "antd";
-import { DollarOutlined, LeftOutlined, RightOutlined, SyncOutlined, CheckCircleOutlined, LoadingOutlined } from "@ant-design/icons";
+import { DollarOutlined, LeftOutlined, RightOutlined, SyncOutlined, CheckCircleOutlined, LoadingOutlined, DownloadOutlined } from "@ant-design/icons";
 import { supabase } from "../utils/supabase";
 import dayjs from "dayjs";
 const { Title, Text } = Typography;
@@ -205,18 +205,42 @@ const PaymentsPage = () => {
     {title:'',key:'action',width:140,render:(_,r)=>{const p=getPaymentForISO(r.isoId);return<Button size="small" type={p?'default':'primary'} onClick={()=>openPaymentModal(r.isoId,r.isoName,r.expected)}>{p?'Edit':'Record Payment'}</Button>;}},
   ];
 
+  const exportCSV = () => {
+    const headers = ['ISO Name','Month','Expected','Received','Difference','Status','Expected By','Payment Date','Notes'];
+    const rows = filteredISOs.map(r => {
+      const p = getPaymentForISO(r.isoId);
+      const exp = p?.expected_amount ?? r.expected;
+      const rec = p?.received_amount;
+      const diff = (rec != null && exp != null) ? Number((rec - exp).toFixed(2)) : '';
+      const status = p ? getStatus(r.expected, p.received_amount) : 'pending';
+      const expDate = parseExpDate(p?.notes);
+      const notes = parseActualNotes(p?.notes);
+      return [r.isoName, dayjs(selectedMonth).format('MMMM YYYY'), exp ?? '', rec ?? '', diff, status, expDate || '', p?.payment_date || '', notes || ''];
+    });
+    const csv = [headers,...rows].map(row=>row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv],{type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download=`payments-${dayjs(selectedMonth).format('YYYY-MM')}.csv`; a.click(); URL.revokeObjectURL(url);
+  };
+
   return (
     <div>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
         <Title level={4} style={{margin:0}}>Payments &amp; Reconciliation</Title>
-        <Button
-          icon={syncLoading?<LoadingOutlined/>:<SyncOutlined/>}
-          loading={syncLoading}
-          onClick={syncFromBank}
-          style={{background:'#0f2040',color:'#6ee7b7',borderColor:'#1d4ed8',fontWeight:600}}
-        >
-          Sync from Bank
-        </Button>
+        <Space>
+          <Button icon={<DownloadOutlined/>} onClick={exportCSV} style={{fontWeight:600}}>
+            Export CSV
+          </Button>
+          <Button
+            icon={syncLoading?<LoadingOutlined/>:<SyncOutlined/>}
+            loading={syncLoading}
+            onClick={syncFromBank}
+            style={{background:'#0f2040',color:'#6ee7b7',borderColor:'#1d4ed8',fontWeight:600}}
+          >
+            Sync from Bank
+          </Button>
+        </Space>
       </div>
 
       {/* Month navigator */}
