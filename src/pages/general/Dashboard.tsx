@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useEffect, useState, useRef } from "react";
-import { Card, Row, Col, Table, Select, DatePicker, Button, Typography, Space, Statistic, Tabs, Input } from "antd";
+import { Card, Row, Col, Table, Select, DatePicker, Button, Typography, Space, Statistic, Tabs, Input, AutoComplete } from "antd";
 import { FileExcelOutlined, SearchOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { supabase } from "../../utils/supabase";
@@ -109,11 +109,17 @@ const Dashboard = () => {
     onFilterDropdownOpenChange:open=>{if(open)setTimeout(()=>searchInput.current?.select(),100);},
   });
 
+  const getAutoCompleteProps=(dataIndex,label,options)=>({
+    filterDropdown:({setSelectedKeys,selectedKeys,confirm,clearFilters})=>(<div style={{padding:8,minWidth:240}}><AutoComplete autoFocus style={{width:'100%',marginBottom:8,display:'block'}} options={options.filter(o=>!selectedKeys[0]||o.value.toString().toLowerCase().includes((selectedKeys[0]||'').toLowerCase()))} value={selectedKeys[0]||''} onChange={val=>setSelectedKeys(val?[val]:[])} onSelect={val=>{setSelectedKeys([val]);confirm();}} placeholder={`Search ${label}`}/><Space><Button type="primary" onClick={confirm} size="small" style={{width:90}}>Search</Button><Button onClick={()=>{clearFilters&&clearFilters();confirm();}} size="small" style={{width:90}}>Reset</Button></Space></div>),
+    filterIcon:filtered=><SearchOutlined style={{color:filtered?'#1890ff':undefined}}/>,
+    onFilter:(value,record)=>record[dataIndex]?.toString().toLowerCase().includes(value.toString().toLowerCase()),
+  });
+
   const rCols=[
     {title:'Month',dataIndex:'report_month',key:'m',width:100,render:v=>v?dayjs(v).format('MMM YYYY'):'--',filters:[...new Set(residuals.map(r=>r.report_month).filter(Boolean))].sort().reverse().map(m=>({text:dayjs(m).format('MMM YYYY'),value:m})),onFilter:(v,r)=>r.report_month===v},
     {title:'ISO',key:'iso',width:120,render:(_,r)=>r.isos?.name||'--',filters:[...new Set(residuals.map(r=>r.isos?.name).filter(Boolean))].sort().map(n=>({text:n,value:n})),onFilter:(v,r)=>r.isos?.name===v},{title:'Processor',dataIndex:'source_file',key:'src',width:130,render:v=>{if(!v)return'--';const parts=v.split(' - ');return parts.length>1?<span style={{fontSize:11,color:'#6b7280',background:'#f3f4f6',padding:'2px 6px',borderRadius:4,whiteSpace:'nowrap'}}>{parts[parts.length-1]}</span>:'--';},},
-    {title:'MID',dataIndex:'mid',key:'mid',width:120,...getSearchProps('mid','MID'),render:v=><Text style={{fontWeight:600,fontSize:13}}>{v||'--'}</Text>},
-    {title:'Business Name',dataIndex:'business_name',key:'biz',width:170,...getSearchProps('business_name','Business'),render:v=><Text style={{fontSize:13}}>{v||'--'}</Text>},
+    {title:'MID',dataIndex:'mid',key:'mid',width:120,...getAutoCompleteProps('mid','MID',[...new Set(residuals.map(r=>r.mid).filter(Boolean))].sort().map(v=>({value:v}))),render:v=><Text style={{fontWeight:600,fontSize:13}}>{v||'--'}</Text>},
+    {title:'Business Name',dataIndex:'business_name',key:'biz',width:170,...getAutoCompleteProps('business_name','Business',[...new Set(residuals.map(r=>r.business_name).filter(Boolean))].sort().map(v=>({value:v}))),render:v=><Text style={{fontSize:13}}>{v||'--'}</Text>},
     {title:'Volume',dataIndex:'gross_volume',key:'vol',width:120,align:'right',render:v=>fmt(v),sorter:(a,b)=>(a.gross_volume||0)-(b.gross_volume||0)},
     {title:'Gross Rev',dataIndex:'gross_revenue',key:'gr',width:120,align:'right',render:v=>fmt(v),sorter:(a,b)=>(a.gross_revenue||0)-(b.gross_revenue||0)},
     {title:'PayDiverse Net',dataIndex:'paydiversenet',key:'pd',width:130,align:'right',sorter:(a,b)=>(a.paydiversenet||0)-(b.paydiversenet||0),render:v=><span style={{color:v>0?'#059669':'#dc2626',fontWeight:600}}>{fmt(v)}</span>},
