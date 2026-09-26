@@ -31,6 +31,7 @@ const PaymentsPage = () => {
 
   // Bank sync state
   const [syncLoading, setSyncLoading] = useState(false);
+  const [expandedRows, setExpandedRows] = useState<string[]>([]);
   const [syncData, setSyncData] = useState(null); // { preview, month, totalTxsFetched, matched, unmatched }
   const [syncModal, setSyncModal] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -201,7 +202,7 @@ const PaymentsPage = () => {
         :<Text style={{fontSize:12,color:p?.received_amount==null?'#d97706':'var(--muted-color)'}}>{dayjs(expDate).format('MMM D, YYYY')}</Text>;
     }},
     {title:'Payment Date',key:'date',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return(pa?.payment_date||'')<(pb?.payment_date||'')?-1:1;},render:(_,r)=>{const p=getPaymentForISO(r.isoId);return p?.payment_date?<Text style={{fontSize:12,color:'var(--muted-color)'}}>{dayjs(p.payment_date).format('MMM D, YYYY')}</Text>:<Text style={{color:'var(--muted-color)'}}>--</Text>;}},
-    {title:'Notes',key:'notes',ellipsis:true,render:(_,r)=>{const p=getPaymentForISO(r.isoId);const n=parseActualNotes(p?.notes);return n?<Tooltip title={n} trigger="click"><Text style={{fontSize:12,color:'var(--muted-color)',cursor:'pointer'}}>{n}</Text></Tooltip>:null;}},
+    {title:'Notes',key:'notes',ellipsis:true,render:(_,r)=>{const p=getPaymentForISO(r.isoId);const n=parseActualNotes(p?.notes);return n?<Text style={{fontSize:12,color:'var(--muted-color)'}}>{n}</Text>:null;}},
     {title:'',key:'action',width:140,render:(_,r)=>{const p=getPaymentForISO(r.isoId);return<Button size="small" type={p?'default':'primary'} onClick={()=>openPaymentModal(r.isoId,r.isoName,r.expected)}>{p?'Edit':'Record Payment'}</Button>;}},
   ];
 
@@ -273,7 +274,9 @@ const PaymentsPage = () => {
 
           <Card><Table dataSource={filteredISOs} columns={reconCols} rowKey="isoId" pagination={false} size="middle"
               scroll={{x:1000,y:'calc(100vh - 340px)'}}
-              onRow={r=>({style:{background:(()=>{const p=getPaymentForISO(r.isoId);const s=p?getStatus(r.expected,p.received_amount):'pending';if(s==='short_paid')return'#fff5f5';if(s==='pending')return'#fffbeb';if(s==='paid')return'#f0fdf4';return undefined;})()}})}
+              onRow={r=>({style:{background:(()=>{const p=getPaymentForISO(r.isoId);const s=p?getStatus(r.expected,p.received_amount):'pending';if(s==='short_paid')return'#fff5f5';if(s==='pending')return'#fffbeb';if(s==='paid')return'#f0fdf4';return undefined;})(),cursor:'pointer'},onClick:()=>setExpandedRows(prev=>prev.includes(r.isoId)?prev.filter(k=>k!==r.isoId):[...prev,r.isoId])})}
+              expandedRowKeys={expandedRows}
+              expandable={{showExpandColumn:false,expandedRowRender:(r)=>{const p=getPaymentForISO(r.isoId);const exp=p?.expected_amount??r.expected;const rec=p?.received_amount;const diff=(rec!=null&&exp!=null)?rec-exp:null;const status=p?getStatus(r.expected,p.received_amount):'pending';const expDate=parseExpDate(p?.notes);const notes=parseActualNotes(p?.notes);const statusColors:Record<string,string>={paid:'#10b981',pending:'#f59e0b',short_paid:'#ef4444',overpaid:'#3b82f6',received:'#10b981'};return(<div style={{padding:'10px 24px 10px 48px',background:'rgba(0,32,64,0.04)',borderTop:'1px solid rgba(0,0,0,0.06)'}}><Row gutter={[24,4]} wrap={false}><Col><Text type="secondary" style={{fontSize:11,display:'block'}}>Expected</Text><Text style={{fontWeight:600}}>{exp!=null?`$${fmt(exp)}`:'--'}</Text></Col><Col><Text type="secondary" style={{fontSize:11,display:'block'}}>Received</Text><Text style={{fontWeight:600}}>{rec!=null?`$${fmt(rec)}`:'--'}</Text></Col><Col><Text type="secondary" style={{fontSize:11,display:'block'}}>Difference</Text><Text style={{fontWeight:600,color:diff!=null&&diff<0?'#ef4444':diff!=null&&diff>0?'#3b82f6':'inherit'}}>{diff!=null?`${diff<0?'-':''}$${fmt(Math.abs(diff))}`:'--'}</Text></Col><Col><Text type="secondary" style={{fontSize:11,display:'block'}}>Status</Text><Tag color={statusColors[status]||'default'} style={{textTransform:'capitalize'}}>{status.replace('_',' ')}</Tag></Col><Col><Text type="secondary" style={{fontSize:11,display:'block'}}>Expected By</Text><Text>{expDate||'--'}</Text></Col><Col><Text type="secondary" style={{fontSize:11,display:'block'}}>Payment Date</Text><Text>{p?.payment_date||'--'}</Text></Col><Col flex="auto"><Text type="secondary" style={{fontSize:11,display:'block'}}>Notes</Text><Text>{notes||'--'}</Text></Col></Row></div>);}}}
               summary={()=>{
                 const tExp=filteredISOs.reduce((s,r)=>{const p=getPaymentForISO(r.isoId);const exp=p?.expected_amount!=null?p.expected_amount:r.expected;return s+(exp??0);},0);
                 const tRec=filteredISOs.reduce((s,r)=>{const p=getPaymentForISO(r.isoId);return s+(p?.received_amount||0);},0);
