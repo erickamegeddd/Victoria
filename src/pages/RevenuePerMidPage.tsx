@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useEffect, useState, useRef } from "react";
-import { Card, Table, Select, Typography, Space, Statistic, Row, Col, Tag, Input, Button, DatePicker } from "antd";
+import { Card, Table, Select, Typography, Space, Statistic, Row, Col, Tag, Input, Button, DatePicker, AutoComplete } from "antd";
 import { SearchOutlined, DollarOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { supabase } from "../utils/supabase";
 import dayjs from "dayjs";
@@ -111,19 +111,40 @@ const RevenuePerMidPage = () => {
     onFilter: (value, record) => String(record[dataIndex] || "").toLowerCase().includes(String(value).toLowerCase()),
     onFilterDropdownOpenChange: open => { if (open) setTimeout(() => searchInput.current?.select(), 100); },
   });
+  const getAutoCompleteProps = (dataIndex, label, options) => ({
+    filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
+      <div style={{ padding: 8, minWidth: 240 }}>
+        <AutoComplete
+          autoFocus
+          style={{ width: '100%', marginBottom: 8, display: 'block' }}
+          options={options.filter(o => !selectedKeys[0] || o.value.toString().toLowerCase().includes((selectedKeys[0]||'').toLowerCase()))}
+          value={selectedKeys[0] || ''}
+          onChange={val => setSelectedKeys(val ? [val] : [])}
+          onSelect={val => { setSelectedKeys([val]); confirm(); }}
+          placeholder={`Search ${label}`}
+        />
+        <Space>
+          <Button type="primary" onClick={confirm} size="small" style={{ width: 90 }}>Search</Button>
+          <Button onClick={() => { clearFilters && clearFilters(); confirm(); }} size="small" style={{ width: 90 }}>Reset</Button>
+        </Space>
+      </div>
+    ),
+    filterIcon: filtered => <SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />,
+    onFilter: (value, record) => record[dataIndex]?.toString().toLowerCase().includes(value.toString().toLowerCase()),
+  });
 
   const columns = [
     { title: "#", key: "rank", width: 50, render: (_, __, i) => <Text style={{ color: "var(--muted-color)", fontWeight: 700 }}>{i + 1}</Text> },
     { title: "MID", dataIndex: "mid", key: "mid", width: 160,
       sorter: (a, b) => String(a.mid||"").localeCompare(String(b.mid||"")),
-      ...getSearchProps("mid", "MID") },
+      ...getAutoCompleteProps("mid", "MID", [...new Set(data.map(r=>r.mid).filter(Boolean))].sort().map(v=>({value:v}))) },
     { title: "Business Name", dataIndex: "business_name", key: "dba", ellipsis: true,
       sorter: (a, b) => String(a.business_name||"").localeCompare(String(b.business_name||"")),
-      ...getSearchProps("business_name", "Business Name"),
+      ...getAutoCompleteProps("business_name", "Business Name", [...new Set(data.map(r=>r.business_name).filter(Boolean))].sort().map(v=>({value:v}))),
       render: v => <Text strong>{v}</Text> },
     { title: "ISO", dataIndex: "iso_name", key: "iso", width: 130,
       sorter: (a, b) => String(a.iso_name||"").localeCompare(String(b.iso_name||"")),
-      ...getSearchProps("iso_name", "ISO"),
+      ...getAutoCompleteProps("iso_name", "ISO", [...new Set(data.map(r=>r.iso_name).filter(Boolean))].sort().map(v=>({value:v}))),
       render: v => <Tag color="blue">{v}</Tag> },
     { title: "Total Net Residual Income", dataIndex: "total_net", key: "net", align: "right", sorter: (a, b) => a.total_net - b.total_net, defaultSortOrder: "descend",
       render: v => <Text strong style={{ color: v > 0 ? "#059669" : "#dc2626" }}>{fmt(v)}</Text> },
