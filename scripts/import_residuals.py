@@ -44,6 +44,7 @@ PD_CLIENT_ID     = os.environ.get("PD_CLIENT_ID", "6NjkKTBzDSrxC50EtDZEJTHIRQbHN
 PD_CLIENT_SECRET = os.environ.get("PD_CLIENT_SECRET", "bhXvWww8ncATyIYdYGzf22NBBk8b865GV6fsrnpqNMs")
 PD_PROJECT_ID    = "proj_vos09Av"
 PD_EXTERNAL_USER = "4dd457e9-2528-48c2-81b9-4bd5dad64a83"
+DROPBOX_ACCOUNT_ID = "apn_7rhmpWD"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -73,7 +74,7 @@ def dropbox_list(pd_token, path):
     """List contents of a path inside the Residuals By Year shared link."""
     url = "https://api.dropboxapi.com/2/files/list_folder"
     b64url = base64.b64encode(url.encode()).decode().replace("+", "-").replace("/", "_").rstrip("=")
-    pu = f"https://api.pipedream.com/v1/connect/{PD_PROJECT_ID}/proxy/{b64url}?account_id=dropbox&external_user_id={PD_EXTERNAL_USER}"
+    pu = f"https://api.pipedream.com/v1/connect/{PD_PROJECT_ID}/proxy/{b64url}?account_id={DROPBOX_ACCOUNT_ID}&external_user_id={PD_EXTERNAL_USER}"
     body = {"path": path, "shared_link": {"url": DROPBOX_LINK}, "recursive": False}
     req = urllib.request.Request(
         pu, data=json.dumps(body).encode(),
@@ -91,7 +92,7 @@ def dropbox_download(pd_token, dropbox_path, local_path):
     encoded_arg = urllib.parse.quote(arg)
     full_url = f"{url}?arg={encoded_arg}"
     b64url = base64.b64encode(full_url.encode()).decode().replace("+", "-").replace("/", "_").rstrip("=")
-    pu = f"https://api.pipedream.com/v1/connect/{PD_PROJECT_ID}/proxy/{b64url}?account_id=dropbox&external_user_id={PD_EXTERNAL_USER}"
+    pu = f"https://api.pipedream.com/v1/connect/{PD_PROJECT_ID}/proxy/{b64url}?account_id={DROPBOX_ACCOUNT_ID}&external_user_id={PD_EXTERNAL_USER}"
     req = urllib.request.Request(
         pu, headers={"Authorization": f"Bearer {pd_token}", "x-pd-environment": "production"}
     )
