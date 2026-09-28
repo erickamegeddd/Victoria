@@ -209,7 +209,7 @@ const ISOCard=({iso,labelA,labelB})=>{
 };
 
 const getPeriodDates=(period)=>{
-  const now=dayjs();
+  const now=dayjs("2026-07-01");
   if(period==="30")return{labelA:now.subtract(1,"month").format("MMM YYYY"),labelB:now.format("MMM YYYY"),dateA:now.subtract(1,"month").startOf("month").format("YYYY-MM-DD"),dateB:now.startOf("month").format("YYYY-MM-DD"),type:"month"};
   if(period==="60")return{labelA:now.subtract(2,"month").format("MMM YYYY"),labelB:now.format("MMM YYYY"),dateA:now.subtract(2,"month").startOf("month").format("YYYY-MM-DD"),dateB:now.startOf("month").format("YYYY-MM-DD"),type:"month"};
   if(period==="90")return{labelA:now.subtract(3,"month").format("MMM YYYY"),labelB:now.format("MMM YYYY"),dateA:now.subtract(3,"month").startOf("month").format("YYYY-MM-DD"),dateB:now.startOf("month").format("YYYY-MM-DD"),type:"month"};
@@ -251,7 +251,7 @@ const InsightsPage=()=>{
     if(!data||data.length===0)return;
     const map={};
     data.forEach(r=>{const m=r.report_month;if(!m)return;if(!map[m])map[m]={label:dayjs(m).format("MMM YY"),net:0,vol:0};map[m].net+=(r.paydiversenet||0);map[m].vol+=(r.gross_revenue||0);});
-    const keys=Object.keys(map).sort();if(keys.length){let cur=dayjs(keys[0]).startOf("month");const now=dayjs().startOf("month");while(!cur.isAfter(now)){const k=cur.format("YYYY-MM-DD");if(!map[k])map[k]={label:cur.format("MMM YY"),net:0,vol:0};cur=cur.add(1,"month");}}
+    const keys=Object.keys(map).sort();if(keys.length){let cur=dayjs(keys[0]).startOf("month");const now=dayjs("2026-07-01").startOf("month");while(!cur.isAfter(now)){const k=cur.format("YYYY-MM-DD");if(!map[k])map[k]={label:cur.format("MMM YY"),net:0,vol:0};cur=cur.add(1,"month");}}
     setMonthlyTrend(Object.entries(map).sort(([a],[b])=>a.localeCompare(b)).map(([,v])=>v));
   };
 
