@@ -19,7 +19,7 @@ const AgentsDashboard = () => {
   const [currentTableData, setCurrentTableData] = useState<AgentsData[]>([]);
   const [searchText, setSearchText] = useState<string>("");
   const [date, setDate] = useState<string | string[]>(
-    dayjs().format("YYYY-MM-01")
+    '2026-07-01'
   );
 
 
@@ -126,7 +126,7 @@ const AgentsDashboard = () => {
               {dayjs(date as string).format("MMMM YYYY")}
             </span>
             <Button icon={<RightOutlined />} onClick={() => setDate(dayjs(date as string).add(1, "month").format("YYYY-MM-01"))} />
-            <Button onClick={() => setDate(dayjs().format("YYYY-MM-01"))} size="middle">Current Month</Button>
+            <Button onClick={() => setDate('2026-07-01')} size="middle">Current Month</Button>
           </div>
         </Col>
       </Row>
