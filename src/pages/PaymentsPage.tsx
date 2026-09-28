@@ -17,7 +17,7 @@ const PaymentsPage = () => {
   const [isos, setIsos] = useState([]);
   const [residuals, setResiduals] = useState([]);
   const [payments, setPayments] = useState([]);
-  const LATEST_MONTH = dayjs().format('YYYY-MM-01');
+  const LATEST_MONTH = '2026-07-01';
   const [selectedMonth, setSelectedMonth] = useState(LATEST_MONTH);
   const [paymentModal, setPaymentModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
@@ -51,7 +51,7 @@ const PaymentsPage = () => {
     });
     setIsoDueDayMap(map);
   };
-  const fetchResiduals=async()=>{if(!selectedMonth)return;const{data}=await supabase.from('residuals').select('*,isos(id,name)').eq('report_month',selectedMonth).limit(500);if(data)setResiduals(data);};
+  const fetchResiduals=async()=>{if(!selectedMonth)return;const{data}=await supabase.from('residuals').select('*,isos(id,name)').eq('report_month',selectedMonth).limit(2000);if(data)setResiduals(data);};
   const fetchPayments=async()=>{if(!selectedMonth)return;const{data}=await supabase.from('iso_payments').select('*,isos(name)').eq('report_month',selectedMonth);if(data)setPayments(data);};
 
   const syncFromBank=async()=>{
