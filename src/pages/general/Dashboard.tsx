@@ -55,8 +55,10 @@ const Dashboard = () => {
   const [activeGatewayCount, setActiveGatewayCount] = useState(0);
   const [pageSize, setPageSize] = useState(50);
   const searchInput = useRef(null);
+  const [isoPayments, setIsoPayments] = useState([]);
 
-  const totalRevenue = residuals.reduce((s,r)=>s+(r.paydiversenet||0),0);
+  const residualsTotal=residuals.reduce((s,r)=>s+(r.paydiversenet||0),0);
+  const totalRevenue=residuals.length>0?residualsTotal:isoPayments.reduce((s,p)=>s+(p.expected_amount||0),0);
   const totalVolume = residuals.reduce((s,r)=>s+(r.gross_volume||0),0);
   const activeMids = new Set(residuals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)).map(r=>r.mid)).size;
   const churnedCount = recentWindowMids.size>0 ? [...allPriorMids].filter(m=>!isAggregateMid(m)&&!recentWindowMids.has(m)).length : 0;
@@ -70,6 +72,7 @@ const Dashboard = () => {
       .then(({count:gateway})=>setActiveGatewayCount(gateway||0));
   },[]);
   useEffect(()=>{fetchResiduals();},[selectedIso,selectedMonth]);
+  useEffect(()=>{fetchIsoPayments();},[selectedMonth]);
   useEffect(()=>{setFilteredResiduals(residuals);},[residuals]);
   useEffect(()=>{
     const fetchAllTime = async () => {
@@ -86,6 +89,9 @@ const Dashboard = () => {
         byMonth[r.report_month] += (r.paydiversenet || 0);
         if (r.mid && !String(r.mid).includes('_COMBINED_') && r.mid !== 'No MID') midsByMonth[r.report_month].add(r.mid);
       });
+      // Supplement with iso_payments for months that have no residuals rows (e.g. Aug 2026)
+      const {data:pmts}=await supabase.from('iso_payments').select('report_month,expected_amount').not('expected_amount','is',null);
+      if(pmts){const hasResiduals=new Set(Object.keys(byMonth));let extra=0;pmts.forEach(p=>{if(!p.report_month||hasResiduals.has(p.report_month))return;if(!byMonth[p.report_month])byMonth[p.report_month]=0;byMonth[p.report_month]+=(p.expected_amount||0);extra+=(p.expected_amount||0);});if(extra>0){setAllTimeRevenue(prev=>prev+extra);}}
       const sorted = Object.entries(byMonth)
         .sort(([a],[b]) => a.localeCompare(b))
         .map(([month, pdn]) => ({
@@ -98,6 +104,7 @@ const Dashboard = () => {
     fetchAllTime();
   },[]);
 
+  const fetchIsoPayments=async()=>{if(!selectedMonth)return;const{data}=await supabase.from('iso_payments').select('iso_id,expected_amount').eq('report_month',selectedMonth);setIsoPayments(data||[]);};
   const fetchIsos=async()=>{const{data}=await supabase.from('isos').select('*').eq('status','active').order('name');if(data)setIsos(data);};
   const fetchAllRows=async(base)=>{let all=[],from=0;while(true){const{data:batch}=await base.range(from,from+999);if(!batch||batch.length===0)break;all=all.concat(batch);if(batch.length<1000)break;from+=1000;}return all;};
   const fetchResiduals=async()=>{setLoading(true);let q=supabase.from('residuals').select('*,isos(id,name,slug)').order('report_month',{ascending:false});if(selectedIso)q=q.eq('iso_id',selectedIso);if(selectedMonth)q=q.eq('report_month',selectedMonth);const data=await fetchAllRows(q);setResiduals(data);const pm=dayjs(selectedMonth||LATEST_MONTH).subtract(1,'month').startOf('month').format('YYYY-MM-DD');let pq=supabase.from('residuals').select('*,isos(id,name,slug)').eq('report_month',pm);if(selectedIso)pq=pq.eq('iso_id',selectedIso);const pdata=await fetchAllRows(pq);setPrevResiduals(pdata);setPrevMonthMids(new Set(pdata.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)).map(r=>r.mid)));let aq=supabase.from('residuals').select('mid').lt('report_month',selectedMonth||LATEST_MONTH).not('mid','is',null);if(selectedIso)aq=aq.eq('iso_id',selectedIso);const aprior=await fetchAllRows(aq);setAllPriorMids(new Set(aprior.filter(r=>r.mid&&!isAggregateMid(r.mid)).map(r=>r.mid)));const nm=dayjs(selectedMonth||LATEST_MONTH);const{data:newMs}=await supabase.from('merchants').select('mid').gte('created_at',nm.format('YYYY-MM-DD')).lt('created_at',nm.add(1,'month').startOf('month').format('YYYY-MM-DD')).not('mid','is',null);setNewMerchantMids(new Set((newMs||[]).map(r=>r.mid)));const{data:newGw}=await supabase.from('merchants').select('mid').gte('created_at',nm.format('YYYY-MM-DD')).lt('created_at',nm.add(1,'month').startOf('month').format('YYYY-MM-DD')).not('mid','is',null).eq('merchant_type','gateway');setNewGatewayCount((newGw||[]).length);const winStart=nm.subtract(7,'month').startOf('month').format('YYYY-MM-DD');let wq=supabase.from('residuals').select('mid').gte('report_month',winStart).lte('report_month',selectedMonth||LATEST_MONTH).not('mid','is',null);if(selectedIso)wq=wq.eq('iso_id',selectedIso);const wdata=await fetchAllRows(wq);setRecentWindowMids(new Set(wdata.filter(r=>r.mid&&!isAggregateMid(r.mid)).map(r=>r.mid)));setLoading(false);};
