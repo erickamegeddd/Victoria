@@ -59,12 +59,14 @@ const Dashboard = () => {
   const [activeTypeFilter, setActiveTypeFilter] = useState(null); // 'merchant' | 'gateway' | null
 
   const residualsTotal=residuals.reduce((s,r)=>s+(r.paydiversenet||0),0);
-  const totalRevenue=residuals.length>0?residualsTotal:isoPayments.reduce((s,p)=>s+(p.expected_amount||0),0);
+  const paymentsExpectedTotal=isoPayments.reduce((s,p)=>s+(p.expected_amount||0),0);
+  const usePayments=paymentsExpectedTotal>0;
+  const totalRevenue=usePayments?paymentsExpectedTotal:residualsTotal;
   const totalVolume = residuals.reduce((s,r)=>s+(r.gross_volume||0),0);
   const activeMids = new Set(residuals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)).map(r=>r.mid)).size;
   const churnedCount = recentWindowMids.size>0 ? [...allPriorMids].filter(m=>!isAggregateMid(m)&&!recentWindowMids.has(m)).length : 0;
-  const merchantsRevenue = residuals.length>0?residuals.filter(r=>!isGatewayRow(r)).reduce((s,r)=>s+(r.paydiversenet||0),0):isoPayments.filter(p=>!GATEWAY_ISO_NAMES.has((p.isos?.name||'').toLowerCase())).reduce((s,p)=>s+(p.expected_amount||0),0);
-  const resellerRevenue = residuals.length>0?residuals.filter(r=>isGatewayRow(r)).reduce((s,r)=>s+(r.paydiversenet||0),0):isoPayments.filter(p=>GATEWAY_ISO_NAMES.has((p.isos?.name||'').toLowerCase())).reduce((s,p)=>s+(p.expected_amount||0),0);
+  const merchantsRevenue = usePayments?isoPayments.filter(p=>!GATEWAY_ISO_NAMES.has((p.isos?.name||'').toLowerCase())).reduce((s,p)=>s+(p.expected_amount||0),0):residuals.filter(r=>!isGatewayRow(r)).reduce((s,r)=>s+(r.paydiversenet||0),0);
+  const resellerRevenue = usePayments?isoPayments.filter(p=>GATEWAY_ISO_NAMES.has((p.isos?.name||'').toLowerCase())).reduce((s,p)=>s+(p.expected_amount||0),0):residuals.filter(r=>isGatewayRow(r)).reduce((s,r)=>s+(r.paydiversenet||0),0);
   const activeGatewayMids = new Set(residuals.filter(r=>isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.mid).map(r=>r.mid)).size;
 
   useEffect(()=>{fetchIsos();},[]);
