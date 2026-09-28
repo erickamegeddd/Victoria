@@ -38,7 +38,7 @@ const Dashboard = () => {
   const [residuals, setResiduals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedIso, setSelectedIso] = useState(undefined);
-  const LATEST_MONTH = dayjs().format('YYYY-MM-01');
+  const LATEST_MONTH = '2026-07-01';
   const [selectedMonth, setSelectedMonth] = useState(LATEST_MONTH);
   const [activeTab, setActiveTab] = useState('residuals');
   const [outerTab, setOuterTab] = useState('monthly');
@@ -134,8 +134,8 @@ const Dashboard = () => {
       <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:20}}>
         <Button icon={<LeftOutlined/>} size="small" onClick={()=>{const prev=dayjs(selectedMonth||dayjs().startOf('month')).subtract(1,'month').startOf('month').format('YYYY-MM-DD');setSelectedMonth(prev);}}/>
         <DatePicker picker="month" value={selectedMonth?dayjs(selectedMonth):null} onChange={d=>setSelectedMonth(d?d.startOf('month').format('YYYY-MM-DD'):undefined)} format="MMMM YYYY" allowClear={false} style={{width:160}}/>
-        <Button icon={<RightOutlined/>} size="small" onClick={()=>{const next=dayjs(selectedMonth||dayjs().startOf('month')).add(1,'month').startOf('month').format('YYYY-MM-DD');setSelectedMonth(next);}}/>
-        <Button size="small" onClick={()=>setSelectedMonth(dayjs().startOf('month').format('YYYY-MM-DD'))} style={{color:'var(--primary-color)',fontSize:12,fontWeight:600}}>Current Month</Button>
+        <Button icon={<RightOutlined/>} size="small" disabled={dayjs(selectedMonth).isSameOrAfter(dayjs('2026-07-01'),'month')} onClick={()=>{const next=dayjs(selectedMonth||dayjs('2026-07-01').startOf('month')).add(1,'month').startOf('month').format('YYYY-MM-DD');setSelectedMonth(next);}}/>
+        <Button size="small" onClick={()=>setSelectedMonth('2026-07-01')} style={{color:'var(--primary-color)',fontSize:12,fontWeight:600}}>Current Month</Button>
         {selectedMonth&&<Text style={{color:'var(--muted-color)',fontSize:12}}>Showing data for <strong>{dayjs(selectedMonth).format('MMMM YYYY')}</strong></Text>}
       </div>
       <Row justify="center" style={{marginBottom:12}}>
