@@ -87,7 +87,6 @@ def dropbox_download(pd_token, dropbox_path, local_path):
     """Download a file from the shared link by path."""
     url = "https://content.dropboxapi.com/2/sharing/get_shared_link_file"
     arg = json.dumps({"url": DROPBOX_LINK, "path": dropbox_path})
-    encoded_arg = urllib.parse.quote(arg) if hasattr(urllib, 'parse') else urllib.request.quote(arg)
     import urllib.parse
     encoded_arg = urllib.parse.quote(arg)
     full_url = f"{url}?arg={encoded_arg}"
