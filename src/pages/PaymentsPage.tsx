@@ -248,8 +248,8 @@ const PaymentsPage = () => {
       <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:20}}>
         <Button icon={<LeftOutlined/>} size="small" onClick={()=>{const prev=dayjs(selectedMonth||dayjs().startOf('month')).subtract(1,'month').startOf('month').format('YYYY-MM-DD');setSelectedMonth(prev);}}/>
         <DatePicker picker="month" value={selectedMonth?dayjs(selectedMonth):null} onChange={d=>setSelectedMonth(d?d.startOf('month').format('YYYY-MM-DD'):undefined)} format="MMMM YYYY" allowClear={false} style={{width:160}}/>
-        <Button icon={<RightOutlined/>} size="small" onClick={()=>{const next=dayjs(selectedMonth||dayjs().startOf('month')).add(1,'month').startOf('month').format('YYYY-MM-DD');setSelectedMonth(next);}}/>
-        <Button size="small" onClick={()=>setSelectedMonth(dayjs().startOf('month').format('YYYY-MM-DD'))} style={{color:'var(--primary-color)',fontSize:12,fontWeight:600}}>Current Month</Button>
+        <Button icon={<RightOutlined/>} size="small" disabled={!selectedMonth||selectedMonth>='2026-07-01'} onClick={()=>{const next=dayjs(selectedMonth||dayjs('2026-07-01').startOf('month')).add(1,'month').startOf('month').format('YYYY-MM-DD');setSelectedMonth(next);}}/>
+        <Button size="small" onClick={()=>setSelectedMonth('2026-07-01')} style={{color:'var(--primary-color)',fontSize:12,fontWeight:600}}>Current Month</Button>
         {selectedMonth&&<Text style={{color:'var(--muted-color)',fontSize:12}}>Showing <strong>{dayjs(selectedMonth).format('MMMM YYYY')}</strong></Text>}
       </div>
 
