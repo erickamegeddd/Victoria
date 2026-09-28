@@ -99,7 +99,7 @@ const AgentsPage = () => {
         pagination={{ pageSize: 10, showSizeChanger: false }}
         locale={{ emptyText: "No adjustments or custom rows recorded for this month." }}
         scroll={{x:900,y:'calc(100vh - 300px)'}}
-        rowClassName={(record: any) => record.field_name === "new_row" ? "" : ""}
+        
       />
     </>
   );
