@@ -95,7 +95,7 @@ const PaymentsPage = () => {
     }
   };
 
-  const getExpectedByISO=()=>{const map={};residuals.forEach(r=>{const k=r.iso_id;if(!map[k])map[k]={isoId:k,isoName:r.isos?.name||'Unknown',expected:0};map[k].expected+=(r.paydiversenet||0);});payments.forEach(p=>{if(map[p.iso_id]&&p.expected_amount!=null)map[p.iso_id].expected=p.expected_amount;});payments.forEach(p=>{if(!map[p.iso_id]&&p.received_amount!=null){map[p.iso_id]={isoId:p.iso_id,isoName:p.isos?.name||'Unknown',expected:null};}});return Object.values(map).sort((a,b)=>a.isoName.localeCompare(b.isoName));};
+  const getExpectedByISO=()=>{const map={};residuals.forEach(r=>{const k=r.iso_id;if(!map[k])map[k]={isoId:k,isoName:r.isos?.name||'Unknown',expected:0};map[k].expected+=(r.paydiversenet||0);});payments.forEach(p=>{if(map[p.iso_id]){if(p.expected_amount!=null)map[p.iso_id].expected=p.expected_amount;}else if(p.expected_amount!=null||p.received_amount!=null){map[p.iso_id]={isoId:p.iso_id,isoName:p.isos?.name||'Unknown',expected:p.expected_amount};}});return Object.values(map).sort((a,b)=>a.isoName.localeCompare(b.isoName));};
   const getPaymentForISO=(isoId)=>payments.find(p=>p.iso_id===isoId);
   const getStatus=(expected,received)=>{if(received==null)return'pending';if(expected==null)return'received';const d=received-expected;if(Math.abs(d)<0.01)return'paid';if(d<0)return'short_paid';return'overpaid';};
   const STATUS_CONFIG={pending:{label:'Pending',color:'default'},paid:{label:'Paid',color:'green'},short_paid:{label:'Short Paid',color:'red'},overpaid:{label:'Overpaid',color:'blue'},received:{label:'Received',color:'cyan'}};
