@@ -121,7 +121,7 @@ const OutreachPage = () => {
       if (overdue.length > 0) {
         const isoIds = [...new Set(overdue.map(p => p.iso_id))].join(",");
         const resResp = await fetch(
-          `${SUPABASE_URL}/rest/v1/residuals?select=iso_id,report_month,paydiversenet&iso_id=in.(${isoIds})&limit=2000`,
+          `${SUPABASE_URL}/rest/v1/residuals?select=iso_id,report_month,paydiversenet&iso_id=in.(${isoIds})&limit=10000`,
           { headers: sbHeaders }
         );
         const residuals = await resResp.json();
@@ -137,7 +137,7 @@ const OutreachPage = () => {
           return { ...p, computed_amount: computedAmount, body: buildEmailBody(p.iso_name, computedAmount, p.report_month, p.due_date) };
         });
       }
-      setRecords(enriched.filter(p => (p.computed_amount || 0) > 0));
+      setRecords(enriched);
     } catch (e) {
       message.error("Failed to load overdue payments");
     } finally {
