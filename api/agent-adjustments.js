@@ -4,7 +4,7 @@ const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
 async function sbRequest(method, path, body, useServiceKey) {
   const key = useServiceKey
     ? process.env.SUPABASE_SERVICE_KEY
-    : process.env.VITE_SUPABASE_ANON_KEY;
+    : process.env.SUPABASE_ANON_KEY;
   const headers = {
     apikey: key,
     Authorization: `Bearer ${key}`,
