@@ -109,7 +109,7 @@ async function handleCron(req, res) {
 
   // Fetch Sep 2026+ payments with no received amount
   const pr = await fetch(
-    `${SUPABASE_URL}/rest/v1/iso_payments?select=id,iso_id,report_month,notes,email_sent,isos(id,name,email)&received_amount=is.null&report_month=gte.2026-09-01&limit=300`,
+    `${SUPABASE_URL}/rest/v1/iso_payments?select=id,iso_id,report_month,notes,email_sent,isos(id,name,email)&received_amount=is.null&report_month=gte.2026-01-01&limit=300`,
     { headers: sbH }
   );
   if (!pr.ok) return res.status(500).json({ ok: false, error: "Failed to fetch payments" });
