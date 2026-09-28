@@ -63,7 +63,7 @@ const ISOsMerchantsPage = () => {
         }
         if (r.iso_id) {
           if (!statsMap[r.iso_id]) statsMap[r.iso_id] = { volume: 0, residual: 0 };
-          statsMap[r.iso_id].volume += (r.gross_volume || r.gross_revenue || 0);
+          statsMap[r.iso_id].volume += (r.gross_volume || 0);
           statsMap[r.iso_id].residual += (r.paydiversenet || 0);
         }
       });
