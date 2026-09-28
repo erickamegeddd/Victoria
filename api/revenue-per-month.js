@@ -1,7 +1,7 @@
 const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
 
 async function sbGetAll(path) {
-  const key = process.env.VITE_SUPABASE_ANON_KEY;
+  const key = process.env.SUPABASE_ANON_KEY;
   let offset = 0, all = [];
   while (true) {
     const sep = path.includes("?") ? "&" : "?";
