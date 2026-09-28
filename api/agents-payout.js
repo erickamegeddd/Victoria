@@ -3,7 +3,7 @@ import { AGENT_MAP } from "./_agentMap.js";
 const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
 
 async function sbGet(path) {
-  const key = process.env.VITE_SUPABASE_ANON_KEY;
+  const key = process.env.SUPABASE_ANON_KEY;
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     headers: { apikey: key, Authorization: `Bearer ${key}` },
   });
