@@ -35,7 +35,7 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
   // Validate sync token
-  const SYNC_TOKEN = process.env.SYNC_TOKEN || "paydiverse-sync-2026";
+  const SYNC_TOKEN = process.env.SYNC_TOKEN;
   const token = req.headers["x-sync-token"] || req.body?.token;
   if (token !== SYNC_TOKEN) return res.status(401).json({ error: "Invalid sync token" });
 
