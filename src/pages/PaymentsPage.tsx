@@ -59,9 +59,22 @@ const PaymentsPage = () => {
       payments.forEach(p=>{if(p.notes?.includes('[Bank Sync'))syncedPaymentsMap[p.iso_id]=p;});
 
       const parseSyncedTxs=(notes:string)=>{
-        const m=notes?.match(/\[Bank Sync [^\]]+\]\s*(.+)/);
-        if(!m)return null;
-        return m[1].split(';').map((s:string)=>s.trim()).filter(Boolean).map((entry:string)=>{
+        // New format: [Bank Sync YYYY-MM]{2026-09-05:977.99,2026-09-10:100.00} ...
+        const mNew=notes?.match(/\[Bank Sync [^\]]+\]\{([^}]+)\}/);
+        if(mNew){
+          return mNew[1].split(',').map((entry:string)=>{
+            // Format: YYYY-MM-DD:amount  (date uses hyphens so split(':') gives [date, amount])
+            const idx=entry.lastIndexOf(':');
+            if(idx<0)return null;
+            const date=entry.slice(0,idx);
+            const amount=parseFloat(entry.slice(idx+1));
+            return isNaN(amount)?null:{date,amount};
+          }).filter(Boolean);
+        }
+        // Legacy format: [Bank Sync YYYY-MM] DATE DESC $AMOUNT; DATE DESC $AMOUNT
+        const mOld=notes?.match(/\[Bank Sync [^\]]+\]\s*(.+)/);
+        if(!mOld)return null;
+        return mOld[1].split(';').map((s:string)=>s.trim()).filter(Boolean).map((entry:string)=>{
           const em=entry.match(/^(\d{4}-\d{2}-\d{2})\s+.*\$(\d+\.\d{2})$/);
           return em?{date:em[1],amount:parseFloat(em[2])}:null;
         }).filter(Boolean);

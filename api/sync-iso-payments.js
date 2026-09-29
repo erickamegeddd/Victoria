@@ -240,8 +240,10 @@ async function bankConfirm(month, preview, res) {
 
   for (const iso of preview) {
     try {
+      // Fingerprints: date:amount pairs — no free text, safe to parse back reliably
+      const fingerprints = iso.transactions.map(t => `${t.date}:${Number(t.amount).toFixed(2)}`).join(",");
       const breakdown = iso.transactions.map(t => `${t.date} ${t.description} $${Number(t.amount).toFixed(2)}`).join("; ");
-      const syncNote = `[Bank Sync ${month}] ${breakdown}`;
+      const syncNote = `[Bank Sync ${month}]{${fingerprints}} ${breakdown}`;
       const existing = await sbGet(`iso_payments?iso_id=eq.${iso.isoId}&report_month=eq.${reportMonth}&select=id,notes`);
       const ex = Array.isArray(existing) ? existing[0] : null;
 
