@@ -36,8 +36,14 @@ CONFIG_FILE = os.path.join(os.path.dirname(__file__), "iso_report_configs.json")
 SUPA_URL    = "https://vuqflofuzhybutkkzroa.supabase.co"
 SUPA_ANON   = os.environ.get("SUPABASE_ANON_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ1cWZsb2Z1emh5YnV0a2t6cm9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwNDE3NTYsImV4cCI6MjEwMTYxNzc1Nn0.46kKCy_3cY7oKuONb9e2e18yKVNui3oSOzySK33fMFE")
 
-# Dropbox shared link for Residuals By Year folder
+# Dropbox shared link for Residuals By Year folder (Jan–Jul 2026)
 DROPBOX_LINK = "https://www.dropbox.com/scl/fo/wsia0fa20333p6ne05wch/AE7T_vC6uiX9Y28SNSjVbOA?rlkey=6dy3ppiklqfr778edurbz3syn&st=vstvup82&dl=0"
+
+# Per-month link overrides — months where files are in a separate Dropbox folder.
+# These folders use a flat structure (files at root, no /MM-YYYY/ subdir).
+DROPBOX_LINK_MAP = {
+    "2026-08": "https://www.dropbox.com/scl/fo/10eo29bkc408mwcn2gety/ABFQ-VaMsjfeMMk8855TN04?rlkey=tv89n0osxlu5wz2frz3k0uyyi&st=vjp0dghx&dl=0"
+}
 
 # Pipedream credentials (for Dropbox API access)
 PD_CLIENT_ID     = os.environ.get("PD_CLIENT_ID", "6NjkKTBzDSrxC50EtDZEJTHIRQbHNZmQ0k_7iQF8tVg")
@@ -70,23 +76,28 @@ def get_pd_token():
     with urllib.request.urlopen(r) as resp:
         return json.loads(resp.read())["access_token"]
 
-def dropbox_list(pd_token, path):
-    """List contents of a path inside the Residuals By Year shared link."""
+def dropbox_list(pd_token, path, link=None):
+    """List contents of a path inside a Dropbox shared link."""
+    active_link = link or DROPBOX_LINK
     url = "https://api.dropboxapi.com/2/files/list_folder"
     b64url = base64.b64encode(url.encode()).decode().replace("+", "-").replace("/", "_").rstrip("=")
     pu = f"https://api.pipedream.com/v1/connect/{PD_PROJECT_ID}/proxy/{b64url}?account_id={DROPBOX_ACCOUNT_ID}&external_user_id={PD_EXTERNAL_USER}"
-    body = {"path": path, "shared_link": {"url": DROPBOX_LINK}, "recursive": False}
+    body = {"path": path, "shared_link": {"url": active_link}, "recursive": False}
     req = urllib.request.Request(
         pu, data=json.dumps(body).encode(),
         headers={"Authorization": f"Bearer {pd_token}", "x-pd-environment": "production", "Content-Type": "application/json"}
     )
-    with urllib.request.urlopen(req) as r:
-        return json.loads(r.read()).get("entries", [])
+    try:
+        with urllib.request.urlopen(req) as r:
+            return json.loads(r.read()).get("entries", [])
+    except Exception:
+        return []
 
-def dropbox_download(pd_token, dropbox_path, local_path):
-    """Download a file from the shared link by path."""
+def dropbox_download(pd_token, dropbox_path, local_path, link=None):
+    """Download a file from a shared link by path."""
+    active_link = link or DROPBOX_LINK
     url = "https://content.dropboxapi.com/2/sharing/get_shared_link_file"
-    arg = json.dumps({"url": DROPBOX_LINK, "path": dropbox_path})
+    arg = json.dumps({"url": active_link, "path": dropbox_path})
     import urllib.parse
     encoded_arg = urllib.parse.quote(arg)
     full_url = f"{url}?arg={encoded_arg}"
@@ -98,6 +109,23 @@ def dropbox_download(pd_token, dropbox_path, local_path):
     with urllib.request.urlopen(req) as r:
         with open(local_path, "wb") as f:
             f.write(r.read())
+
+def parse_xls(path):
+    """Parse legacy .xls (BIFF) files using xlrd."""
+    import xlrd
+    wb = xlrd.open_workbook(path)
+    ws = wb.sheet_by_index(0)
+    rows_data = []
+    for row_idx in range(ws.nrows):
+        row = []
+        for col_idx in range(ws.ncols):
+            cell = ws.cell(row_idx, col_idx)
+            if cell.ctype in (xlrd.XL_CELL_FLOAT, xlrd.XL_CELL_BOOLEAN):
+                row.append(cell.value)
+            else:
+                row.append(str(cell.value) if cell.value else "")
+        rows_data.append(row)
+    return rows_data
 
 def parse_xlsx(path):
     """Parse xlsx file returning list of rows as lists, using correct cell references."""
@@ -291,7 +319,7 @@ def parse_midmetrics_rows(rows, iso_id, report_month, file_name):
 
 # ── Main import logic ─────────────────────────────────────────────────────────
 
-def import_iso_month(iso_name, cfg, iso_id, report_month, month_folder, dry_run=False, victoria_key=None):
+def import_iso_month(iso_name, cfg, iso_id, report_month, month_folder, active_link=None, dry_run=False, victoria_key=None):
     """
     Find the ISO's file in Dropbox for this month, parse it, and import to Supabase.
     Returns (rows_imported, total_paydiversenet, error_message)
@@ -299,15 +327,25 @@ def import_iso_month(iso_name, cfg, iso_id, report_month, month_folder, dry_run=
     if cfg.get("col_paydiversenet") == "NEEDS_VERIFICATION":
         return 0, 0, f"SKIPPED — column mapping not verified for {iso_name}"
 
+    active_link = active_link or DROPBOX_LINK
+
     # Find the file in Dropbox
     pd_token = get_pd_token()
-    entries = dropbox_list(pd_token, month_folder)
+    entries = dropbox_list(pd_token, month_folder, link=active_link)
 
-    # Try subfolders too (e.g. Breier)
+    # Flat-folder fallback: some months use a shared link that IS the month folder
+    # (no /MM-YYYY/ subdir). If listing the month subfolder returns nothing, try root.
+    if not entries and month_folder:
+        print(f"  Note: '{month_folder}' not found — using root (flat folder structure)")
+        entries = dropbox_list(pd_token, "", link=active_link)
+        month_folder = ""
+
+    # Also list any subfolders (e.g. Breier, Signapay)
     all_entries = list(entries)
     for e in entries:
         if e.get(".tag") == "folder":
-            sub_entries = dropbox_list(pd_token, f"{month_folder}/{e['name']}")
+            sub_path = f"/{e['name']}" if month_folder == "" else f"{month_folder}/{e['name']}"
+            sub_entries = dropbox_list(pd_token, sub_path, link=active_link)
             all_entries.extend(sub_entries)
 
     # Match file by pattern
@@ -328,22 +366,24 @@ def import_iso_month(iso_name, cfg, iso_id, report_month, month_folder, dry_run=
             break
 
     if not matched_file:
-        return 0, 0, f"No file found for {iso_name} in {month_folder} (patterns: {patterns})"
+        return 0, 0, f"No file found for {iso_name} in '{month_folder or 'root'}' (patterns: {patterns})"
 
     file_name = matched_file["name"]
     print(f"  Found: {file_name}")
 
     # Download
-    import tempfile
     local_path = f"/tmp/import_{iso_name.replace(' ', '_')}_{report_month}.xlsx"
     try:
-        dropbox_download(pd_token, matched_file.get("path_display", f"{month_folder}/{file_name}"), local_path)
+        dropbox_download(pd_token, matched_file.get("path_display", f"{month_folder}/{file_name}"), local_path, link=active_link)
     except Exception as e:
         return 0, 0, f"Download failed: {e}"
 
-    # Parse
+    # Parse — dispatch .xls to xlrd, everything else to xlsx parser
     try:
-        rows = parse_xlsx(local_path)
+        if file_name.lower().endswith(".xls"):
+            rows = parse_xls(local_path)
+        else:
+            rows = parse_xlsx(local_path)
     except Exception as e:
         return 0, 0, f"Parse failed: {e}"
 
@@ -458,10 +498,13 @@ def main():
 
     iso_configs = config.get("isos", {})
 
-    # Resolve month folder path (e.g. 2026-06 → /2026/06-2026)
+    # Resolve month folder path (e.g. 2026-06 → /06-2026)
     year, month_num = args.month.split("-")
     month_folder = f"/{month_num}-{year}"
     report_month = f"{year}-{month_num}-01"
+
+    # Use per-month Dropbox link if configured, otherwise fall back to main link
+    active_link = DROPBOX_LINK_MAP.get(args.month, DROPBOX_LINK)
 
     # Get ISO id map from Supabase
     isos = sb_get("isos?select=id,name&limit=100")
@@ -479,6 +522,7 @@ def main():
 
     print(f"\n=== Import: {args.month} ({'DRY RUN' if args.dry_run else 'LIVE'}) ===")
     print(f"Month folder: {month_folder}")
+    print(f"Dropbox link: {'OVERRIDE (' + args.month + ')' if args.month in DROPBOX_LINK_MAP else 'default'}")
     print(f"ISOs to import: {targets}\n")
 
     results = []
@@ -503,7 +547,7 @@ def main():
         print(f"[{iso_name}]")
         rows_count, total_pdn, error = import_iso_month(
             iso_name, cfg, iso_id, report_month, month_folder,
-            dry_run=args.dry_run, victoria_key=args.victoria_key
+            active_link=active_link, dry_run=args.dry_run, victoria_key=args.victoria_key
         )
         if error:
             print(f"  ERROR: {error}")
@@ -520,3 +564,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
