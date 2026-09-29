@@ -111,33 +111,35 @@ def dropbox_download(pd_token, dropbox_path, local_path, link=None):
             f.write(r.read())
 
 def parse_xls(path):
-    """Parse legacy .xls (BIFF) files using xlrd 1.x (force-installed if 2.x found)."""
+    """Parse legacy .xls (BIFF) files using xlrd 1.x (force-installed if 2.x found).
+
+    xlrd 2.x dropped .xls support entirely. We detect it by version and downgrade.
+    Cell type 2 = XL_CELL_NUMBER (float/int), type 4 = XL_CELL_BOOLEAN.
+    """
     import sys, subprocess
 
     def _install_xlrd1():
         subprocess.check_call(
             [sys.executable, "-m", "pip", "install", "--force-reinstall", "--quiet", "xlrd==1.2.0"]
         )
-        # Remove all xlrd-related modules from cache so the next import is fresh
         for mod in list(sys.modules.keys()):
             if mod == "xlrd" or mod.startswith("xlrd."):
                 del sys.modules[mod]
 
-    # First attempt — import whatever is installed
     try:
         import xlrd
     except ImportError:
         _install_xlrd1()
         import xlrd
 
-    # xlrd 2.x has no XL_CELL_FLOAT (dropped .xls support); force downgrade if needed
-    if not hasattr(xlrd, "XL_CELL_FLOAT"):
+    # xlrd 2.0+ dropped .xls support — downgrade to 1.x if needed
+    ver = tuple(int(x) for x in getattr(xlrd, "__version__", "0.0").split(".")[:2])
+    if ver >= (2, 0):
         _install_xlrd1()
         import xlrd
-        if not hasattr(xlrd, "XL_CELL_FLOAT"):
-            raise ImportError(
-                f"xlrd {getattr(xlrd, '__version__', '?')} still lacks XL_CELL_FLOAT after force-reinstall of 1.2.0"
-            )
+        ver = tuple(int(x) for x in getattr(xlrd, "__version__", "0.0").split(".")[:2])
+        if ver >= (2, 0):
+            raise ImportError(f"xlrd {xlrd.__version__} cannot read .xls — force-reinstall of 1.2.0 failed")
 
     wb = xlrd.open_workbook(path)
     ws = wb.sheet_by_index(0)
@@ -146,7 +148,8 @@ def parse_xls(path):
         row = []
         for col_idx in range(ws.ncols):
             cell = ws.cell(row_idx, col_idx)
-            if cell.ctype in (xlrd.XL_CELL_FLOAT, xlrd.XL_CELL_BOOLEAN):
+            # ctype 2 = XL_CELL_NUMBER (float), ctype 4 = XL_CELL_BOOLEAN
+            if cell.ctype in (2, 4):
                 row.append(cell.value)
             else:
                 row.append(str(cell.value) if cell.value else "")
