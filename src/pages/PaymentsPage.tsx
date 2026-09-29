@@ -455,30 +455,30 @@ const PaymentsPage = () => {
                     const someTx=!synced&&iso.transactions.some((_:any,j:number)=>isoChecked.has(j));
                     const checkedTotal=Math.round(iso.transactions.filter((_:any,j:number)=>isoChecked.has(j)).reduce((s:number,t:any)=>s+t.amount,0)*100)/100;
                     return(
-                    <div key={iso.isoId} style={{borderBottom:i<sorted.length-1?'1px solid #f3f4f6':'none',opacity:synced?0.45:1}}>
+                    <div key={iso.isoId} style={{borderBottom:i<sorted.length-1?'1px solid #f3f4f6':'none'}}>
                       {/* ISO header row */}
-                      <div style={{padding:'8px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',background:synced?'#f3f4f6':someTx?'#f0fdf4':'#fafafa',cursor:synced?'default':'pointer'}}
-                        onClick={()=>{if(!synced)toggleISO(iso);}}>
+                      <div style={{padding:'8px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',background:someTx?'#f0fdf4':'#fafafa',cursor:'pointer'}}
+                        onClick={()=>toggleISO(iso)}>
                         <Space size={8}>
-                          <Checkbox checked={allTx} indeterminate={someTx&&!allTx} disabled={synced} onChange={()=>{}} onClick={e=>e.stopPropagation()} style={{pointerEvents:'none'}}/>
-                          <Text style={{fontWeight:700,fontSize:13,color:synced?'#9ca3af':someTx?'#111827':'#9ca3af'}}>{iso.isoName}</Text>
-                          {synced&&<Tag color="default" style={{fontSize:10,lineHeight:'16px',padding:'0 5px'}}>Already Synced</Tag>}
+                          <Checkbox checked={allTx} indeterminate={someTx&&!allTx} onChange={()=>{}} onClick={e=>e.stopPropagation()} style={{pointerEvents:'none'}}/>
+                          <Text style={{fontWeight:700,fontSize:13,color:someTx?'#111827':'#9ca3af'}}>{iso.isoName}</Text>
+                          {synced&&<Tag color="orange" style={{fontSize:10,lineHeight:'16px',padding:'0 5px'}}>Synced</Tag>}
                         </Space>
-                        <Text style={{fontWeight:900,fontSize:14,color:synced?'#9ca3af':someTx?'#059669':'#9ca3af'}}>
-                          {fmt(synced?iso.total:someTx?checkedTotal:iso.total)}
+                        <Text style={{fontWeight:900,fontSize:14,color:someTx?'#059669':'#9ca3af'}}>
+                          {fmt(someTx?checkedTotal:iso.total)}
                         </Text>
                       </div>
                       {/* Per-transaction rows */}
                       {iso.transactions.map((tx:any,j:number)=>{
-                        const txOn=!synced&&isoChecked.has(j);
+                        const txOn=isoChecked.has(j);
                         return(
-                        <div key={j} style={{padding:'5px 14px 5px 38px',display:'flex',justifyContent:'space-between',alignItems:'center',cursor:synced?'default':'pointer',background:txOn?'#fff':'#fafafa'}}
-                          onClick={e=>{e.stopPropagation();if(!synced)toggleTx(iso.isoId,j);}}>
+                        <div key={j} style={{padding:'5px 14px 5px 38px',display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',background:txOn?'#fff':'#fafafa'}}
+                          onClick={e=>{e.stopPropagation();toggleTx(iso.isoId,j);}}>
                           <Space size={8}>
-                            <Checkbox checked={txOn} disabled={synced} onChange={()=>{}} onClick={e=>e.stopPropagation()} style={{pointerEvents:'none'}}/>
-                            <span style={{fontSize:11,color:synced?'#9ca3af':txOn?'#374151':'#9ca3af'}}>{tx.date} — {tx.description}</span>
+                            <Checkbox checked={txOn} onChange={()=>{}} onClick={e=>e.stopPropagation()} style={{pointerEvents:'none'}}/>
+                            <span style={{fontSize:11,color:txOn?'#374151':'#9ca3af'}}>{tx.date} — {tx.description}</span>
                           </Space>
-                          <span style={{fontSize:11,fontWeight:600,color:synced?'#9ca3af':txOn?'#374151':'#9ca3af',whiteSpace:'nowrap',marginLeft:8}}>${Number(tx.amount).toFixed(2)}</span>
+                          <span style={{fontSize:11,fontWeight:600,color:txOn?'#374151':'#9ca3af',whiteSpace:'nowrap',marginLeft:8}}>${Number(tx.amount).toFixed(2)}</span>
                         </div>
                       )})}
                     </div>
