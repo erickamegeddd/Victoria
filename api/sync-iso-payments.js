@@ -202,11 +202,11 @@ async function bankPreview(month, res) {
     const haystack = `${tx.description} ${tx.payee}`.toLowerCase();
     for (const iso of Object.values(isoMap)) {
       if (iso.keywords.some(kw => haystack.includes(kw))) {
-        // Only accept transactions within ±14 days of the ISO's expected payment date.
+        // Only accept transactions within ±5 days of the ISO's expected payment date.
         // Prevents payments for prior/future residual months from being counted.
         if (iso.expectedDate) {
           const diffDays = (new Date(tx.date) - new Date(iso.expectedDate)) / 86400000;
-          if (diffDays < -14 || diffDays > 14) break;
+          if (diffDays < -5 || diffDays > 5) break;
         }
         iso.transactions.push({ date: tx.date, description: tx.description, amount: tx.amount });
         break;
