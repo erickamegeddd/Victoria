@@ -37,9 +37,9 @@
       "col_mid": "B",
       "col_business_name": "C",
       "col_gross_volume": "J",
-      "col_paydiversenet": "AP",
+      "col_paydiversenet": "AQ",
       "skip_header_rows": 1,
-      "_notes": "AP=Agent Payout. Files in Breier/ subfolder each month. Blitz Ordering LLC (MID 5206) has recurring negative charges."
+      "_notes": "AQ=Agent Payout (Aug 2026+ format; older months used AP). Files in Breier subfolder."
     },
     "PayArc": {
       "verified": true,
@@ -118,9 +118,10 @@
       "col_mid": "B",
       "col_business_name": "B",
       "col_gross_volume": "D",
-      "col_paydiversenet": "K",
+      "col_paydiversenet": "J",
       "skip_header_rows": 1,
-      "_notes": "K=Finns ISO income. No separate MID column \u2014 col B (Merchant name) used for both."
+      "_notes": "J=Net Agent (ELM) = PayDiverse 65% share. K=Finns 35% share. Last few rows are blank-merchant summary rows \u2014 skip them via skip_blank_mid.",
+      "skip_blank_mid": true
     },
     "HiRisk": {
       "verified": true,
@@ -251,26 +252,25 @@
         "NMI*.xlsx"
       ],
       "dropbox_subfolder": "Breier",
-      "col_mid": "C",
-      "col_business_name": "D",
+      "col_mid": "B",
+      "col_business_name": "C",
       "col_gross_volume": "N",
-      "col_paydiversenet": "R",
+      "col_paydiversenet": "Q",
       "skip_header_rows": 1,
-      "_notes": "R=Total Commission. Multiple rows per MID (one per fee type) \u2014 sum by MID. File in Breier subfolder."
+      "_notes": "Q=Total Commission (Aug 2026+ format; older months used R). B=Gateway ID (MID), C=Merchant. File in Breier subfolder."
     },
     "GET": {
       "verified": true,
       "file_pattern": [
-        "GET*.xlsx",
         "Get*.xlsx"
       ],
       "dropbox_subfolder": "Breier",
       "col_mid": "A",
       "col_business_name": "B",
       "col_gross_volume": "J",
-      "col_paydiversenet": "AF",
+      "col_paydiversenet": "AL",
       "skip_header_rows": 1,
-      "_notes": "AF=Split to Agent (commission) from July 2026 onward. Earlier months used AL=CommissionAmount. J=TotalVolumeSales. File has a yellow Total row at bottom with no MID \u2014 skip it. GET*.xlsx matches all-caps filename; Get*.xlsx matches mixed-case."
+      "_notes": "AL=CommissionAmount. J=TotalVolumeSales. A=MID, B=DBAName. File has a yellow Total row at bottom with no MID \u2014 skip it. Pattern uses lowercase Get (avoid matching July copy)."
     },
     "Celero": {
       "verified": true,
@@ -292,11 +292,11 @@
         "Authorize_Net*.xlsx"
       ],
       "dropbox_subfolder": "Breier",
-      "col_mid": "B",
-      "col_business_name": "C",
-      "col_paydiversenet": "M",
+      "col_mid": "A",
+      "col_business_name": "B",
+      "col_paydiversenet": "N",
       "skip_header_rows": 1,
-      "_notes": "M=Collection Attempts (sum of all fees per merchant). File in Breier subfolder."
+      "_notes": "N=Residual Amount. A=Payment Gateway ID (MID), B=Reference ID (name). File in Breier subfolder."
     },
     "MerchantE Synovous": {
       "verified": true,
