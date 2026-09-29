@@ -54,11 +54,9 @@ const PaymentsPage = () => {
       const data=await r.json();
       if(!r.ok)throw new Error(data.error||'Sync failed');
       setSyncData(data);
-      const syncedIds=new Set(payments.filter(p=>p.notes?.includes('[Bank Sync')).map(p=>p.iso_id));
       const init:Record<string,Set<number>>={};
       (data.preview||[]).forEach((iso:any)=>{
-        // Pre-check all transactions for un-synced ISOs; leave synced ones empty (greyed out)
-        init[iso.isoId]=syncedIds.has(iso.isoId)?new Set():new Set(iso.transactions.map((_:any,i:number)=>i));
+        init[iso.isoId]=new Set(iso.transactions.map((_:any,i:number)=>i));
       });
       setCheckedTxs(init);
       setSyncModal(true);
