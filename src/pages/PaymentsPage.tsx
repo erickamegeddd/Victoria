@@ -7,6 +7,8 @@ import dayjs from "dayjs";
 const { Title, Text } = Typography;
 const { Option } = Select;
 const fmt = (n) => n != null ? `$${Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}` : '--';
+const PAYMENT_DUE_RULES:Record<string,number>={"Group ISO":0,"Authorize.Net":5,"Expitrans":5,"Pepper Pay":13,"Total-Apps":13,"Finns":13,"CC Bill":15,"Maverick":15,"Simply Payment Group":15,"PayArc":17,"Mitigator":18,"Quantum":19,"GET":20,"MerchantE Fresno":20,"MerchantE Synovous":20,"Nexio":20,"Nuvei":20,"Vendara":20,"Worldpay":20,"Worldpay (Vantiv)":20,"Fraud Deflect":22,"The HiRisk Processor":24,"HiRisk":24,"Cardworks":25,"Celero":25,"SignaPay":25,"Payliance":26,"Taluspay":28,"NMI":29,"Coastal Pay":30,"First Direct Financial":30,"Merchant Industry":30,"Netevia":30,"Payment Cloud":30,"Seamless Chex":30,"RAC":35,"Card Insight":45,"E-Fitness Today":45,"Midmetrics":45,"Approvely":46,"USAG":49};
+const computeExpDate=(isoName:string,residualMonth:string)=>{const days=PAYMENT_DUE_RULES[isoName];if(days==null||!residualMonth)return null;return dayjs(residualMonth.slice(0,7)+'-01').endOf('month').add(days,'day').format('YYYY-MM-DD');};
 
 // expected_date stored as EXP:YYYY-MM-DD| prefix in notes field
 const parseExpDate = (notes) => { if (!notes) return null; const m = notes.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/); return m ? m[1] : null; };
@@ -25,9 +27,8 @@ const PaymentsPage = () => {
   const [selectedIsoForPayment, setSelectedIsoForPayment] = useState({isoId:null,isoName:'',expected:0});
   const [savingPayment, setSavingPayment] = useState(false);
   const [activeStatusFilter, setActiveStatusFilter] = useState(null);
-  const [isoDueDayMap, setIsoDueDayMap] = useState({});
   const [editingExpected, setEditingExpected] = useState({}); // isoId → string value being edited
-  const [savingExpected, setSavingExpected] = useState({}); // iso_id → day of month from historical records
+  const [savingExpected, setSavingExpected] = useState({});
 
   // Bank sync state
   const [syncLoading, setSyncLoading] = useState(false);
@@ -36,21 +37,10 @@ const PaymentsPage = () => {
   const [syncModal, setSyncModal] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
-  useEffect(()=>{fetchIsos();fetchAllPaymentDates();},[]);
+  useEffect(()=>{fetchIsos();},[]);
   useEffect(()=>{fetchResiduals();fetchPayments();setActiveStatusFilter(null);},[selectedMonth]);
 
   const fetchIsos=async()=>{const{data}=await supabase.from('isos').select('*').eq('status','active').order('name');if(data)setIsos(data);};
-  const fetchAllPaymentDates=async()=>{
-    const{data}=await supabase.from('iso_payments').select('iso_id,notes,report_month').order('report_month',{ascending:false}).limit(1000);
-    if(!data)return;
-    const map={};
-    data.forEach(p=>{
-      if(!p.notes||map[p.iso_id])return;
-      const m=p.notes.match(/^EXP:\d{4}-\d{2}-(\d{2})\|/);
-      if(m)map[p.iso_id]=parseInt(m[1]);
-    });
-    setIsoDueDayMap(map);
-  };
   const fetchResiduals=async()=>{if(!selectedMonth)return;const{data}=await supabase.from('residuals').select('*,isos(id,name)').eq('report_month',selectedMonth).limit(2000);if(data)setResiduals(data);};
   const fetchPayments=async()=>{if(!selectedMonth)return;const{data}=await supabase.from('iso_payments').select('*,isos(name)').eq('report_month',selectedMonth);if(data)setPayments(data);};
 
@@ -191,15 +181,16 @@ const PaymentsPage = () => {
       render:(_,r)=>{const p=getPaymentForISO(r.isoId);const s=p?getStatus(r.expected,p.received_amount):'pending';const cfg=STATUS_CONFIG[s];return<Tag color={cfg.color}>{cfg.label}</Tag>;}},
     {title:'Payment Expected By',key:'expdate',width:150,
       filters:[{text:'Overdue',value:'overdue'},{text:'Has Due Date',value:'has_date'},{text:'No Date Set',value:'no_date'}],
-      onFilter:(val,r)=>{const p=getPaymentForISO(r.isoId);const expDate=parseExpDate(p?.notes);if(val==='no_date')return!expDate;if(val==='has_date')return!!expDate;if(val==='overdue')return expDate&&expDate<today&&p?.received_amount==null;return true;},
+      onFilter:(val,r)=>{const p=getPaymentForISO(r.isoId);const expDate=parseExpDate(p?.notes)||computeExpDate(r.isoName,selectedMonth);if(val==='no_date')return!expDate;if(val==='has_date')return!!expDate;if(val==='overdue')return expDate&&expDate<today&&p?.received_amount==null;return true;},
       render:(_,r)=>{
       const p=getPaymentForISO(r.isoId);
-      const expDate=parseExpDate(p?.notes);
+      const storedDate=parseExpDate(p?.notes);
+      const expDate=storedDate||computeExpDate(r.isoName,selectedMonth);
       if(!expDate)return<Text style={{color:'var(--muted-color)',fontSize:12}}>--</Text>;
       const isOverdue=expDate<today&&p?.received_amount==null;
       return isOverdue
-        ?<Tag color="red" style={{fontWeight:600}}> Overdue - {dayjs(expDate).format('MMM D')}</Tag>
-        :<Text style={{fontSize:12,color:p?.received_amount==null?'#d97706':'var(--muted-color)'}}>{dayjs(expDate).format('MMM D, YYYY')}</Text>;
+        ?<Tag color="red" style={{fontWeight:600}}>Overdue - {dayjs(expDate).format('MMM D')}</Tag>
+        :<Text style={{fontSize:12,color:p?.received_amount==null?'#d97706':'var(--muted-color)'}}>{dayjs(expDate).format('MMM D, YYYY')}{!storedDate&&<span style={{color:'var(--muted-color)',fontSize:10}}> est.</span>}</Text>;
     }},
     {title:'Payment Date',key:'date',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return(pa?.payment_date||'')<(pb?.payment_date||'')?-1:1;},render:(_,r)=>{const p=getPaymentForISO(r.isoId);return p?.payment_date?<Text style={{fontSize:12,color:'var(--muted-color)'}}>{dayjs(p.payment_date).format('MMM D, YYYY')}</Text>:<Text style={{color:'var(--muted-color)'}}>--</Text>;}},
     {title:'Notes',key:'notes',ellipsis:true,render:(_,r)=>{const p=getPaymentForISO(r.isoId);const n=parseActualNotes(p?.notes);return n?<Text style={{fontSize:12,color:'var(--muted-color)'}}>{n}</Text>:null;}},
@@ -276,7 +267,7 @@ const PaymentsPage = () => {
               scroll={{x:1000,y:'calc(100vh - 340px)'}}
               onRow={r=>({style:{background:(()=>{const p=getPaymentForISO(r.isoId);const s=p?getStatus(r.expected,p.received_amount):'pending';if(s==='short_paid')return'#fff5f5';if(s==='pending')return'#fffbeb';if(s==='paid')return'#f0fdf4';return undefined;})(),cursor:'pointer'},onClick:()=>setExpandedRows(prev=>prev.includes(r.isoId)?prev.filter(k=>k!==r.isoId):[...prev,r.isoId])})}
               expandedRowKeys={expandedRows}
-              expandable={{showExpandColumn:false,expandedRowRender:(r)=>{const p=getPaymentForISO(r.isoId);const exp=r.expected;const rec=p?.received_amount;const diff=(rec!=null&&exp!=null)?rec-exp:null;const status=p?getStatus(r.expected,p.received_amount):'pending';const expDate=parseExpDate(p?.notes);const notes=parseActualNotes(p?.notes);const statusColors:Record<string,string>={paid:'#10b981',pending:'#f59e0b',short_paid:'#ef4444',overpaid:'#3b82f6',received:'#10b981'};return(<div style={{padding:'10px 24px 10px 48px',background:'rgba(0,32,64,0.04)',borderTop:'1px solid rgba(0,0,0,0.06)',display:'flex',flexWrap:'wrap',gap:'12px 40px'}}><div style={{minWidth:110}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Expected</Text><Text style={{fontWeight:600}}>{exp!=null?fmt(exp):'--'}</Text></div><div style={{minWidth:110}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Received</Text><Text style={{fontWeight:600}}>{rec!=null?fmt(rec):'--'}</Text></div><div style={{minWidth:110}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Difference</Text><Text style={{fontWeight:600,color:diff!=null&&diff<0?'#ef4444':diff!=null&&diff>0?'#3b82f6':'inherit'}}>{diff!=null?`${diff<0?'-':''}${fmt(Math.abs(diff))}`:'--'}</Text></div><div style={{minWidth:100}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Status</Text><Tag color={statusColors[status]||'default'} style={{textTransform:'capitalize'}}>{status.replace('_',' ')}</Tag></div><div style={{minWidth:110}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Expected By</Text><Text>{expDate||'--'}</Text></div><div style={{minWidth:110}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Payment Date</Text><Text>{p?.payment_date||'--'}</Text></div><div style={{flex:1,minWidth:200}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Notes</Text><Text>{notes||'--'}</Text></div></div>);}}}
+              expandable={{showExpandColumn:false,expandedRowRender:(r)=>{const p=getPaymentForISO(r.isoId);const exp=r.expected;const rec=p?.received_amount;const diff=(rec!=null&&exp!=null)?rec-exp:null;const status=p?getStatus(r.expected,p.received_amount):'pending';const expDate=parseExpDate(p?.notes)||computeExpDate(r.isoName,selectedMonth);const notes=parseActualNotes(p?.notes);const statusColors:Record<string,string>={paid:'#10b981',pending:'#f59e0b',short_paid:'#ef4444',overpaid:'#3b82f6',received:'#10b981'};return(<div style={{padding:'10px 24px 10px 48px',background:'rgba(0,32,64,0.04)',borderTop:'1px solid rgba(0,0,0,0.06)',display:'flex',flexWrap:'wrap',gap:'12px 40px'}}><div style={{minWidth:110}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Expected</Text><Text style={{fontWeight:600}}>{exp!=null?fmt(exp):'--'}</Text></div><div style={{minWidth:110}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Received</Text><Text style={{fontWeight:600}}>{rec!=null?fmt(rec):'--'}</Text></div><div style={{minWidth:110}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Difference</Text><Text style={{fontWeight:600,color:diff!=null&&diff<0?'#ef4444':diff!=null&&diff>0?'#3b82f6':'inherit'}}>{diff!=null?`${diff<0?'-':''}${fmt(Math.abs(diff))}`:'--'}</Text></div><div style={{minWidth:100}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Status</Text><Tag color={statusColors[status]||'default'} style={{textTransform:'capitalize'}}>{status.replace('_',' ')}</Tag></div><div style={{minWidth:110}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Expected By</Text><Text>{expDate||'--'}</Text></div><div style={{minWidth:110}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Payment Date</Text><Text>{p?.payment_date||'--'}</Text></div><div style={{flex:1,minWidth:200}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Notes</Text><Text>{notes||'--'}</Text></div></div>);}}}
               summary={()=>{
                 const tExp=filteredISOs.reduce((s,r)=>s+(r.expected??0),0);
                 const tRec=filteredISOs.reduce((s,r)=>{const p=getPaymentForISO(r.isoId);return s+(p?.received_amount||0);},0);
@@ -304,9 +295,9 @@ const PaymentsPage = () => {
               const fromResiduals=expectedByISOMap[iso.id];
               const p=getPaymentForISO(iso.id);
               const expDate=parseExpDate(p?.notes);
-              const payMonthStr=dayjs(selectedMonth).add(1,'month').format('YYYY-MM-');
-              const resolvedDate=expDate||(isoDueDayMap[iso.id]?payMonthStr+String(isoDueDayMap[iso.id]).padStart(2,'0'):null);
-              if(!resolvedDate)return null;
+              const resolvedDate=expDate||computeExpDate(iso.name,selectedMonth);
+              const payMonthPrefix=dayjs(selectedMonth).add(1,'month').format('YYYY-MM');
+              if(!resolvedDate||!resolvedDate.startsWith(payMonthPrefix))return null;
               const amount=fromResiduals?.expected ?? (p?.expected_amount||0);
               const status=p?getStatus(amount,p.received_amount):'pending';
               return{name:iso.name,isoId:iso.id,dayNum:parseInt(resolvedDate.split('-')[2]),expDate:resolvedDate,amount,received:p?.received_amount??null,status};
