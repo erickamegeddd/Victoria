@@ -39,7 +39,7 @@ const Dashboard = () => {
   const [residuals, setResiduals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedIso, setSelectedIso] = useState(undefined);
-  const LATEST_MONTH = dayjs().startOf('month').format('YYYY-MM-DD');
+  const LATEST_MONTH = '2026-07-01';
   const [selectedMonth, setSelectedMonth] = useState(LATEST_MONTH);
   const [activeTab, setActiveTab] = useState('residuals');
   const [outerTab, setOuterTab] = useState('monthly');
