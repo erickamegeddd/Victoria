@@ -16,7 +16,7 @@ export default async function handler(req,res){
       for(const item of(Array.isArray(items)?items:[items])){const mid=item.mid||item.merchant_id;if(!mid)continue;records.push({iso_id:isoId,mid:String(mid),business_name:item.merchant||item.dba_name||null,report_month:toISOMonth(item.statement_date||item.period||item.created_at),gross_volume:toFloat(item.volume||item.sales_amount),gross_revenue:toFloat(item.net||item.gross_profit),net_revenue:toFloat(item.agent_net||item.agent_income),paydiversenet:toFloat(item.agent_income||item.agent_payout||item.agent_net),source_file:`${isoSlug}_webhook_${event}`});}
       if(records.length>0){const status=await supabaseInsert('residuals',records);await supabaseInsert('file_ingestion_log',[{dropbox_path:`webhook/${isoSlug}/${event}`,file_name:`${isoSlug}_webhook_${new Date().toISOString().slice(0,10)}`,iso_id:isoId,file_type:'residual_report',status:status===201?'complete':'error',rows_imported:status===201?records.length:0,processed_at:new Date().toISOString()}]);// Sync iso_payments.expected_amount from residuals after each import
         try {
-          const syncUrl = `${req.headers.origin || 'https://victoria-ericka3.vercel.app'}/api/sync-iso-payments?month=${records[0]?.report_month || ''}`;
+          const syncUrl = `${req.headers.origin || 'https://victoria-ericka3.vercel.app'}/api/sync-iso-payments?action=sync-residuals&month=${records[0]?.report_month || ''}`;
           fetch(syncUrl).catch(()=>{});
         } catch(e) {}
         // Sync merchant statuses based on latest month's residuals

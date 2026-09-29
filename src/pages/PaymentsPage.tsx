@@ -42,7 +42,8 @@ const PaymentsPage = () => {
   useEffect(()=>{fetchResiduals();fetchPayments();setActiveStatusFilter(null);},[selectedMonth]);
 
   const fetchIsos=async()=>{const{data}=await supabase.from('isos').select('*').eq('status','active').order('name');if(data)setIsos(data);};
-  const fetchResiduals=async()=>{if(!selectedMonth)return;const{data}=await supabase.from('residuals').select('*,isos(id,name)').eq('report_month',selectedMonth).limit(2000);if(data)setResiduals(data);};
+  const fetchAllResiduals=async(q)=>{let all=[],from=0;while(true){const{data:batch}=await q.range(from,from+999);if(!batch||batch.length===0)break;all=all.concat(batch);if(batch.length<1000)break;from+=1000;}return all;};
+  const fetchResiduals=async()=>{if(!selectedMonth)return;const data=await fetchAllResiduals(supabase.from('residuals').select('*,isos(id,name)').eq('report_month',selectedMonth));setResiduals(data);};
   const fetchPayments=async()=>{if(!selectedMonth)return;const{data}=await supabase.from('iso_payments').select('*,isos(name)').eq('report_month',selectedMonth);if(data)setPayments(data);};
 
   const syncFromBank=async()=>{

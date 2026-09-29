@@ -44,6 +44,23 @@ async function sbGet(path) {
   return res.json();
 }
 
+async function sbGetAll(basePath) {
+  const k = getKey();
+  let all = [], from = 0;
+  while (true) {
+    const sep = basePath.includes('?') ? '&' : '?';
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${basePath}${sep}offset=${from}&limit=1000`, {
+      headers: { apikey: k, Authorization: `Bearer ${k}` }
+    });
+    const batch = await res.json();
+    if (!Array.isArray(batch) || !batch.length) break;
+    all = all.concat(batch);
+    if (batch.length < 1000) break;
+    from += 1000;
+  }
+  return all;
+}
+
 async function sbPatch(path, body) {
   const k = getKey();
   await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -135,7 +152,7 @@ async function setDueDates(month) {
   const ym = month.slice(0, 7);
   const rm = `${ym}-01`;
 
-  const residuals = await sbGet(`residuals?report_month=eq.${rm}&select=iso_id&limit=2000`);
+  const residuals = await sbGetAll(`residuals?report_month=eq.${rm}&select=iso_id`);
   if (!Array.isArray(residuals) || !residuals.length) return;
 
   const isoIds = [...new Set(residuals.map(r => r.iso_id))];
@@ -320,7 +337,7 @@ export default async function handler(req, res) {
     let monthFilter = "";
     if (month) monthFilter = `&report_month=eq.${month}`;
 
-    const residuals = await sbGet(`residuals?select=iso_id,report_month,paydiversenet${monthFilter}&limit=5000`);
+    const residuals = await sbGetAll(`residuals?select=iso_id,report_month,paydiversenet${monthFilter}`);
     if (!Array.isArray(residuals)) return res.status(500).json({ error: "Failed to fetch residuals" });
 
     const totals = {};
@@ -329,7 +346,7 @@ export default async function handler(req, res) {
       totals[key] = (totals[key] || 0) + (r.paydiversenet || 0);
     }
 
-    const existingPays = await sbGet(`iso_payments?select=id,iso_id,report_month,expected_amount${monthFilter}&limit=500`);
+    const existingPays = await sbGetAll(`iso_payments?select=id,iso_id,report_month,expected_amount${monthFilter}`);
     const payLookup = {};
     if (Array.isArray(existingPays)) {
       for (const p of existingPays) payLookup[`${p.iso_id}|||${p.report_month}`] = p;
