@@ -463,7 +463,8 @@ def import_iso_month(iso_name, cfg, iso_id, report_month, month_folder, active_l
             try:
                 serial = int(float(date_raw))
                 actual = datetime.utcfromtimestamp((serial - 25569) * 86400).date()
-                if actual.year != report_month.year or actual.month != report_month.month:
+                rm_year, rm_month = int(report_month[:4]), int(report_month[5:7])
+                if actual.year != rm_year or actual.month != rm_month:
                     continue
             except (TypeError, ValueError):
                 continue
