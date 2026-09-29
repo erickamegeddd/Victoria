@@ -111,8 +111,13 @@ def dropbox_download(pd_token, dropbox_path, local_path, link=None):
             f.write(r.read())
 
 def parse_xls(path):
-    """Parse legacy .xls (BIFF) files using xlrd."""
-    import xlrd
+    """Parse legacy .xls (BIFF) files using xlrd (auto-installed if missing)."""
+    try:
+        import xlrd
+    except ImportError:
+        import subprocess, sys
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "xlrd", "-q"])
+        import xlrd
     wb = xlrd.open_workbook(path)
     ws = wb.sheet_by_index(0)
     rows_data = []
