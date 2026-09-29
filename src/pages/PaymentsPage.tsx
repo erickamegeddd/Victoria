@@ -479,8 +479,8 @@ const PaymentsPage = () => {
                 return aS-bS||a.isoName.localeCompare(b.isoName);
               });
               const unsyncedISOs=sorted.filter((iso:any)=>!syncedIds.has(iso.isoId));
-              const allISOs=unsyncedISOs.every((iso:any)=>iso.transactions.every((_:any,j:number)=>(checkedTxs[iso.isoId]||new Set()).has(j)));
-              const someISOs=unsyncedISOs.some((iso:any)=>(checkedTxs[iso.isoId]||new Set()).size>0);
+              const allISOs=sorted.every((iso:any)=>iso.transactions.every((_:any,j:number)=>(checkedTxs[iso.isoId]||new Set()).has(j)));
+              const someISOs=sorted.some((iso:any)=>(checkedTxs[iso.isoId]||new Set()).size>0);
               return(
               <>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
@@ -489,7 +489,7 @@ const PaymentsPage = () => {
                     onChange={e=>{
                       setCheckedTxs(prev=>{
                         const next={...prev};
-                        unsyncedISOs.forEach((iso:any)=>{
+                        sorted.forEach((iso:any)=>{
                           next[iso.isoId]=e.target.checked?new Set(iso.transactions.map((_:any,j:number)=>j)):new Set();
                         });
                         return next;
