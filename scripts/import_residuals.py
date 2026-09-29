@@ -111,22 +111,34 @@ def dropbox_download(pd_token, dropbox_path, local_path, link=None):
             f.write(r.read())
 
 def parse_xls(path):
-    """Parse legacy .xls (BIFF) files using xlrd 1.x (auto-installed if missing)."""
-    import sys, importlib
-    if "xlrd" in sys.modules and not hasattr(sys.modules["xlrd"], "XL_CELL_FLOAT"):
-        # xlrd 2.x is cached — reinstall 1.x and force reload
-        import subprocess
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "xlrd==1.2.0", "-q"])
-        sys.modules.pop("xlrd", None)
+    """Parse legacy .xls (BIFF) files using xlrd 1.x (force-installed if 2.x found)."""
+    import sys, subprocess
+
+    def _install_xlrd1():
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", "--force-reinstall", "--quiet", "xlrd==1.2.0"]
+        )
+        # Remove all xlrd-related modules from cache so the next import is fresh
+        for mod in list(sys.modules.keys()):
+            if mod == "xlrd" or mod.startswith("xlrd."):
+                del sys.modules[mod]
+
+    # First attempt — import whatever is installed
     try:
         import xlrd
-        if not hasattr(xlrd, "XL_CELL_FLOAT"):
-            raise ImportError("xlrd lacks XL_CELL_FLOAT even after reinstall")
     except ImportError:
-        import subprocess
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "xlrd==1.2.0", "-q"])
-        sys.modules.pop("xlrd", None)
+        _install_xlrd1()
         import xlrd
+
+    # xlrd 2.x has no XL_CELL_FLOAT (dropped .xls support); force downgrade if needed
+    if not hasattr(xlrd, "XL_CELL_FLOAT"):
+        _install_xlrd1()
+        import xlrd
+        if not hasattr(xlrd, "XL_CELL_FLOAT"):
+            raise ImportError(
+                f"xlrd {getattr(xlrd, '__version__', '?')} still lacks XL_CELL_FLOAT after force-reinstall of 1.2.0"
+            )
+
     wb = xlrd.open_workbook(path)
     ws = wb.sheet_by_index(0)
     rows_data = []
