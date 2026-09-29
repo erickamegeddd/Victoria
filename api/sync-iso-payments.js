@@ -189,13 +189,25 @@ async function bankPreview(month, res) {
   for (const m of active) {
     const kws = m.keywords.split(",").map(k => k.trim().toLowerCase()).filter(Boolean);
     if (!kws.length) continue;
-    isoMap[m.iso_id] = { isoId: m.iso_id, isoName: m.isos?.name || m.iso_id, keywords: kws, transactions: [] };
+    isoMap[m.iso_id] = {
+      isoId: m.iso_id,
+      isoName: m.isos?.name || m.iso_id,
+      keywords: kws,
+      transactions: [],
+      expectedDate: computeExpDate(m.isos?.name || '', month)
+    };
   }
 
   for (const tx of txs) {
     const haystack = `${tx.description} ${tx.payee}`.toLowerCase();
     for (const iso of Object.values(isoMap)) {
       if (iso.keywords.some(kw => haystack.includes(kw))) {
+        // Only accept transactions within ±14 days of the ISO's expected payment date.
+        // Prevents payments for prior/future residual months from being counted.
+        if (iso.expectedDate) {
+          const diffDays = (new Date(tx.date) - new Date(iso.expectedDate)) / 86400000;
+          if (diffDays < -14 || diffDays > 14) break;
+        }
         iso.transactions.push({ date: tx.date, description: tx.description, amount: tx.amount });
         break;
       }
