@@ -250,12 +250,21 @@ async function bankConfirm(month, preview, res) {
         const expMatch = cur.match(/^(EXP:\d{4}-\d{2}-\d{2}\|)/);
         const expPrefix = expMatch ? expMatch[1] : "";
         const rest = cur.replace(/^EXP:\d{4}-\d{2}-\d{2}\|/, "").replace(/\[Bank Sync [^\]]+\][^|]*/g, "").replace(/^\s*\|\s*/, "").trim();
-        const newNotes = expPrefix + syncNote + (rest ? " | " + rest : "");
-        await sbPatch(`iso_payments?id=eq.${ex.id}`, {
-          received_amount: iso.total,
-          updated_at: new Date().toISOString(),
-          notes: newNotes
-        });
+        if (iso.total === null) {
+          // All transactions unchecked — clear the received amount and bank sync note
+          await sbPatch(`iso_payments?id=eq.${ex.id}`, {
+            received_amount: null,
+            updated_at: new Date().toISOString(),
+            notes: expPrefix + (rest || "")
+          });
+        } else {
+          const newNotes = expPrefix + syncNote + (rest ? " | " + rest : "");
+          await sbPatch(`iso_payments?id=eq.${ex.id}`, {
+            received_amount: iso.total,
+            updated_at: new Date().toISOString(),
+            notes: newNotes
+          });
+        }
       } else {
         await sbPost("iso_payments", {
           iso_id: iso.isoId,

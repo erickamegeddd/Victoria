@@ -96,9 +96,14 @@ const PaymentsPage = () => {
   };
 
   const confirmSync=async()=>{
+    const syncedIds=new Set(payments.filter(p=>p.notes?.includes('[Bank Sync')).map(p=>p.iso_id));
     const toSync=(syncData?.preview||[]).map((iso:any)=>{
       const kept=iso.transactions.filter((_:any,i:number)=>(checkedTxs[iso.isoId]||new Set()).has(i));
-      if(!kept.length)return null;
+      if(!kept.length){
+        // Previously synced but now fully unchecked → clear the payment
+        if(syncedIds.has(iso.isoId))return{...iso,transactions:[],total:null};
+        return null;
+      }
       return {...iso,transactions:kept,total:Math.round(kept.reduce((s:number,t:any)=>s+t.amount,0)*100)/100};
     }).filter(Boolean);
     if(!toSync.length)return;
