@@ -54,8 +54,12 @@ const PaymentsPage = () => {
       const data=await r.json();
       if(!r.ok)throw new Error(data.error||'Sync failed');
       setSyncData(data);
+      const syncedIds=new Set(payments.filter(p=>p.notes?.includes('[Bank Sync')).map(p=>p.iso_id));
       const init:Record<string,Set<number>>={};
-      (data.preview||[]).forEach((iso:any)=>{init[iso.isoId]=new Set(iso.transactions.map((_:any,i:number)=>i));});
+      (data.preview||[]).forEach((iso:any)=>{
+        // Pre-check all transactions for un-synced ISOs; leave synced ones empty (greyed out)
+        init[iso.isoId]=syncedIds.has(iso.isoId)?new Set():new Set(iso.transactions.map((_:any,i:number)=>i));
+      });
       setCheckedTxs(init);
       setSyncModal(true);
     }catch(e){
@@ -408,6 +412,7 @@ const PaymentsPage = () => {
             {syncData.message&&<Alert type="info" message={syncData.message} showIcon/>}
 
             {syncData.preview?.length>0&&(()=>{
+              const syncedIds=new Set(payments.filter(p=>p.notes?.includes('[Bank Sync')).map(p=>p.iso_id));
               const toggleTx=(isoId:string,j:number)=>setCheckedTxs(prev=>{
                 const s=new Set(prev[isoId]||[]);
                 if(s.has(j))s.delete(j);else s.add(j);
@@ -419,52 +424,61 @@ const PaymentsPage = () => {
                 const s=allOn?new Set<number>():new Set<number>(iso.transactions.map((_:any,j:number)=>j));
                 return {...prev,[iso.isoId]:s};
               });
-              const totalCheckedISOs=syncData.preview.filter((iso:any)=>(checkedTxs[iso.isoId]||new Set()).size>0).length;
-              const allISOs=syncData.preview.every((iso:any)=>iso.transactions.every((_:any,j:number)=>(checkedTxs[iso.isoId]||new Set()).has(j)));
-              const someISOs=syncData.preview.some((iso:any)=>(checkedTxs[iso.isoId]||new Set()).size>0);
+              // Sort: unsynced first, already-synced at the bottom
+              const sorted=[...syncData.preview].sort((a:any,b:any)=>{
+                const aS=syncedIds.has(a.isoId)?1:0, bS=syncedIds.has(b.isoId)?1:0;
+                return aS-bS||a.isoName.localeCompare(b.isoName);
+              });
+              const unsyncedISOs=sorted.filter((iso:any)=>!syncedIds.has(iso.isoId));
+              const allISOs=unsyncedISOs.every((iso:any)=>iso.transactions.every((_:any,j:number)=>(checkedTxs[iso.isoId]||new Set()).has(j)));
+              const someISOs=unsyncedISOs.some((iso:any)=>(checkedTxs[iso.isoId]||new Set()).size>0);
               return(
               <>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                   <Text style={{fontWeight:700,fontSize:13}}>Check transactions to write to Received amounts:</Text>
                   <Checkbox checked={allISOs} indeterminate={someISOs&&!allISOs}
                     onChange={e=>{
-                      const init:Record<string,Set<number>>={};
-                      syncData.preview.forEach((iso:any)=>{
-                        init[iso.isoId]=e.target.checked?new Set(iso.transactions.map((_:any,j:number)=>j)):new Set();
+                      setCheckedTxs(prev=>{
+                        const next={...prev};
+                        unsyncedISOs.forEach((iso:any)=>{
+                          next[iso.isoId]=e.target.checked?new Set(iso.transactions.map((_:any,j:number)=>j)):new Set();
+                        });
+                        return next;
                       });
-                      setCheckedTxs(init);
                     }}>Select all</Checkbox>
                 </div>
-                <div style={{maxHeight:360,overflowY:'auto',borderRadius:8,border:'1px solid #e5e7eb'}}>
-                  {syncData.preview.map((iso:any,i:number)=>{
-                    const isoChecked=checkedTxs[iso.isoId]||new Set();
-                    const allTx=iso.transactions.every((_:any,j:number)=>isoChecked.has(j));
-                    const someTx=iso.transactions.some((_:any,j:number)=>isoChecked.has(j));
+                <div style={{maxHeight:380,overflowY:'auto',borderRadius:8,border:'1px solid #e5e7eb'}}>
+                  {sorted.map((iso:any,i:number)=>{
+                    const synced=syncedIds.has(iso.isoId);
+                    const isoChecked=synced?new Set<number>():checkedTxs[iso.isoId]||new Set();
+                    const allTx=!synced&&iso.transactions.every((_:any,j:number)=>isoChecked.has(j));
+                    const someTx=!synced&&iso.transactions.some((_:any,j:number)=>isoChecked.has(j));
                     const checkedTotal=Math.round(iso.transactions.filter((_:any,j:number)=>isoChecked.has(j)).reduce((s:number,t:any)=>s+t.amount,0)*100)/100;
                     return(
-                    <div key={iso.isoId} style={{borderBottom:i<syncData.preview.length-1?'1px solid #f3f4f6':'none'}}>
-                      {/* ISO header row — click to toggle all its transactions */}
-                      <div style={{padding:'8px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',background:someTx?'#f0fdf4':'#fafafa',cursor:'pointer'}}
-                        onClick={()=>toggleISO(iso)}>
+                    <div key={iso.isoId} style={{borderBottom:i<sorted.length-1?'1px solid #f3f4f6':'none',opacity:synced?0.45:1}}>
+                      {/* ISO header row */}
+                      <div style={{padding:'8px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',background:synced?'#f3f4f6':someTx?'#f0fdf4':'#fafafa',cursor:synced?'default':'pointer'}}
+                        onClick={()=>{if(!synced)toggleISO(iso);}}>
                         <Space size={8}>
-                          <Checkbox checked={allTx} indeterminate={someTx&&!allTx} onChange={()=>{}} onClick={e=>e.stopPropagation()} style={{pointerEvents:'none'}}/>
-                          <Text style={{fontWeight:700,fontSize:13,color:someTx?'#111827':'#9ca3af'}}>{iso.isoName}</Text>
+                          <Checkbox checked={allTx} indeterminate={someTx&&!allTx} disabled={synced} onChange={()=>{}} onClick={e=>e.stopPropagation()} style={{pointerEvents:'none'}}/>
+                          <Text style={{fontWeight:700,fontSize:13,color:synced?'#9ca3af':someTx?'#111827':'#9ca3af'}}>{iso.isoName}</Text>
+                          {synced&&<Tag color="default" style={{fontSize:10,lineHeight:'16px',padding:'0 5px'}}>Already Synced</Tag>}
                         </Space>
-                        <Text style={{fontWeight:900,fontSize:14,color:someTx?'#059669':'#9ca3af'}}>
-                          {someTx?fmt(checkedTotal):fmt(iso.total)}
+                        <Text style={{fontWeight:900,fontSize:14,color:synced?'#9ca3af':someTx?'#059669':'#9ca3af'}}>
+                          {fmt(synced?iso.total:someTx?checkedTotal:iso.total)}
                         </Text>
                       </div>
                       {/* Per-transaction rows */}
                       {iso.transactions.map((tx:any,j:number)=>{
-                        const txOn=isoChecked.has(j);
+                        const txOn=!synced&&isoChecked.has(j);
                         return(
-                        <div key={j} style={{padding:'5px 14px 5px 38px',display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',background:txOn?'#fff':'#fafafa'}}
-                          onClick={e=>{e.stopPropagation();toggleTx(iso.isoId,j);}}>
+                        <div key={j} style={{padding:'5px 14px 5px 38px',display:'flex',justifyContent:'space-between',alignItems:'center',cursor:synced?'default':'pointer',background:txOn?'#fff':'#fafafa'}}
+                          onClick={e=>{e.stopPropagation();if(!synced)toggleTx(iso.isoId,j);}}>
                           <Space size={8}>
-                            <Checkbox checked={txOn} onChange={()=>{}} onClick={e=>e.stopPropagation()} style={{pointerEvents:'none'}}/>
-                            <span style={{fontSize:11,color:txOn?'#374151':'#9ca3af'}}>{tx.date} — {tx.description}</span>
+                            <Checkbox checked={txOn} disabled={synced} onChange={()=>{}} onClick={e=>e.stopPropagation()} style={{pointerEvents:'none'}}/>
+                            <span style={{fontSize:11,color:synced?'#9ca3af':txOn?'#374151':'#9ca3af'}}>{tx.date} — {tx.description}</span>
                           </Space>
-                          <span style={{fontSize:11,fontWeight:600,color:txOn?'#374151':'#9ca3af',whiteSpace:'nowrap',marginLeft:8}}>${Number(tx.amount).toFixed(2)}</span>
+                          <span style={{fontSize:11,fontWeight:600,color:synced?'#9ca3af':txOn?'#374151':'#9ca3af',whiteSpace:'nowrap',marginLeft:8}}>${Number(tx.amount).toFixed(2)}</span>
                         </div>
                       )})}
                     </div>
