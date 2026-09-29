@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
-import { Card, Row, Col, Table, Button, Typography, Space, Statistic, Tag, Alert, Modal, Select, DatePicker, Input, Tooltip, message } from "antd";
+import { Card, Row, Col, Table, Button, Typography, Space, Statistic, Tag, Alert, Modal, Select, DatePicker, Input, Tooltip, message, Checkbox } from "antd";
 import { DollarOutlined, LeftOutlined, RightOutlined, SyncOutlined, CheckCircleOutlined, LoadingOutlined, DownloadOutlined } from "@ant-design/icons";
 import { supabase } from "../utils/supabase";
 import dayjs from "dayjs";
@@ -36,6 +36,7 @@ const PaymentsPage = () => {
   const [syncData, setSyncData] = useState(null); // { preview, month, totalTxsFetched, matched, unmatched }
   const [syncModal, setSyncModal] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [checkedISOs, setCheckedISOs] = useState<Set<string>>(new Set());
 
   useEffect(()=>{fetchIsos();},[]);
   useEffect(()=>{fetchResiduals();fetchPayments();setActiveStatusFilter(null);},[selectedMonth]);
@@ -53,6 +54,7 @@ const PaymentsPage = () => {
       const data=await r.json();
       if(!r.ok)throw new Error(data.error||'Sync failed');
       setSyncData(data);
+      setCheckedISOs(new Set((data.preview||[]).map((iso:any)=>iso.isoId)));
       setSyncModal(true);
     }catch(e){
       message.error(e.message);
@@ -62,14 +64,15 @@ const PaymentsPage = () => {
   };
 
   const confirmSync=async()=>{
-    if(!syncData?.preview?.length)return;
+    const toSync=(syncData?.preview||[]).filter((iso:any)=>checkedISOs.has(iso.isoId));
+    if(!toSync.length)return;
     setConfirming(true);
     try{
       const m=dayjs(selectedMonth).format('YYYY-MM');
       const r=await fetch(`/api/sync-iso-payments?action=bank-confirm&month=${m}`,{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({preview:syncData.preview})
+        body:JSON.stringify({preview:toSync})
       });
       const data=await r.json();
       if(!r.ok)throw new Error(data.error||'Write failed');
@@ -398,18 +401,38 @@ const PaymentsPage = () => {
 
             {syncData.message&&<Alert type="info" message={syncData.message} showIcon/>}
 
-            {syncData.preview?.length>0&&(
+            {syncData.preview?.length>0&&(()=>{
+              const allChecked=syncData.preview.every((iso:any)=>checkedISOs.has(iso.isoId));
+              const someChecked=syncData.preview.some((iso:any)=>checkedISOs.has(iso.isoId));
+              return(
               <>
-                <Text style={{fontWeight:700,fontSize:13}}>The following will be written to Received amounts:</Text>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <Text style={{fontWeight:700,fontSize:13}}>Check ISOs to write to Received amounts:</Text>
+                  <Checkbox
+                    checked={allChecked}
+                    indeterminate={someChecked&&!allChecked}
+                    onChange={e=>{
+                      if(e.target.checked)setCheckedISOs(new Set(syncData.preview.map((iso:any)=>iso.isoId)));
+                      else setCheckedISOs(new Set());
+                    }}
+                  >Select all</Checkbox>
+                </div>
                 <div style={{maxHeight:340,overflowY:'auto',borderRadius:8,border:'1px solid #e5e7eb'}}>
-                  {syncData.preview.map((iso,i)=>(
-                    <div key={iso.isoId} style={{padding:'10px 14px',borderBottom:i<syncData.preview.length-1?'1px solid #f3f4f6':'none'}}>
+                  {syncData.preview.map((iso:any,i:number)=>{
+                    const checked=checkedISOs.has(iso.isoId);
+                    return(
+                    <div key={iso.isoId} style={{padding:'10px 14px',borderBottom:i<syncData.preview.length-1?'1px solid #f3f4f6':'none',background:checked?'#fff':'#fafafa',cursor:'pointer'}}
+                      onClick={()=>setCheckedISOs(prev=>{const n=new Set(prev);if(n.has(iso.isoId))n.delete(iso.isoId);else n.add(iso.isoId);return n;})}>
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
-                        <Text style={{fontWeight:700,fontSize:13}}>{iso.isoName}</Text>
-                        <Text style={{fontWeight:900,fontSize:15,color:'#059669'}}>{fmt(iso.total)}</Text>
+                        <Space size={8}>
+                          <Checkbox checked={checked} onChange={()=>{}} onClick={e=>e.stopPropagation()}
+                            style={{pointerEvents:'none'}}/>
+                          <Text style={{fontWeight:700,fontSize:13,color:checked?'#111827':'#9ca3af'}}>{iso.isoName}</Text>
+                        </Space>
+                        <Text style={{fontWeight:900,fontSize:15,color:checked?'#059669':'#9ca3af'}}>{fmt(iso.total)}</Text>
                       </div>
-                      <div style={{display:'flex',flexDirection:'column',gap:2}}>
-                        {iso.transactions.map((tx,j)=>(
+                      <div style={{display:'flex',flexDirection:'column',gap:2,paddingLeft:24}}>
+                        {iso.transactions.map((tx:any,j:number)=>(
                           <div key={j} style={{fontSize:11,color:'#6b7280',display:'flex',justifyContent:'space-between'}}>
                             <span>{tx.date} — {tx.description}</span>
                             <span style={{fontWeight:600,color:'#374151'}}>${Number(tx.amount).toFixed(2)}</span>
@@ -417,18 +440,24 @@ const PaymentsPage = () => {
                         ))}
                       </div>
                     </div>
-                  ))}
+                  )})}
                 </div>
               </>
-            )}
+              );
+            })()}
 
             <div style={{display:'flex',justifyContent:'flex-end',gap:8}}>
               <Button onClick={()=>{setSyncModal(false);setSyncData(null);}}>Cancel</Button>
-              {syncData.preview?.length>0&&(
-                <Button type="primary" loading={confirming} onClick={confirmSync} icon={<CheckCircleOutlined/>} style={{background:'#059669',borderColor:'#059669'}}>
-                  Confirm & Write {syncData.preview.length} ISO{syncData.preview.length!==1?'s':''}
+              {syncData.preview?.length>0&&(()=>{
+                const n=checkedISOs.size;
+                return(
+                <Button type="primary" loading={confirming} onClick={confirmSync} icon={<CheckCircleOutlined/>}
+                  disabled={n===0}
+                  style={{background:n>0?'#059669':'undefined',borderColor:n>0?'#059669':'undefined'}}>
+                  Confirm & Write {n} ISO{n!==1?'s':''}
                 </Button>
-              )}
+                );
+              })()}
             </div>
           </Space>
         )}
