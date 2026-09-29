@@ -60,7 +60,7 @@ const Dashboard = () => {
 
   const residualsTotal=residuals.reduce((s,r)=>s+(r.paydiversenet||0),0);
   const paymentsExpectedTotal=isoPayments.reduce((s,p)=>s+(p.expected_amount||0),0);
-  const usePayments=residualsTotal===0&&paymentsExpectedTotal>0;
+  const usePayments=paymentsExpectedTotal>0&&paymentsExpectedTotal>residualsTotal;
   const totalRevenue=usePayments?paymentsExpectedTotal:residualsTotal;
   const totalVolume = residuals.reduce((s,r)=>s+(r.gross_volume||0),0);
   const activeMids = new Set(residuals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)).map(r=>r.mid)).size;
