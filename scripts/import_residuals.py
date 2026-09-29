@@ -111,12 +111,14 @@ def dropbox_download(pd_token, dropbox_path, local_path, link=None):
             f.write(r.read())
 
 def parse_xls(path):
-    """Parse legacy .xls (BIFF) files using xlrd (auto-installed if missing)."""
+    """Parse legacy .xls (BIFF) files using xlrd 1.x (auto-installed if missing)."""
     try:
         import xlrd
+        if not hasattr(xlrd, "XL_CELL_FLOAT"):
+            raise ImportError("xlrd 2.x lacks XLS support; need 1.x")
     except ImportError:
         import subprocess, sys
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "xlrd", "-q"])
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "xlrd==1.2.0", "-q"])
         import xlrd
     wb = xlrd.open_workbook(path)
     ws = wb.sheet_by_index(0)
@@ -434,9 +436,16 @@ def import_iso_month(iso_name, cfg, iso_id, report_month, month_folder, active_l
     col_agent_pay = cfg.get("col_agent_payout")
     col_split     = cfg.get("col_agent_split_pct")
 
+    skip_blank_mid = cfg.get("skip_blank_mid", False)
+
     for row in data:
         mid = get_col(row, col_mid) if col_mid else None
         biz = get_col(row, col_biz) if col_biz else None
+
+        # skip_blank_mid: skip rows where the merchant identifier is empty/blank
+        # (used for ISOs like Finns that include blank summary/total rows)
+        if skip_blank_mid and (not mid) and (not biz):
+            continue
 
         vol    = f(get_col(row, col_vol)) if col_vol else 0.0
         rev    = f(get_col(row, col_rev)) if col_rev else 0.0
