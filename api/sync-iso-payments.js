@@ -215,7 +215,10 @@ export default async function handler(req, res) {
     return bankConfirm(month, preview, res);
   }
 
-  // Original: sync expected_amount from residuals
+  // Legacy: sync expected_amount from residuals — requires explicit action to prevent accidental overwrites
+  if (action !== "sync-residuals") {
+    return res.status(400).json({ error: "action parameter required. Use action=bank-preview, action=bank-confirm, or action=sync-residuals." });
+  }
   try {
     let monthFilter = "";
     if (month) monthFilter = `&report_month=eq.${month}`;
