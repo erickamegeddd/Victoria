@@ -202,11 +202,8 @@ async function bankPreview(month, res) {
     const haystack = `${tx.description} ${tx.payee}`.toLowerCase();
     for (const iso of Object.values(isoMap)) {
       if (iso.keywords.some(kw => haystack.includes(kw))) {
-        // Skip ISOs with no payment rule — can't safely date-filter them.
-        if (!iso.expectedDate) break;
-        // Only accept transactions within ±5 days of the ISO's expected payment date.
-        const diffDays = (new Date(tx.date) - new Date(iso.expectedDate)) / 86400000;
-        if (diffDays < -5 || diffDays > 5) break;
+        // No automatic date filtering — all matched transactions are shown.
+        // The user selects which transactions to confirm via per-transaction checkboxes.
         iso.transactions.push({ date: tx.date, description: tx.description, amount: tx.amount });
         break;
       }
