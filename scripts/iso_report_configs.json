@@ -110,19 +110,6 @@
       "skip_header_rows": 0,
       "_notes": "W = final agent/reseller payout (last column). No header row \u2014 data starts at row 1."
     },
-    "CCBill": {
-      "verified": true,
-      "file_pattern": [
-        "CC Bill*.xlsx",
-        "CCBill*.xlsx"
-      ],
-      "col_mid": "F",
-      "col_business_name": "I",
-      "col_gross_volume": "J",
-      "col_paydiversenet": "L",
-      "skip_header_rows": 10,
-      "_notes": "L=Partner Commission. 10 rows of logo/title before data. F=Merchant Account ID, I=Company Name."
-    },
     "Finns": {
       "verified": true,
       "file_pattern": [
@@ -274,15 +261,16 @@
     "GET": {
       "verified": true,
       "file_pattern": [
-        "GET*.xlsx"
+        "GET*.xlsx",
+        "Get*.xlsx"
       ],
       "dropbox_subfolder": "Breier",
       "col_mid": "A",
       "col_business_name": "B",
       "col_gross_volume": "J",
-      "col_paydiversenet": "AL",
+      "col_paydiversenet": "AF",
       "skip_header_rows": 1,
-      "_notes": "AF=Split to Agent (commission) from July 2026 onward. Older months used AL=CommissionAmount. J=TotalVolumeSales. B=MID, C=Merchant name. File has a yellow Total row at bottom with no MID \u2014 skip it (filter on non-blank MID). Individual merchant rows net to the same total as the yellow cell."
+      "_notes": "AF=Split to Agent (commission) from July 2026 onward. Earlier months used AL=CommissionAmount. J=TotalVolumeSales. File has a yellow Total row at bottom with no MID \u2014 skip it. GET*.xlsx matches all-caps filename; Get*.xlsx matches mixed-case."
     },
     "Celero": {
       "verified": true,
@@ -337,7 +325,33 @@
       "skip_header_rows": 7,
       "_notes": "M=Agent Net (PayDiverse payout). 7 rows before data (6 blank/title + 1 header). File in Breier subfolder."
     },
-    "Worldpay": {
+    "Nuvei": {
+      "verified": true,
+      "file_pattern": [
+        "Nuvei*.xls",
+        "Nuvei*.xlsx"
+      ],
+      "col_mid": "A",
+      "col_business_name": "B",
+      "col_gross_volume": "I",
+      "col_paydiversenet": "CQ",
+      "skip_header_rows": 1,
+      "_notes": "CQ=Agent Net (PayDiverse share). A=MID, B=DBA Name (trimmed), I=V/MC/Discover Volume. Skip last row (Total row where A='Total'). File is legacy binary .xls format \u2014 convert via Google Drive (copy to Sheets, export as xlsx) before running import."
+    },
+    "CC Bill": {
+      "verified": true,
+      "file_pattern": [
+        "CC Bill*.xlsx",
+        "CCBill*.xlsx"
+      ],
+      "col_mid": "F",
+      "col_business_name": "I",
+      "col_gross_volume": "J",
+      "col_paydiversenet": "L",
+      "skip_header_rows": 10,
+      "_notes": "L=Partner Commission. 10 rows of logo/title before data. F=Merchant Account ID, I=Company Name."
+    },
+    "Worldpay (Vantiv)": {
       "verified": true,
       "file_pattern": [
         "Worldpay*.xlsx",
@@ -351,18 +365,30 @@
       "skip_header_rows": 1,
       "_notes": "Y=TOTAL_ADJ_RESID (net adjusted residual). L=MERCH_NBR (MID), O=MERCHANT_NAME, R=TOTAL_SALES_VOLUME. File in Breier subfolder."
     },
-    "Nuvei": {
+    "Nexio": {
       "verified": true,
       "file_pattern": [
-        "Nuvei*.xls",
-        "Nuvei*.xlsx"
+        "CMS Nexio*.xls",
+        "Nexio*.xls"
+      ],
+      "col_mid": "F",
+      "col_business_name": "G",
+      "col_paydiversenet": "N",
+      "skip_header_rows": 1,
+      "_notes": "N=Agent Residual. F=MID (numeric 15-digit). G=Merchant Name. Legacy binary .xls file \u2014 parsed via xlrd. File is at root month folder (not Breier subfolder)."
+    },
+    "SignaPay": {
+      "verified": true,
+      "file_pattern": [
+        "ISOMerchantsResiduals*.xlsx",
+        "Signapay*.xlsx",
+        "SignaPay*.xlsx"
       ],
       "col_mid": "A",
       "col_business_name": "B",
-      "col_gross_volume": "I",
-      "col_paydiversenet": "CQ",
+      "col_paydiversenet": "M",
       "skip_header_rows": 1,
-      "_notes": "CQ=Agent Net (PayDiverse share). A=MID, B=DBA Name (trimmed), I=V/MC/Discover Volume. Skip last row (Total row where A='Total'). File is legacy binary .xls format \u2014 convert via Google Drive (copy to Sheets, export as xlsx) before running import."
+      "_notes": "M=Net (ISO net after agent payout). A=MID, B=DBA. File in /Signapay/ subfolder within month folder. Aug 2026 file: ISOMerchantsResiduals.2026.08.xlsx."
     }
   },
   "payment_due_rules": {
