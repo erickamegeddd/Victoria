@@ -49,7 +49,8 @@ const RevenuePerMidPage = () => {
 
     const map = {};
     rows.forEach(r => {
-      const key = r.mid;
+      // Key by iso_id+mid so cross-ISO duplicate MIDs never share a bucket
+      const key = `${r.iso_id}|||${r.mid}`;
       if (!map[key]) map[key] = {
         mid: r.mid,
         business_name: r.business_name || r.mid,
@@ -186,7 +187,7 @@ const RevenuePerMidPage = () => {
       <Card>
         <Table dataSource={data} columns={columns} rowKey="mid" loading={loading}
           pagination={{ pageSize: 50, showTotal: t => `${t} MIDs` }}
-          size="small" scroll={{x:900,y:'calc(100vh - 420px)'}} onChange={(_, __, ___, { currentDataSource }) => setFilteredData(currentDataSource)} />
+          size="small" scroll={{x:900,y:'calc(100vh - 420px)'}} onChange={(_, __, ___, { currentDataSource }) => setFilteredData(currentDataSource)} rowKey={r => `${r.iso_id}|||${r.mid}`} />
       </Card>
     </div>
   );
