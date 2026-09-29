@@ -124,7 +124,7 @@ const PaymentsPage = () => {
       }
       return {...iso,transactions:kept,total:Math.round(kept.reduce((s:number,t:any)=>s+t.amount,0)*100)/100};
     }).filter(Boolean);
-    if(!toSync.length)return;
+    if(!toSync.length){setSyncModal(false);setSyncData(null);return;}
     setConfirming(true);
     try{
       const m=dayjs(selectedMonth).format('YYYY-MM');
@@ -540,12 +540,16 @@ const PaymentsPage = () => {
             <div style={{display:'flex',justifyContent:'flex-end',gap:8}}>
               <Button onClick={()=>{setSyncModal(false);setSyncData(null);}}>Cancel</Button>
               {syncData.preview?.length>0&&(()=>{
+                const syncedIds=new Set(payments.filter(p=>p.notes?.includes('[Bank Sync')).map(p=>p.iso_id));
                 const n=syncData.preview.filter((iso:any)=>(checkedTxs[iso.isoId]||new Set()).size>0).length;
+                const nClear=syncData.preview.filter((iso:any)=>syncedIds.has(iso.isoId)&&(checkedTxs[iso.isoId]||new Set()).size===0).length;
+                const canConfirm=n>0||nClear>0;
+                const label=n>0?`Confirm & Write ${n} ISO${n!==1?'s':''}`:`Clear ${nClear} ISO${nClear!==1?'s':''}`;
                 return(
                 <Button type="primary" loading={confirming} onClick={confirmSync} icon={<CheckCircleOutlined/>}
-                  disabled={n===0}
-                  style={{background:n>0?'#059669':undefined,borderColor:n>0?'#059669':undefined}}>
-                  Confirm & Write {n} ISO{n!==1?'s':''}
+                  disabled={!canConfirm}
+                  style={{background:canConfirm?'#059669':undefined,borderColor:canConfirm?'#059669':undefined}}>
+                  {label}
                 </Button>
                 );
               })()}
