@@ -7,7 +7,7 @@ import dayjs from "dayjs";
 const { Title, Text } = Typography;
 const { Option } = Select;
 const GATEWAY_ISO_NAMES = new Set(["nmi","authorize.net","e-fitness today","efitness today","fraud deflect","midmetrics"]);
-const LATEST_MONTH = '2026-07-01';
+const LATEST_MONTH = dayjs().startOf('month').format('YYYY-MM-01');
 const fmt = (n) => n != null ? `$${Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}` : "--";
 
 const RevenuePerMidPage = () => {
@@ -76,13 +76,13 @@ const RevenuePerMidPage = () => {
     })).sort((a, b) => b.total_net - a.total_net);
 
     setData(aggregated);
-    setFilteredData(aggregated);
+    setFilteredData(aggregated); // reset on every fresh fetch so stat cards reflect full ISO total
     setLoading(false);
   };
 
   const totalNet = filteredData.reduce((s, r) => s + r.total_net, 0);
-  const totalVol = filteredData.reduce((s, r) => s + r.total_volume, 0);
   const processingMids = filteredData.filter(r => !GATEWAY_ISO_NAMES.has((r.iso_name||"").toLowerCase()));
+  const totalVol = processingMids.reduce((s, r) => s + r.total_volume, 0);
 
   const prevMonth = () => {
     const prev = dayjs(selectedMonth).subtract(1, "month").format("YYYY-MM-01");
@@ -149,9 +149,9 @@ const RevenuePerMidPage = () => {
     { title: "Total Net Residual Income", dataIndex: "total_net", key: "net", align: "right", sorter: (a, b) => a.total_net - b.total_net, defaultSortOrder: "descend",
       render: v => <Text strong style={{ color: v > 0 ? "#059669" : "#dc2626" }}>{fmt(v)}</Text> },
     { title: "Total Volume Processed", dataIndex: "total_volume", key: "vol", align: "right", sorter: (a, b) => a.total_volume - b.total_volume,
-      render: v => fmt(v) },
+      render: (v, r) => GATEWAY_ISO_NAMES.has((r.iso_name||"").toLowerCase()) ? "--" : fmt(v) },
     { title: "Gross Revenue", dataIndex: "total_gross", key: "gr", align: "right", sorter: (a, b) => a.total_gross - b.total_gross,
-      render: v => fmt(v) },
+      render: (v, r) => GATEWAY_ISO_NAMES.has((r.iso_name||"").toLowerCase()) ? "--" : fmt(v) },
     { title: "Last Report", dataIndex: "last_month", key: "last", width: 110, align: "center", sorter: (a, b) => (a.last_month||"").localeCompare(b.last_month||""),
       render: v => v ? dayjs(v).format("MMM YYYY") : "--" },
   ];
