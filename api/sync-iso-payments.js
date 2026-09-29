@@ -253,13 +253,12 @@ async function bankConfirm(month, preview, res) {
         const expPrefix = expMatch ? expMatch[1] : "";
         const rest = cur.replace(/^EXP:\d{4}-\d{2}-\d{2}\|/, "").replace(/\[Bank Sync [^\]]+\][^|]*/g, "").replace(/^\s*\|\s*/, "").trim();
         if (iso.total === null) {
-          // All transactions unchecked — clear received amount but keep empty sync marker
-          // so next open knows this ISO was explicitly cleared (not never-synced)
-          const clearedNote = `[Bank Sync ${month}]{}`;
+          // All transactions unchecked — fully clear received amount and bank sync notes
+          const clearedNotes = (expPrefix + (rest ? rest : "")).trim() || null;
           await sbPatch(`iso_payments?id=eq.${ex.id}`, {
             received_amount: null,
             updated_at: new Date().toISOString(),
-            notes: expPrefix + clearedNote + (rest ? " | " + rest : "")
+            notes: clearedNotes
           });
         } else {
           const newNotes = expPrefix + syncNote + (rest ? " | " + rest : "");
