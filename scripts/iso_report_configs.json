@@ -348,8 +348,10 @@
       "col_business_name": "I",
       "col_gross_volume": "J",
       "col_paydiversenet": "L",
-      "skip_header_rows": 10,
-      "_notes": "L=Partner Commission. 10 rows of logo/title before data. F=Merchant Account ID, I=Company Name."
+      "skip_header_rows": 5,
+      "_notes": "L=Partner Commission. F=Merchant Account ID, I=Company Name, E=Billing Period (Excel serial date). File is cumulative weekly \u2014 skip_header_rows=5 skips metadata; date filter selects only rows matching report month.",
+      "col_date": "E",
+      "date_col_is_excel_serial": true
     },
     "Worldpay (Vantiv)": {
       "verified": true,
