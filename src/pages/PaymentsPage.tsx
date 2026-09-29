@@ -62,8 +62,8 @@ const PaymentsPage = () => {
         // New format: [Bank Sync YYYY-MM]{2026-09-05:977.99,2026-09-10:100.00} ...
         const mNew=notes?.match(/\[Bank Sync [^\]]+\]\{([^}]+)\}/);
         if(mNew){
+          if(!mNew[1].trim())return[]; // empty {} = explicitly cleared, pre-check nothing
           return mNew[1].split(',').map((entry:string)=>{
-            // Format: YYYY-MM-DD:amount  (date uses hyphens so split(':') gives [date, amount])
             const idx=entry.lastIndexOf(':');
             if(idx<0)return null;
             const date=entry.slice(0,idx);
@@ -85,17 +85,22 @@ const PaymentsPage = () => {
         const sp=syncedPaymentsMap[iso.isoId];
         if(sp){
           const prevTxs=parseSyncedTxs(sp.notes||'');
-          if(prevTxs&&prevTxs.length){
+          if(prevTxs===null){
+            // [Bank Sync] note absent — treat as never synced, pre-check all
+            init[iso.isoId]=new Set(iso.transactions.map((_:any,i:number)=>i));
+          } else if(prevTxs.length===0){
+            // Explicitly cleared (empty {} fingerprints) — pre-check nothing
+            init[iso.isoId]=new Set();
+          } else {
             // Pre-check only the transactions that were confirmed in the last sync
             const s=new Set<number>();
             iso.transactions.forEach((tx:any,j:number)=>{
               if(prevTxs.some((p:any)=>p.date===tx.date&&Math.abs(p.amount-tx.amount)<0.01))s.add(j);
             });
             init[iso.isoId]=s;
-          } else {
-            init[iso.isoId]=new Set(iso.transactions.map((_:any,i:number)=>i));
           }
         } else {
+          // Not in syncedPaymentsMap — never synced, pre-check all
           init[iso.isoId]=new Set(iso.transactions.map((_:any,i:number)=>i));
         }
       });
