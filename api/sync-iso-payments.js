@@ -1,11 +1,36 @@
 // api/sync-iso-payments.js
 // Modes:
-//   GET  ?month=YYYY-MM-DD        → sync expected_amount from residuals
-//   GET  ?action=bank-preview&month=YYYY-MM  → preview bank transactions matched to ISOs
+//   GET  ?action=bank-preview&month=YYYY-MM  → auto-set due dates + preview bank transactions
 //   POST ?action=bank-confirm&month=YYYY-MM  → write received_amounts from bank
+//   GET  ?action=set-due-dates&month=YYYY-MM → populate Payment Expected By dates for all ISOs with residuals
+//   GET  ?action=sync-residuals&month=YYYY-MM → sync expected_amount from residuals
 
 const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
-const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ1cWZsb2Z1emh5YnV0a2t6cm9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwNDE3NTYsImV4cCI6MjEwMTYxNzU2fQ.46kKCy_3cY7oKuONb9e2e18yKVNui3oSOzySK33fMFE";
+const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ1cWZsb2Z1emh5YnV0a2t6cm9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwNDE3NTYsImV4cCI6MjEwMTYxNzc1Nn0.46kKCy_3cY7oKuONb9e2e18yKVNui3oSOzySK33fMFE";
+
+const PAYMENT_DUE_RULES = {
+  "Group ISO":0,"Authorize.Net":5,"Expitrans":5,
+  "Pepper Pay":13,"Total-Apps":13,"Finns":13,
+  "CC Bill":15,"Maverick":15,"Simply Payment Group":15,
+  "PayArc":17,"Mitigator":18,"Quantum":19,
+  "GET":20,"MerchantE Fresno":20,"MerchantE Synovous":20,"Nexio":20,"Nuvei":20,"Vendara":20,"Worldpay":20,"Worldpay (Vantiv)":20,
+  "Fraud Deflect":22,"The HiRisk Processor":24,"HiRisk":24,
+  "Cardworks":25,"Celero":25,"SignaPay":25,
+  "Payliance":26,"Taluspay":28,"NMI":29,
+  "Coastal Pay":30,"First Direct Financial":30,"Merchant Industry":30,"Netevia":30,"Payment Cloud":30,"Seamless Chex":30,
+  "RAC":35,"Card Insight":45,"E-Fitness Today":45,"Midmetrics":45,"Approvely":46,"USAG":49
+};
+
+function computeExpDate(isoName, reportMonth) {
+  const days = PAYMENT_DUE_RULES[isoName];
+  if (days == null) return null;
+  const ym = reportMonth.slice(0, 7);
+  const [y, m] = ym.split('-').map(Number);
+  const monthEnd = new Date(Date.UTC(y, m, 0)); // last day of month
+  const payDate = new Date(monthEnd);
+  payDate.setUTCDate(payDate.getUTCDate() + days);
+  return payDate.toISOString().slice(0, 10);
+}
 
 function getKey() {
   return process.env.SUPABASE_SERVICE_KEY || ANON_KEY;
@@ -59,10 +84,14 @@ async function fetchSimpleFIN(accessUrl, startTs, endTs) {
 }
 
 async function getSimpleFINTransactions(month) {
-  // month is YYYY-MM — get Unix timestamps for start of month and start of next month (UTC)
+  // Query from start of residual month through 65 days after month end.
+  // This covers CC Bill (pays weekly during the month) through USAG (49 days after month end).
   const [year, mon] = month.split("-").map(Number);
-  const startTs = Math.floor(Date.UTC(year, mon - 1, 1) / 1000);
-  const endTs = Math.floor(Date.UTC(year, mon, 1) / 1000);
+  const startTs = Math.floor(Date.UTC(year, mon - 1, 1) / 1000);           // First of residual month
+  const monthEnd = new Date(Date.UTC(year, mon, 0));                         // Last day of residual month
+  const endDate = new Date(monthEnd);
+  endDate.setUTCDate(endDate.getUTCDate() + 65);                            // 65 days after month end
+  const endTs = Math.floor(endDate.getTime() / 1000);
 
   const urls = [process.env.SFIN_URL_1, process.env.SFIN_URL_2].filter(Boolean);
   if (!urls.length) throw new Error("No SimpleFIN URLs configured (SFIN_URL_1 / SFIN_URL_2)");
@@ -98,9 +127,51 @@ async function getSimpleFINTransactions(month) {
   return allTxs;
 }
 
+// ─── Set due dates ─────────────────────────────────────────────────────────────
+
+async function setDueDates(month) {
+  // month is YYYY-MM; for each ISO with residuals this month, create/update iso_payments
+  // with EXP:YYYY-MM-DD| prefix in notes if not already set.
+  const ym = month.slice(0, 7);
+  const rm = `${ym}-01`;
+
+  const residuals = await sbGet(`residuals?report_month=eq.${rm}&select=iso_id&limit=2000`);
+  if (!Array.isArray(residuals) || !residuals.length) return;
+
+  const isoIds = [...new Set(residuals.map(r => r.iso_id))];
+  const isos = await sbGet(`isos?id=in.(${isoIds.join(',')})&select=id,name`);
+  if (!Array.isArray(isos)) return;
+
+  const existing = await sbGet(`iso_payments?report_month=eq.${rm}&select=id,iso_id,notes`);
+  const existingMap = {};
+  if (Array.isArray(existing)) existing.forEach(p => { existingMap[p.iso_id] = p; });
+
+  for (const iso of isos) {
+    const expStr = computeExpDate(iso.name, ym);
+    if (!expStr) continue;
+    const expPrefix = `EXP:${expStr}|`;
+    const ex = existingMap[iso.id];
+
+    if (ex) {
+      const cur = ex.notes || '';
+      if (!cur.match(/^EXP:\d{4}-\d{2}-\d{2}\|/)) {
+        // No stored date yet — set it without touching existing notes content
+        await sbPatch(`iso_payments?id=eq.${ex.id}`, { notes: expPrefix + cur.replace(/^\s*\|\s*/, '') });
+      }
+    } else {
+      await sbPost('iso_payments', {
+        iso_id: iso.id, report_month: rm, notes: expPrefix,
+        status: 'pending', updated_at: new Date().toISOString()
+      });
+    }
+  }
+}
+
 // ─── Bank sync handlers ────────────────────────────────────────────────────────
 
 async function bankPreview(month, res) {
+  // Auto-populate expected payment dates for all ISOs with residuals this month
+  await setDueDates(month).catch(e => console.error('setDueDates error:', e.message));
   const mappings = await sbGet("iso_bank_mappings?select=*,isos(id,name)&order=created_at.asc").catch(() => []);
   const active = (Array.isArray(mappings) ? mappings : []).filter(m => m.keywords && m.keywords.trim());
   if (!active.length) {
@@ -204,6 +275,12 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
 
   const { action, month } = req.query;
+
+  if (action === "set-due-dates" && req.method === "GET") {
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) return res.status(400).json({ error: "month required (YYYY-MM)" });
+    await setDueDates(month);
+    return res.json({ ok: true, month });
+  }
 
   if (action === "bank-preview" && req.method === "GET") {
     if (!month || !/^\d{4}-\d{2}$/.test(month)) return res.status(400).json({ error: "month required (YYYY-MM)" });
