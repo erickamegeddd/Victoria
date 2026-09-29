@@ -68,9 +68,8 @@ const Dashboard = () => {
   const merchantsRevenue = usePayments?isoPayments.filter(p=>!GATEWAY_ISO_NAMES.has((p.isos?.name||'').toLowerCase())).reduce((s,p)=>s+(p.expected_amount||0),0):residuals.filter(r=>!isGatewayRow(r)).reduce((s,r)=>s+(r.paydiversenet||0),0);
   const resellerRevenue = usePayments?isoPayments.filter(p=>GATEWAY_ISO_NAMES.has((p.isos?.name||'').toLowerCase())).reduce((s,p)=>s+(p.expected_amount||0),0):residuals.filter(r=>isGatewayRow(r)).reduce((s,r)=>s+(r.paydiversenet||0),0);
   const activeGatewayMids = new Set(residuals.filter(r=>isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.mid).map(r=>r.mid)).size;
-  // "Added" = in this month's residuals but never in any prior month — handles merchants who skipped months
-  const addedMerchantMidsCount = new Set(residuals.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.mid&&!allPriorMids.has(r.mid)).map(r=>r.mid)).size;
-  const addedGatewayMidsCount = [...new Set(residuals.filter(r=>isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.mid).map(r=>r.mid))].filter(m=>!allPriorMids.has(m)).length;
+  const addedMerchantMidsCount = 0;
+  const addedGatewayMidsCount = 0;
 
   useEffect(()=>{fetchIsos();},[]);
   useEffect(()=>{
