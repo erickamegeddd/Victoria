@@ -54,9 +54,37 @@ const PaymentsPage = () => {
       const data=await r.json();
       if(!r.ok)throw new Error(data.error||'Sync failed');
       setSyncData(data);
+      // Build lookup of previously-synced transactions from iso_payments notes
+      const syncedPaymentsMap:{[isoId:string]:any}={};
+      payments.forEach(p=>{if(p.notes?.includes('[Bank Sync'))syncedPaymentsMap[p.iso_id]=p;});
+
+      const parseSyncedTxs=(notes:string)=>{
+        const m=notes?.match(/\[Bank Sync [^\]]+\]\s*(.+)/);
+        if(!m)return null;
+        return m[1].split(';').map((s:string)=>s.trim()).filter(Boolean).map((entry:string)=>{
+          const em=entry.match(/^(\d{4}-\d{2}-\d{2})\s+.*\$(\d+\.\d{2})$/);
+          return em?{date:em[1],amount:parseFloat(em[2])}:null;
+        }).filter(Boolean);
+      };
+
       const init:Record<string,Set<number>>={};
       (data.preview||[]).forEach((iso:any)=>{
-        init[iso.isoId]=new Set(iso.transactions.map((_:any,i:number)=>i));
+        const sp=syncedPaymentsMap[iso.isoId];
+        if(sp){
+          const prevTxs=parseSyncedTxs(sp.notes||'');
+          if(prevTxs&&prevTxs.length){
+            // Pre-check only the transactions that were confirmed in the last sync
+            const s=new Set<number>();
+            iso.transactions.forEach((tx:any,j:number)=>{
+              if(prevTxs.some((p:any)=>p.date===tx.date&&Math.abs(p.amount-tx.amount)<0.01))s.add(j);
+            });
+            init[iso.isoId]=s;
+          } else {
+            init[iso.isoId]=new Set(iso.transactions.map((_:any,i:number)=>i));
+          }
+        } else {
+          init[iso.isoId]=new Set(iso.transactions.map((_:any,i:number)=>i));
+        }
       });
       setCheckedTxs(init);
       setSyncModal(true);
