@@ -36,7 +36,7 @@ const PaymentsPage = () => {
   const [syncData, setSyncData] = useState(null); // { preview, month, totalTxsFetched, matched, unmatched }
   const [syncModal, setSyncModal] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const [checkedISOs, setCheckedISOs] = useState<Set<string>>(new Set());
+  const [checkedTxs, setCheckedTxs] = useState<Record<string,Set<number>>>({});
 
   useEffect(()=>{fetchIsos();},[]);
   useEffect(()=>{fetchResiduals();fetchPayments();setActiveStatusFilter(null);},[selectedMonth]);
@@ -54,7 +54,9 @@ const PaymentsPage = () => {
       const data=await r.json();
       if(!r.ok)throw new Error(data.error||'Sync failed');
       setSyncData(data);
-      setCheckedISOs(new Set((data.preview||[]).map((iso:any)=>iso.isoId)));
+      const init:Record<string,Set<number>>={};
+      (data.preview||[]).forEach((iso:any)=>{init[iso.isoId]=new Set(iso.transactions.map((_:any,i:number)=>i));});
+      setCheckedTxs(init);
       setSyncModal(true);
     }catch(e){
       message.error(e.message);
@@ -64,7 +66,11 @@ const PaymentsPage = () => {
   };
 
   const confirmSync=async()=>{
-    const toSync=(syncData?.preview||[]).filter((iso:any)=>checkedISOs.has(iso.isoId));
+    const toSync=(syncData?.preview||[]).map((iso:any)=>{
+      const kept=iso.transactions.filter((_:any,i:number)=>(checkedTxs[iso.isoId]||new Set()).has(i));
+      if(!kept.length)return null;
+      return {...iso,transactions:kept,total:Math.round(kept.reduce((s:number,t:any)=>s+t.amount,0)*100)/100};
+    }).filter(Boolean);
     if(!toSync.length)return;
     setConfirming(true);
     try{
@@ -402,43 +408,65 @@ const PaymentsPage = () => {
             {syncData.message&&<Alert type="info" message={syncData.message} showIcon/>}
 
             {syncData.preview?.length>0&&(()=>{
-              const allChecked=syncData.preview.every((iso:any)=>checkedISOs.has(iso.isoId));
-              const someChecked=syncData.preview.some((iso:any)=>checkedISOs.has(iso.isoId));
+              const toggleTx=(isoId:string,j:number)=>setCheckedTxs(prev=>{
+                const s=new Set(prev[isoId]||[]);
+                if(s.has(j))s.delete(j);else s.add(j);
+                return {...prev,[isoId]:s};
+              });
+              const toggleISO=(iso:any)=>setCheckedTxs(prev=>{
+                const cur=prev[iso.isoId]||new Set();
+                const allOn=iso.transactions.every((_:any,j:number)=>cur.has(j));
+                const s=allOn?new Set<number>():new Set<number>(iso.transactions.map((_:any,j:number)=>j));
+                return {...prev,[iso.isoId]:s};
+              });
+              const totalCheckedISOs=syncData.preview.filter((iso:any)=>(checkedTxs[iso.isoId]||new Set()).size>0).length;
+              const allISOs=syncData.preview.every((iso:any)=>iso.transactions.every((_:any,j:number)=>(checkedTxs[iso.isoId]||new Set()).has(j)));
+              const someISOs=syncData.preview.some((iso:any)=>(checkedTxs[iso.isoId]||new Set()).size>0);
               return(
               <>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                  <Text style={{fontWeight:700,fontSize:13}}>Check ISOs to write to Received amounts:</Text>
-                  <Checkbox
-                    checked={allChecked}
-                    indeterminate={someChecked&&!allChecked}
+                  <Text style={{fontWeight:700,fontSize:13}}>Check transactions to write to Received amounts:</Text>
+                  <Checkbox checked={allISOs} indeterminate={someISOs&&!allISOs}
                     onChange={e=>{
-                      if(e.target.checked)setCheckedISOs(new Set(syncData.preview.map((iso:any)=>iso.isoId)));
-                      else setCheckedISOs(new Set());
-                    }}
-                  >Select all</Checkbox>
+                      const init:Record<string,Set<number>>={};
+                      syncData.preview.forEach((iso:any)=>{
+                        init[iso.isoId]=e.target.checked?new Set(iso.transactions.map((_:any,j:number)=>j)):new Set();
+                      });
+                      setCheckedTxs(init);
+                    }}>Select all</Checkbox>
                 </div>
-                <div style={{maxHeight:340,overflowY:'auto',borderRadius:8,border:'1px solid #e5e7eb'}}>
+                <div style={{maxHeight:360,overflowY:'auto',borderRadius:8,border:'1px solid #e5e7eb'}}>
                   {syncData.preview.map((iso:any,i:number)=>{
-                    const checked=checkedISOs.has(iso.isoId);
+                    const isoChecked=checkedTxs[iso.isoId]||new Set();
+                    const allTx=iso.transactions.every((_:any,j:number)=>isoChecked.has(j));
+                    const someTx=iso.transactions.some((_:any,j:number)=>isoChecked.has(j));
+                    const checkedTotal=Math.round(iso.transactions.filter((_:any,j:number)=>isoChecked.has(j)).reduce((s:number,t:any)=>s+t.amount,0)*100)/100;
                     return(
-                    <div key={iso.isoId} style={{padding:'10px 14px',borderBottom:i<syncData.preview.length-1?'1px solid #f3f4f6':'none',background:checked?'#fff':'#fafafa',cursor:'pointer'}}
-                      onClick={()=>setCheckedISOs(prev=>{const n=new Set(prev);if(n.has(iso.isoId))n.delete(iso.isoId);else n.add(iso.isoId);return n;})}>
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+                    <div key={iso.isoId} style={{borderBottom:i<syncData.preview.length-1?'1px solid #f3f4f6':'none'}}>
+                      {/* ISO header row — click to toggle all its transactions */}
+                      <div style={{padding:'8px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',background:someTx?'#f0fdf4':'#fafafa',cursor:'pointer'}}
+                        onClick={()=>toggleISO(iso)}>
                         <Space size={8}>
-                          <Checkbox checked={checked} onChange={()=>{}} onClick={e=>e.stopPropagation()}
-                            style={{pointerEvents:'none'}}/>
-                          <Text style={{fontWeight:700,fontSize:13,color:checked?'#111827':'#9ca3af'}}>{iso.isoName}</Text>
+                          <Checkbox checked={allTx} indeterminate={someTx&&!allTx} onChange={()=>{}} onClick={e=>e.stopPropagation()} style={{pointerEvents:'none'}}/>
+                          <Text style={{fontWeight:700,fontSize:13,color:someTx?'#111827':'#9ca3af'}}>{iso.isoName}</Text>
                         </Space>
-                        <Text style={{fontWeight:900,fontSize:15,color:checked?'#059669':'#9ca3af'}}>{fmt(iso.total)}</Text>
+                        <Text style={{fontWeight:900,fontSize:14,color:someTx?'#059669':'#9ca3af'}}>
+                          {someTx?fmt(checkedTotal):fmt(iso.total)}
+                        </Text>
                       </div>
-                      <div style={{display:'flex',flexDirection:'column',gap:2,paddingLeft:24}}>
-                        {iso.transactions.map((tx:any,j:number)=>(
-                          <div key={j} style={{fontSize:11,color:'#6b7280',display:'flex',justifyContent:'space-between'}}>
-                            <span>{tx.date} — {tx.description}</span>
-                            <span style={{fontWeight:600,color:'#374151'}}>${Number(tx.amount).toFixed(2)}</span>
-                          </div>
-                        ))}
-                      </div>
+                      {/* Per-transaction rows */}
+                      {iso.transactions.map((tx:any,j:number)=>{
+                        const txOn=isoChecked.has(j);
+                        return(
+                        <div key={j} style={{padding:'5px 14px 5px 38px',display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',background:txOn?'#fff':'#fafafa'}}
+                          onClick={e=>{e.stopPropagation();toggleTx(iso.isoId,j);}}>
+                          <Space size={8}>
+                            <Checkbox checked={txOn} onChange={()=>{}} onClick={e=>e.stopPropagation()} style={{pointerEvents:'none'}}/>
+                            <span style={{fontSize:11,color:txOn?'#374151':'#9ca3af'}}>{tx.date} — {tx.description}</span>
+                          </Space>
+                          <span style={{fontSize:11,fontWeight:600,color:txOn?'#374151':'#9ca3af',whiteSpace:'nowrap',marginLeft:8}}>${Number(tx.amount).toFixed(2)}</span>
+                        </div>
+                      )})}
                     </div>
                   )})}
                 </div>
@@ -449,11 +477,11 @@ const PaymentsPage = () => {
             <div style={{display:'flex',justifyContent:'flex-end',gap:8}}>
               <Button onClick={()=>{setSyncModal(false);setSyncData(null);}}>Cancel</Button>
               {syncData.preview?.length>0&&(()=>{
-                const n=checkedISOs.size;
+                const n=syncData.preview.filter((iso:any)=>(checkedTxs[iso.isoId]||new Set()).size>0).length;
                 return(
                 <Button type="primary" loading={confirming} onClick={confirmSync} icon={<CheckCircleOutlined/>}
                   disabled={n===0}
-                  style={{background:n>0?'#059669':'undefined',borderColor:n>0?'#059669':'undefined'}}>
+                  style={{background:n>0?'#059669':undefined,borderColor:n>0?'#059669':undefined}}>
                   Confirm & Write {n} ISO{n!==1?'s':''}
                 </Button>
                 );
