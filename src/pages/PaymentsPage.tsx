@@ -19,7 +19,7 @@ const PaymentsPage = () => {
   const [isos, setIsos] = useState([]);
   const [residuals, setResiduals] = useState([]);
   const [payments, setPayments] = useState([]);
-  const LATEST_MONTH = '2026-07-01';
+  const LATEST_MONTH = '2026-08-01';
   const [selectedMonth, setSelectedMonth] = useState(LATEST_MONTH);
   const [paymentModal, setPaymentModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);

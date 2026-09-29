@@ -46,7 +46,7 @@ const adjColumns: any[] = [
 ];
 
 const AgentsPage = () => {
-  const LATEST_MONTH = "2026-07-01";
+  const LATEST_MONTH = "2026-08-01";
   const [date, setDate] = useState<string>(LATEST_MONTH);
   const [adjData, setAdjData] = useState<any[]>([]);
   const [adjLoading, setAdjLoading] = useState(false);
