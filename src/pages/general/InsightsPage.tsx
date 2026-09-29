@@ -209,7 +209,7 @@ const ISOCard=({iso,labelA,labelB})=>{
 };
 
 const getPeriodDates=(period)=>{
-  const now=dayjs("2026-07-01");
+  const now=dayjs("2026-08-01");
   if(period==="30")return{labelA:now.subtract(1,"month").format("MMM YYYY"),labelB:now.format("MMM YYYY"),dateA:now.subtract(1,"month").startOf("month").format("YYYY-MM-DD"),dateB:now.startOf("month").format("YYYY-MM-DD"),type:"month"};
   if(period==="60")return{labelA:now.subtract(2,"month").format("MMM YYYY"),labelB:now.format("MMM YYYY"),dateA:now.subtract(2,"month").startOf("month").format("YYYY-MM-DD"),dateB:now.startOf("month").format("YYYY-MM-DD"),type:"month"};
   if(period==="90")return{labelA:now.subtract(3,"month").format("MMM YYYY"),labelB:now.format("MMM YYYY"),dateA:now.subtract(3,"month").startOf("month").format("YYYY-MM-DD"),dateB:now.startOf("month").format("YYYY-MM-DD"),type:"month"};
