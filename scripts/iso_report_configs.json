@@ -79,9 +79,9 @@
       "col_mid": "A",
       "col_business_name": "B",
       "col_gross_volume": "D",
-      "col_paydiversenet": "H",
+      "col_paydiversenet": "N",
       "skip_header_rows": 1,
-      "_notes": "H=ISO $ Split = PayDiverse's share as ISO. File in Breier subfolder."
+      "_notes": "N=Referral $ Split = PayDiverse net (Frank Sena's referral commission that Total-Apps pays to PayDiverse). H=ISO $ Split (10% ISO fee). Skip last row (totals). File in Breier subfolder."
     },
     "Payment Cloud": {
       "verified": true,
