@@ -112,13 +112,20 @@ def dropbox_download(pd_token, dropbox_path, local_path, link=None):
 
 def parse_xls(path):
     """Parse legacy .xls (BIFF) files using xlrd 1.x (auto-installed if missing)."""
+    import sys, importlib
+    if "xlrd" in sys.modules and not hasattr(sys.modules["xlrd"], "XL_CELL_FLOAT"):
+        # xlrd 2.x is cached — reinstall 1.x and force reload
+        import subprocess
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "xlrd==1.2.0", "-q"])
+        sys.modules.pop("xlrd", None)
     try:
         import xlrd
         if not hasattr(xlrd, "XL_CELL_FLOAT"):
-            raise ImportError("xlrd 2.x lacks XLS support; need 1.x")
+            raise ImportError("xlrd lacks XL_CELL_FLOAT even after reinstall")
     except ImportError:
-        import subprocess, sys
+        import subprocess
         subprocess.check_call([sys.executable, "-m", "pip", "install", "xlrd==1.2.0", "-q"])
+        sys.modules.pop("xlrd", None)
         import xlrd
     wb = xlrd.open_workbook(path)
     ws = wb.sheet_by_index(0)
