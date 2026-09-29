@@ -450,9 +450,9 @@ const PaymentsPage = () => {
                 <div style={{maxHeight:380,overflowY:'auto',borderRadius:8,border:'1px solid #e5e7eb'}}>
                   {sorted.map((iso:any,i:number)=>{
                     const synced=syncedIds.has(iso.isoId);
-                    const isoChecked=synced?new Set<number>():checkedTxs[iso.isoId]||new Set();
-                    const allTx=!synced&&iso.transactions.every((_:any,j:number)=>isoChecked.has(j));
-                    const someTx=!synced&&iso.transactions.some((_:any,j:number)=>isoChecked.has(j));
+                    const isoChecked=checkedTxs[iso.isoId]||new Set();
+                    const allTx=iso.transactions.every((_:any,j:number)=>isoChecked.has(j));
+                    const someTx=iso.transactions.some((_:any,j:number)=>isoChecked.has(j));
                     const checkedTotal=Math.round(iso.transactions.filter((_:any,j:number)=>isoChecked.has(j)).reduce((s:number,t:any)=>s+t.amount,0)*100)/100;
                     return(
                     <div key={iso.isoId} style={{borderBottom:i<sorted.length-1?'1px solid #f3f4f6':'none'}}>
