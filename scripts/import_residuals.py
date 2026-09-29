@@ -444,6 +444,8 @@ def import_iso_month(iso_name, cfg, iso_id, report_month, month_folder, active_l
     col_split     = cfg.get("col_agent_split_pct")
 
     skip_blank_mid = cfg.get("skip_blank_mid", False)
+    col_date = cfg.get("col_date")
+    date_col_is_excel_serial = cfg.get("date_col_is_excel_serial", False)
 
     for row in data:
         mid = get_col(row, col_mid) if col_mid else None
@@ -453,6 +455,18 @@ def import_iso_month(iso_name, cfg, iso_id, report_month, month_folder, active_l
         # (used for ISOs like Finns that include blank summary/total rows)
         if skip_blank_mid and (not mid) and (not biz):
             continue
+
+        # date_col_is_excel_serial: filter rows to only include those matching report_month
+        # (used for cumulative weekly files like CCBill where one file spans multiple months)
+        if col_date and date_col_is_excel_serial:
+            date_raw = get_col(row, col_date)
+            try:
+                serial = int(float(date_raw))
+                actual = datetime.utcfromtimestamp((serial - 25569) * 86400).date()
+                if actual.year != report_month.year or actual.month != report_month.month:
+                    continue
+            except (TypeError, ValueError):
+                continue
 
         vol    = f(get_col(row, col_vol)) if col_vol else 0.0
         rev    = f(get_col(row, col_rev)) if col_rev else 0.0
