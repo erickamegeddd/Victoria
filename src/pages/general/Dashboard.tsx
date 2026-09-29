@@ -68,8 +68,7 @@ const Dashboard = () => {
   const merchantsRevenue = usePayments?isoPayments.filter(p=>!GATEWAY_ISO_NAMES.has((p.isos?.name||'').toLowerCase())).reduce((s,p)=>s+(p.expected_amount||0),0):residuals.filter(r=>!isGatewayRow(r)).reduce((s,r)=>s+(r.paydiversenet||0),0);
   const resellerRevenue = usePayments?isoPayments.filter(p=>GATEWAY_ISO_NAMES.has((p.isos?.name||'').toLowerCase())).reduce((s,p)=>s+(p.expected_amount||0),0):residuals.filter(r=>isGatewayRow(r)).reduce((s,r)=>s+(r.paydiversenet||0),0);
   const activeGatewayMids = new Set(residuals.filter(r=>isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.mid).map(r=>r.mid)).size;
-  const prevGatewayMids = new Set(prevResiduals.filter(r=>isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.mid).map(r=>r.mid));
-  const newGatewayMidsCount = [...new Set(residuals.filter(r=>isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.mid).map(r=>r.mid))].filter(m=>!prevGatewayMids.has(m)).length;
+  const newGatewayMidsCount = [...new Set(residuals.filter(r=>isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.mid).map(r=>r.mid))].filter(m=>!allPriorMids.has(m)).length;
 
   useEffect(()=>{fetchIsos();},[]);
   useEffect(()=>{
