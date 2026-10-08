@@ -23,7 +23,7 @@ const PAYMENT_DUE_RULES = {
 
 // Bank Sync window rule: ISOs pay the month after the residual month, so only
 // transactions dated in the calendar month of the ISO's Expected-By date are picked up
-// (never earlier than month M+1). CC Bill pays weekly inside the residual month itself.
+// (never earlier than month M+1).
 function ymAdd(ym, n) {
   const [y, m] = ym.split('-').map(Number);
   const d = new Date(Date.UTC(y, m - 1 + n, 1));
@@ -31,7 +31,6 @@ function ymAdd(ym, n) {
 }
 function syncWindowMonth(isoName, reportMonth) {
   const ym = reportMonth.slice(0, 7);
-  if (isoName === 'CC Bill') return ym;
   const next = ymAdd(ym, 1);
   const exp = computeExpDate(isoName, reportMonth);
   const expYm = exp ? exp.slice(0, 7) : next;
