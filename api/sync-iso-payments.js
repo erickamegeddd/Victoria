@@ -21,6 +21,23 @@ const PAYMENT_DUE_RULES = {
   "RAC":35,"Card Insight":45,"E-Fitness Today":45,"Midmetrics":45,"Approvely":46,"USAG":49
 };
 
+// Bank Sync window rule: ISOs pay the month after the residual month, so only
+// transactions dated in the calendar month of the ISO's Expected-By date are picked up
+// (never earlier than month M+1). CC Bill pays weekly inside the residual month itself.
+function ymAdd(ym, n) {
+  const [y, m] = ym.split('-').map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + n, 1));
+  return d.toISOString().slice(0, 7);
+}
+function syncWindowMonth(isoName, reportMonth) {
+  const ym = reportMonth.slice(0, 7);
+  if (isoName === 'CC Bill') return ym;
+  const next = ymAdd(ym, 1);
+  const exp = computeExpDate(isoName, reportMonth);
+  const expYm = exp ? exp.slice(0, 7) : next;
+  return expYm > next ? expYm : next;
+}
+
 function computeExpDate(isoName, reportMonth) {
   const days = PAYMENT_DUE_RULES[isoName];
   if (days == null) return null;
@@ -211,16 +228,19 @@ async function bankPreview(month, res) {
       isoName: m.isos?.name || m.iso_id,
       keywords: kws,
       transactions: [],
-      expectedDate: computeExpDate(m.isos?.name || '', month)
+      expectedDate: computeExpDate(m.isos?.name || '', month),
+      windowMonth: syncWindowMonth(m.isos?.name || '', month)
     };
   }
 
+  let outOfWindow = 0;
   for (const tx of txs) {
     const haystack = `${tx.description} ${tx.payee}`.toLowerCase();
     for (const iso of Object.values(isoMap)) {
       if (iso.keywords.some(kw => haystack.includes(kw))) {
-        // No automatic date filtering — all matched transactions are shown.
-        // The user selects which transactions to confirm via per-transaction checkboxes.
+        // Only transactions in the ISO's payment month (month after residual month, or the
+        // month of its Expected-By date) are picked up; the rest are counted as out of window.
+        if (String(tx.date).slice(0, 7) !== iso.windowMonth) { outOfWindow++; break; }
         iso.transactions.push({ date: tx.date, description: tx.description, amount: tx.amount });
         break;
       }
@@ -243,7 +263,8 @@ async function bankPreview(month, res) {
     month,
     totalTxsFetched: txs.length,
     matched: preview.reduce((s, i) => s + i.txCount, 0),
-    unmatched: txs.length - preview.reduce((s, i) => s + i.txCount, 0)
+    outOfWindow,
+    unmatched: txs.length - preview.reduce((s, i) => s + i.txCount, 0) - outOfWindow
   });
 }
 
