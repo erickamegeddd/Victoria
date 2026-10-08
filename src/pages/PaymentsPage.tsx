@@ -212,6 +212,7 @@ const PaymentsPage = () => {
   const matched=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return p&&getStatus(i.expected,p.received_amount)==='paid';}).length;
   const shortPaid=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return p&&getStatus(i.expected,p.received_amount)==='short_paid';}).length;
   const pending=expectedByISO.filter(i=>{if(i.expected==null)return false;const p=getPaymentForISO(i.isoId);return !p||p.received_amount==null;}).length;
+  const receivedOnly=expectedByISO.filter(i=>{if(i.expected!=null)return false;const p=getPaymentForISO(i.isoId);return p&&p.received_amount!=null;}).length;
   const overpaid=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return p&&getStatus(i.expected,p.received_amount)==='overpaid';}).length;
   const totalOutstanding=expectedByISO.reduce((s,i)=>{if(i.expected==null)return s;const p=getPaymentForISO(i.isoId);const received=p?.received_amount||0;const diff=i.expected-received;return diff>0?s+diff:s;},0);
 
@@ -239,7 +240,7 @@ const PaymentsPage = () => {
     {title:'Received',key:'rec',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return(pa?.received_amount||0)-(pb?.received_amount||0);},render:(_,r)=>{const p=getPaymentForISO(r.isoId);return p?.received_amount!=null?<Text strong style={{color:'#059669'}}>{fmt(p.received_amount)}</Text>:<Text style={{color:'var(--muted-color)'}}>--</Text>;}},
     {title:'Difference',key:'diff',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return((pa?.received_amount||0)-(a.expected??0))-((pb?.received_amount||0)-(b.expected??0));},render:(_,r)=>{const p=getPaymentForISO(r.isoId);if(p?.received_amount==null||r.expected==null)return<Text style={{color:'var(--muted-color)'}}>--</Text>;const diff=(p?.received_amount||0)-r.expected;return<Text strong style={{color:Math.abs(diff)<0.01?'#059669':diff<0?'#dc2626':'#2563eb'}}>{diff>=0?'+':''}{fmt(diff)}</Text>;}},
     {title:'Status',key:'status',
-      filters:[{text:'Paid',value:'paid'},{text:'Short Paid',value:'short_paid'},{text:'Pending',value:'pending'},{text:'Overpaid',value:'overpaid'}],
+      filters:[{text:'Paid',value:'paid'},{text:'Short Paid',value:'short_paid'},{text:'Pending',value:'pending'},{text:'Overpaid',value:'overpaid'},{text:'Received',value:'received'}],
       onFilter:(val,r)=>{const p=getPaymentForISO(r.isoId);return getStatus(r.expected,p?.received_amount)===val;},
       render:(_,r)=>{const p=getPaymentForISO(r.isoId);const s=p?getStatus(r.expected,p.received_amount):'pending';const cfg=STATUS_CONFIG[s];return<Tag color={cfg.color}>{cfg.label}</Tag>;}},
     {title:'Payment Expected By',key:'expdate',width:150,
@@ -316,14 +317,14 @@ const PaymentsPage = () => {
           </Row>
 
           <div style={{display:'flex',gap:8,marginBottom:activeStatusFilter?8:16,flexWrap:'wrap'}}>
-            {[{label:`${matched} Paid in Full`,color:'#059669',bg:'#f0fdf4',key:'paid'},{label:`${shortPaid} Short Paid`,color:'#dc2626',bg:'#fef2f2',key:'short_paid'},{label:`${overpaid} Overpaid`,color:'#2563eb',bg:'#eff6ff',key:'overpaid'},{label:`${pending} Pending`,color:'#92400e',bg:'#fffbeb',key:'pending'}].map(({label,color,bg,key})=>(
+            {[{label:`${matched} Paid in Full`,color:'#059669',bg:'#f0fdf4',key:'paid'},{label:`${shortPaid} Short Paid`,color:'#dc2626',bg:'#fef2f2',key:'short_paid'},{label:`${overpaid} Overpaid`,color:'#2563eb',bg:'#eff6ff',key:'overpaid'},{label:`${pending} Pending`,color:'#92400e',bg:'#fffbeb',key:'pending'},{label:`${receivedOnly} Received`,color:'#0e7490',bg:'#ecfeff',key:'received'}].map(({label,color,bg,key})=>(
               <div key={key} onClick={()=>setActiveStatusFilter(activeStatusFilter===key?null:key)}
                 style={{padding:'6px 14px',borderRadius:20,background:bg,color,fontSize:13,fontWeight:600,cursor:'pointer',border:activeStatusFilter===key?`2px solid ${color}`:'1px solid transparent',transform:activeStatusFilter===key?'translateY(-2px)':'none',transition:'all 0.18s',userSelect:'none'}}>
                 {label}
               </div>
             ))}
           </div>
-          {activeStatusFilter&&(<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12,padding:'8px 14px',background:'#eff6ff',borderRadius:10,border:'1px solid #bfdbfe'}}><Text style={{fontSize:13,fontWeight:600,color:'#1d4ed8'}}>{activeStatusFilter==='paid'?`Showing ${matched} ISO${matched!==1?'s':''} paid in full`:activeStatusFilter==='short_paid'?`Showing ${shortPaid} ISO${shortPaid!==1?'s':''} with short payments`:activeStatusFilter==='overpaid'?`Showing ${overpaid} overpaid ISO${overpaid!==1?'s':''}`:`Showing ${pending} pending ISO${pending!==1?'s':''}`}</Text><Button size="small" onClick={()=>setActiveStatusFilter(null)} style={{marginLeft:'auto'}}>Clear x</Button></div>)}
+          {activeStatusFilter&&(<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12,padding:'8px 14px',background:'#eff6ff',borderRadius:10,border:'1px solid #bfdbfe'}}><Text style={{fontSize:13,fontWeight:600,color:'#1d4ed8'}}>{activeStatusFilter==='paid'?`Showing ${matched} ISO${matched!==1?'s':''} paid in full`:activeStatusFilter==='short_paid'?`Showing ${shortPaid} ISO${shortPaid!==1?'s':''} with short payments`:activeStatusFilter==='overpaid'?`Showing ${overpaid} overpaid ISO${overpaid!==1?'s':''}`:activeStatusFilter==='received'?`Showing ${receivedOnly} ISO${receivedOnly!==1?'s':''} paid with no residuals yet`:`Showing ${pending} pending ISO${pending!==1?'s':''}`}</Text><Button size="small" onClick={()=>setActiveStatusFilter(null)} style={{marginLeft:'auto'}}>Clear x</Button></div>)}
           {(shortPaid>0||pending>0)&&<Alert type="warning" showIcon style={{marginBottom:16}} message={`Action needed: ${shortPaid>0?`${shortPaid} ISO${shortPaid>1?'s':''} paid less than expected. `:''}${pending>0?`${pending} ISO${pending>1?' have':' has'} no payment recorded yet.`:''}`}/>}
 
           <Card><Table dataSource={filteredISOs} columns={reconCols} rowKey="isoId" pagination={false} size="middle"
