@@ -84,6 +84,8 @@ const PaymentsPage = () => {
       const init:Record<string,Set<number>>={};
       (data.preview||[]).forEach((iso:any)=>{
         const sp=syncedPaymentsMap[iso.isoId];
+        const manual=payments.find(x=>x.iso_id===iso.isoId&&x.received_amount!=null&&!x.notes?.includes('[Bank Sync'));
+        if(manual){init[iso.isoId]=new Set();return;} // manually entered — sync never overwrites
         if(sp){
           const prevTxs=parseSyncedTxs(sp.notes||'');
           if(prevTxs===null){
@@ -140,6 +142,7 @@ const PaymentsPage = () => {
       setSyncData(null);
       await fetchPayments();
       message.success(`Bank sync complete — ${data.written} ISO${data.written!==1?'s':''} updated`);
+      if(data.skipped?.length)message.info(`Skipped ${data.skipped.length} manually entered: ${data.skipped.join(', ')}`);
       if(data.errors?.length)message.warning('Some errors: '+data.errors.join('; '));
     }catch(e){
       message.error(e.message);
