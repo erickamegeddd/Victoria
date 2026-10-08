@@ -37,6 +37,19 @@ function syncWindowMonth(isoName, reportMonth) {
   return expYm > next ? expYm : next;
 }
 
+// Also accept transactions within 7 days of the Expected-By date when that date falls inside
+// the residual month itself (e.g. Group ISO, due on month end), so they aren't missed.
+function inSyncWindow(txDate, iso) {
+  const d = String(txDate).slice(0, 10);
+  if (d.slice(0, 7) === iso.windowMonth) return true;
+  const exp = iso.expectedDate;
+  if (exp && exp.slice(0, 7) === iso.reportYm) {
+    const diff = Math.abs(Date.parse(d) - Date.parse(exp)) / 86400000;
+    return diff <= 7;
+  }
+  return false;
+}
+
 function computeExpDate(isoName, reportMonth) {
   const days = PAYMENT_DUE_RULES[isoName];
   if (days == null) return null;
@@ -228,6 +241,7 @@ async function bankPreview(month, res) {
       keywords: kws,
       transactions: [],
       expectedDate: computeExpDate(m.isos?.name || '', month),
+      reportYm: month.slice(0, 7),
       windowMonth: syncWindowMonth(m.isos?.name || '', month)
     };
   }
@@ -239,7 +253,7 @@ async function bankPreview(month, res) {
       if (iso.keywords.some(kw => haystack.includes(kw))) {
         // Only transactions in the ISO's payment month (month after residual month, or the
         // month of its Expected-By date) are picked up; the rest are counted as out of window.
-        if (String(tx.date).slice(0, 7) !== iso.windowMonth) { outOfWindow++; break; }
+        if (!inSyncWindow(tx.date, iso)) { outOfWindow++; break; }
         iso.transactions.push({ date: tx.date, description: tx.description, amount: tx.amount });
         break;
       }
