@@ -288,6 +288,7 @@ async function bankConfirm(month, preview, res) {
   const reportMonth = `${month}-01`;
   const errors = [];
   let written = 0;
+  const skipped = [];
 
   for (const iso of preview) {
     try {
@@ -295,8 +296,15 @@ async function bankConfirm(month, preview, res) {
       const fingerprints = iso.transactions.map(t => `${t.date}:${Number(t.amount).toFixed(2)}`).join(",");
       const breakdown = iso.transactions.map(t => `${t.date} ${t.description} $${Number(t.amount).toFixed(2)}`).join("; ");
       const syncNote = `[Bank Sync ${month}]{${fingerprints}} ${breakdown}`;
-      const existing = await sbGet(`iso_payments?iso_id=eq.${iso.isoId}&report_month=eq.${reportMonth}&select=id,notes`);
+      const existing = await sbGet(`iso_payments?iso_id=eq.${iso.isoId}&report_month=eq.${reportMonth}&select=id,notes,received_amount`);
       const ex = Array.isArray(existing) ? existing[0] : null;
+
+      // Manually entered payments are never overwritten by sync: a received amount with no
+      // [Bank Sync] marker in the notes was typed in on the Payments page.
+      if (ex && ex.received_amount != null && !(ex.notes || "").includes("[Bank Sync")) {
+        skipped.push(iso.isoName);
+        continue;
+      }
 
       if (ex) {
         const cur = ex.notes || "";
@@ -335,7 +343,7 @@ async function bankConfirm(month, preview, res) {
     }
   }
 
-  return res.json({ ok: true, written, errors: errors.length ? errors : undefined });
+  return res.json({ ok: true, written, skipped: skipped.length ? skipped : undefined, errors: errors.length ? errors : undefined });
 }
 
 // ─── Main handler ──────────────────────────────────────────────────────────────
