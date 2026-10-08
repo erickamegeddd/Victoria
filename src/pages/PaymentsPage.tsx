@@ -13,6 +13,7 @@ const computeExpDate=(isoName:string,residualMonth:string)=>{const days=PAYMENT_
 // expected_date stored as EXP:YYYY-MM-DD| prefix in notes field
 const parseExpDate = (notes) => { if (!notes) return null; const m = notes.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/); return m ? m[1] : null; };
 const parseActualNotes = (notes) => { if (!notes) return ''; return notes.replace(/^EXP:\d{4}-\d{2}-\d{2}\|/, ''); };
+const stripSyncNote = (n) => (n||'').replace(/\[Bank Sync [^\]]+\][^|]*/g,'').replace(/^\s*\|\s*/,'').replace(/\s*\|\s*$/,'').trim();
 const buildNotes = (expDate, actualNotes) => { const prefix = expDate ? `EXP:${expDate}|` : ''; const full = prefix + (actualNotes || ''); return full || null; };
 
 const PaymentsPage = () => {
@@ -187,6 +188,8 @@ const PaymentsPage = () => {
     setSavingPayment(true);
     const received=parseFloat(paymentForm.received_amount)||null;
     const status=getStatus(selectedIsoForPayment.expected,received);
+    // A manually changed amount replaces the bank-sync value, so the [Bank Sync] note is dropped.
+    const amountChanged=!!editingPayment&&Math.abs((received||0)-(editingPayment.received_amount||0))>=0.005;
     const record={
       iso_id:selectedIsoForPayment.isoId,
       report_month:selectedMonth,
@@ -194,7 +197,7 @@ const PaymentsPage = () => {
       received_amount:received,
       payment_date:paymentForm.payment_date||null,
       payment_method:paymentForm.payment_method||null,
-      notes:buildNotes(paymentForm.expected_date,paymentForm.notes),
+      notes:buildNotes(paymentForm.expected_date,amountChanged?stripSyncNote(paymentForm.notes):paymentForm.notes),
       status,
       updated_at:new Date().toISOString()
     };
