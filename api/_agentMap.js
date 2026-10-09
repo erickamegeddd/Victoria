@@ -1,13 +1,13 @@
 // Agent-to-MID commission mapping
 // Sourced from "Approved & Active Accounts" Google Sheet + old dashboard portfolio data
-// Last updated: 2026-08-19
+// Last updated: 2026-10-09 (July 2026 agent-sheet review)
 // `until` = last eligible report_month (YYYY-MM-01) for terminated merchants
 
 export const AGENT_MAP = {
   "Brian Miller": [
     { mid: "6322970303054495", pct: 25 },
     { mid: "201100029389",     pct: 25 },
-    { mid: "301128356190",     pct: 25 },
+    { mid: "30112835619",      pct: 25 },
     { mid: "970100005349",     pct: 25 },
   ],
   "Drew Ukapbi": [
@@ -38,10 +38,15 @@ export const AGENT_MAP = {
     { mid: "998300034884",     pct: 33.33 },  // Pro Art & Framing - Authorize.Net + Nuvei
     { mid: "700257",           pct: 33.33 },  // Financial Consulting Mgmt Group - CC Bill
     { mid: "580400000002212",  pct: 33.33 },  // GNX Web Enterprises LLC - First Direct Financial
-    { mid: "633200000177278",  pct: 33.33 },  // 7-Gates Credit Solutions - NMI
     { mid: "8034751340",       pct: 33.33 },  // 9361-7165 Quebec Inc - Payment Cloud NXGEN
     { mid: "998300008813",     pct: 25    },  // Pet Direct Savings LLC - Nuvei
     { mid: "998300028357",     pct: 18, until: "2026-04-01" },  // Doc by Phone LLC - Nuvei (terminated Apr 21 2026)
+  ],
+  "Robert Sena": [
+    { mid: "567000000053447", pct: 25 },  // Interstate Plywood - PayArc
+  ],
+  "Frank Sena": [
+    { mid: "926701398962524", pct: 25 },  // Designer Support - PayArc (Authorize.Net row excluded)
   ],
   "Claudia Perez": [
     // No active MIDs at this time
@@ -58,6 +63,12 @@ export const AGENT_MAP = {
     { mid: "002327562203", pct: 30 },  // styraapp.com - Nexio | CMS
   ],
 };
+
+// Reseller / gateway revenue is never commissionable - only merchant processing MIDs earn agent payouts.
+const RESELLER_ISOS = new Set(["nmi", "authorize.net", "e-fitness today", "efitness today", "fraud deflect", "midmetrics"]);
+export function isReseller(isoName) {
+  return RESELLER_ISOS.has(String(isoName || "").trim().toLowerCase());
+}
 
 // Returns MIDs active for a given report month (YYYY-MM-01).
 export function getActiveMids(agentName, month) {
