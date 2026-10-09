@@ -92,10 +92,9 @@ const MerchantsListPage = () => {
   };
   const nextMonth = () => {
     const next = dayjs(selectedMonth).add(1, "month").format("YYYY-MM-01");
-    if (next <= LATEST_MONTH) setSelectedMonth(next);
+    setSelectedMonth(next);
   };
   const atStart = selectedMonth <= "2026-01-01";
-  const atEnd = selectedMonth >= LATEST_MONTH;
 
   const getSearchProps = (dataIndex, label) => ({
     filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
@@ -175,11 +174,11 @@ const MerchantsListPage = () => {
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
         <Button icon={<LeftOutlined />} onClick={prevMonth} disabled={atStart || monthLoading} size="small" style={{ borderRadius: 8 }} />
         <DatePicker picker="month" value={dayjs(selectedMonth)} allowClear={false}
-          disabledDate={d => d.isBefore(dayjs("2026-01-01")) || d.isAfter(dayjs(LATEST_MONTH))}
+          disabledDate={d => d.isBefore(dayjs("2026-01-01"))}
           onChange={d => { if(d) setSelectedMonth(d.format("YYYY-MM-01")); }}
           format="MMM YYYY" size="small"
           style={{ fontWeight: 700, fontSize: 14, color: "var(--primary-color)", borderRadius: 8, border: "1.5px solid #bfdbfe", background: "#eff6ff", width: 120 }} />
-        <Button icon={<RightOutlined />} onClick={nextMonth} disabled={atEnd || monthLoading} size="small" style={{ borderRadius: 8 }} />
+        <Button icon={<RightOutlined />} onClick={nextMonth} disabled={monthLoading} size="small" style={{ borderRadius: 8 }} />
         {monthLoading && <Text style={{ fontSize: 12, color: "var(--muted-color)" }}>Loading…</Text>}
       </div>
 
