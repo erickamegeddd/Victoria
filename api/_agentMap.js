@@ -12,14 +12,15 @@ export const AGENT_MAP = {
   ],
   "Drew Ukapbi": [
     { mid: "85543291507",      pct: 25 },
-    { mid: "016233303005",     pct: 25 },
-    { mid: "086993303104",     pct: 25 },
+    { mid: "742116813274602",  pct: 25 },  // HighPlains Digital Goods - Netevia (stored with 7421 prefix)
+    { mid: "742120543274503",  pct: 25 },  // Hair Pros Healthy Living - Netevia
+    { mid: "742116233303005",  pct: 25 },  // Movaxx Diet Products - Netevia
+    { mid: "742186993303104",  pct: 25 },  // MVXX Skin Product - Netevia
     { mid: "201100313023",     pct: 25 },
     { mid: "201100313015",     pct: 25 },
     { mid: "937500000052639",  pct: 25 },
     { mid: "937500000052621",  pct: 25 },
     { mid: "8739759987787143", pct: 25 },
-    { mid: "8739785911030320", pct: 25 },
     { mid: "002081335951",     pct: 25 },
   ],
   "Michelle W Breier": [
