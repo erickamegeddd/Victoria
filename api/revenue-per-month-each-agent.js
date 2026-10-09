@@ -1,4 +1,4 @@
-import { AGENT_MAP, getPct, isReseller } from "./_agentMap.js";
+import { AGENT_MAP, getPct, isReseller, midScopedOut } from "./_agentMap.js";
 
 const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
 
@@ -34,8 +34,8 @@ export default async function handler(req, res) {
 
   const byMonth = {};
   rows.forEach((r) => {
-    if (isReseller(r.isos?.name)) return;
     const month = r.report_month;
+    if (isReseller(r.isos?.name, month) || midScopedOut(agent_name, r.mid, month)) return;
     const pct = getPct(agent_name, r.mid, month);
     if (!byMonth[month]) byMonth[month] = { month, paydiversenet: 0, agent_payout: 0 };
     byMonth[month].paydiversenet += r.paydiversenet || 0;
