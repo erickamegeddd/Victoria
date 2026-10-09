@@ -155,6 +155,7 @@ const PaymentsPage = () => {
   const getExpectedByISO=()=>{const residualMap={};residuals.forEach(r=>{const k=r.iso_id;if(!residualMap[k])residualMap[k]=0;residualMap[k]+=(r.paydiversenet||0);});const paymentMap={};payments.forEach(p=>{paymentMap[p.iso_id]=p;});return isos.map(iso=>({isoId:iso.id,isoName:iso.name,expected:iso.id in residualMap?residualMap[iso.id]:(paymentMap[iso.id]?.expected_amount??null)})).sort((a,b)=>a.isoName.localeCompare(b.isoName));};
   const getPaymentForISO=(isoId)=>payments.find(p=>p.iso_id===isoId);
   const getStatus=(expected,received)=>{if(received==null)return expected==null?'no_report':'pending';if(expected==null)return'received';const d=received-expected;if(Math.abs(d)<0.01)return'paid';if(d<0)return'short_paid';return'overpaid';};
+  const statusMatches=(status,key)=>status===key||(key==='no_report'&&status==='received');
   const STATUS_CONFIG={no_report:{label:'No residual report',color:'orange'},pending:{label:'Pending',color:'default'},paid:{label:'Paid',color:'green'},short_paid:{label:'Short Paid',color:'red'},overpaid:{label:'Overpaid',color:'blue'},received:{label:'Received',color:'cyan'}};
 
   const saveExpected=async(isoId, isoName, newAmount)=>{
@@ -218,12 +219,12 @@ const PaymentsPage = () => {
   const matched=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return p&&getStatus(i.expected,p.received_amount)==='paid';}).length;
   const shortPaid=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return p&&getStatus(i.expected,p.received_amount)==='short_paid';}).length;
   const pending=expectedByISO.filter(i=>{if(i.expected==null)return false;const p=getPaymentForISO(i.isoId);return !p||p.received_amount==null;}).length;
-  const noReport=expectedByISO.filter(i=>{if(i.expected!=null)return false;const p=getPaymentForISO(i.isoId);return !p||p.received_amount==null;}).length;
+  const noReport=expectedByISO.filter(i=>i.expected==null).length;
   const receivedOnly=expectedByISO.filter(i=>{if(i.expected!=null)return false;const p=getPaymentForISO(i.isoId);return p&&p.received_amount!=null;}).length;
   const overpaid=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return p&&getStatus(i.expected,p.received_amount)==='overpaid';}).length;
   const totalOutstanding=expectedByISO.reduce((s,i)=>{if(i.expected==null)return s;const p=getPaymentForISO(i.isoId);const received=p?.received_amount||0;const diff=i.expected-received;return diff>0?s+diff:s;},0);
 
-  const filteredISOs=activeStatusFilter?expectedByISO.filter(r=>{const p=getPaymentForISO(r.isoId);return getStatus(r.expected,p?.received_amount)===activeStatusFilter;}):expectedByISO;
+  const filteredISOs=activeStatusFilter?expectedByISO.filter(r=>{const p=getPaymentForISO(r.isoId);return statusMatches(getStatus(r.expected,p?.received_amount),activeStatusFilter);}):expectedByISO;
 
   const reconCols=[
     {title:'ISO',key:'iso',
@@ -248,7 +249,7 @@ const PaymentsPage = () => {
     {title:'Difference',key:'diff',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return((pa?.received_amount||0)-(a.expected??0))-((pb?.received_amount||0)-(b.expected??0));},render:(_,r)=>{const p=getPaymentForISO(r.isoId);if(p?.received_amount==null||r.expected==null)return<Text style={{color:'var(--muted-color)'}}>--</Text>;const diff=(p?.received_amount||0)-r.expected;return<Text strong style={{color:Math.abs(diff)<0.01?'#059669':diff<0?'#dc2626':'#2563eb'}}>{diff>=0?'+':''}{fmt(diff)}</Text>;}},
     {title:'Status',key:'status',
       filters:[{text:'Paid',value:'paid'},{text:'Short Paid',value:'short_paid'},{text:'Pending',value:'pending'},{text:'Overpaid',value:'overpaid'},{text:'Received',value:'received'},{text:'No residual report',value:'no_report'}],
-      onFilter:(val,r)=>{const p=getPaymentForISO(r.isoId);return getStatus(r.expected,p?.received_amount)===val;},
+      onFilter:(val,r)=>{const p=getPaymentForISO(r.isoId);return statusMatches(getStatus(r.expected,p?.received_amount),val);},
       render:(_,r)=>{const p=getPaymentForISO(r.isoId);const s=getStatus(r.expected,p?.received_amount);const cfg=STATUS_CONFIG[s];return<Tag color={cfg.color}>{cfg.label}</Tag>;}},
     {title:'Payment Expected By',key:'expdate',width:150,
       filters:[{text:'Overdue',value:'overdue'},{text:'Has Due Date',value:'has_date'},{text:'No Date Set',value:'no_date'}],
@@ -373,7 +374,7 @@ const PaymentsPage = () => {
               const status=getStatus(amount,p?.received_amount);
               return{name:iso.name,isoId:iso.id,dayNum:parseInt(resolvedDate.split('-')[2]),expDate:resolvedDate,amount,received:p?.received_amount??null,status};
             }).filter(Boolean);
-            const paymentItems=activeStatusFilter?allISOsForCalendar.filter(i=>i.status===activeStatusFilter):allISOsForCalendar;
+            const paymentItems=activeStatusFilter?allISOsForCalendar.filter(i=>statusMatches(i.status,activeStatusFilter)):allISOsForCalendar;
             const byDay={};
             paymentItems.forEach(item=>{if(!byDay[item.dayNum])byDay[item.dayNum]=[];byDay[item.dayNum].push(item);});
             const payMonth=dayjs(selectedMonth).add(1,'month');
