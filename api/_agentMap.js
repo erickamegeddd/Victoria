@@ -23,7 +23,7 @@ export const AGENT_MAP = {
     { mid: "8739785911030320", pct: 25, skip: [MAY, JUNE, JULY] },
     { mid: "16813274602",      pct: 25, only: [MAY, JUNE] },  // HighPlains - Netevia (unprefixed in June)
     { mid: "20543274503",      pct: 25, only: [MAY, JUNE] },  // Hair Pros - Netevia (unprefixed in June)
-    { mid: "742168653291408",  pct: 25, only: [MAY, JUNE] },  // Prime Skin Products - Netevia
+    { mid: "742168653291408",  pct: 25, only: [JUNE] },  // Prime Skin Products - Netevia
     { mid: "742185543291507",  pct: 25, only: [MAY, JUNE] },  // Prime Keto Product - Netevia
     { mid: "742116813274602",  pct: 25, only: [JULY] },  // HighPlains Digital Goods - Netevia (stored with 7421 prefix)
     { mid: "742120543274503",  pct: 25, only: [JULY] },  // Hair Pros Healthy Living - Netevia
