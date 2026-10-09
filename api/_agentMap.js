@@ -2,20 +2,27 @@
 // Sourced from "Approved & Active Accounts" Google Sheet + old dashboard portfolio data
 // Last updated: 2026-10-09 (July 2026 agent-sheet review)
 // `until` = last eligible report_month (YYYY-MM-01) for terminated merchants
+// `only` = list of report_months the entry applies to; `skip` = list of report_months it must not apply to.
+// July 2026 was reviewed against the agent sheets (reseller/gateway rows excluded); other months keep the prior mapping.
+const JULY = "2026-07-01";
 
 export const AGENT_MAP = {
   "Brian Miller": [
     { mid: "6322970303054495", pct: 25 },
     { mid: "201100029389",     pct: 25 },
-    { mid: "30112835619",      pct: 25 },
+    { mid: "301128356190",     pct: 25, skip: [JULY] },
+    { mid: "30112835619",      pct: 25, only: [JULY] },
     { mid: "970100005349",     pct: 25 },
   ],
   "Drew Ukapbi": [
     { mid: "85543291507",      pct: 25 },
-    { mid: "742116813274602",  pct: 25 },  // HighPlains Digital Goods - Netevia (stored with 7421 prefix)
-    { mid: "742120543274503",  pct: 25 },  // Hair Pros Healthy Living - Netevia
-    { mid: "742116233303005",  pct: 25 },  // Movaxx Diet Products - Netevia
-    { mid: "742186993303104",  pct: 25 },  // MVXX Skin Product - Netevia
+    { mid: "016233303005",     pct: 25, skip: [JULY] },
+    { mid: "086993303104",     pct: 25, skip: [JULY] },
+    { mid: "8739785911030320", pct: 25, skip: [JULY] },
+    { mid: "742116813274602",  pct: 25, only: [JULY] },  // HighPlains Digital Goods - Netevia (stored with 7421 prefix)
+    { mid: "742120543274503",  pct: 25, only: [JULY] },  // Hair Pros Healthy Living - Netevia
+    { mid: "742116233303005",  pct: 25, only: [JULY] },  // Movaxx Diet Products - Netevia
+    { mid: "742186993303104",  pct: 25, only: [JULY] },  // MVXX Skin Product - Netevia
     { mid: "201100313023",     pct: 25 },
     { mid: "201100313015",     pct: 25 },
     { mid: "937500000052639",  pct: 25 },
@@ -39,15 +46,16 @@ export const AGENT_MAP = {
     { mid: "998300034884",     pct: 33.33 },  // Pro Art & Framing - Authorize.Net + Nuvei
     { mid: "700257",           pct: 33.33 },  // Financial Consulting Mgmt Group - CC Bill
     { mid: "580400000002212",  pct: 33.33 },  // GNX Web Enterprises LLC - First Direct Financial
+    { mid: "633200000177278",  pct: 33.33, skip: [JULY] },  // 7-Gates Credit Solutions - NMI (reseller revenue; excluded for July)
     { mid: "8034751340",       pct: 33.33 },  // 9361-7165 Quebec Inc - Payment Cloud NXGEN
     { mid: "998300008813",     pct: 25    },  // Pet Direct Savings LLC - Nuvei
     { mid: "998300028357",     pct: 18, until: "2026-04-01" },  // Doc by Phone LLC - Nuvei (terminated Apr 21 2026)
   ],
   "Robert Sena": [
-    { mid: "567000000053447", pct: 25 },  // Interstate Plywood - PayArc
+    { mid: "567000000053447", pct: 25, only: [JULY] },  // Interstate Plywood - PayArc
   ],
   "Frank Sena": [
-    { mid: "926701398962524", pct: 25 },  // Designer Support - PayArc (Authorize.Net row excluded)
+    { mid: "926701398962524", pct: 25, only: [JULY] },  // Designer Support - PayArc (Authorize.Net row excluded)
   ],
   "Claudia Perez": [
     // No active MIDs at this time
@@ -66,15 +74,36 @@ export const AGENT_MAP = {
 };
 
 // Reseller / gateway revenue is never commissionable - only merchant processing MIDs earn agent payouts.
+// Applied to reviewed months only (see REVIEWED_MONTHS); other months keep prior behavior until their agent sheets are reviewed.
 const RESELLER_ISOS = new Set(["nmi", "authorize.net", "e-fitness today", "efitness today", "fraud deflect", "midmetrics"]);
-export function isReseller(isoName) {
-  return RESELLER_ISOS.has(String(isoName || "").trim().toLowerCase());
+const REVIEWED_MONTHS = new Set([JULY]);
+export function isReseller(isoName, month) {
+  return REVIEWED_MONTHS.has(month) && RESELLER_ISOS.has(String(isoName || "").trim().toLowerCase());
+}
+
+// True if a map entry is outside its month scope (only/skip) for the given report month.
+export function isScopedOut(entry, month) {
+  if (!month) return false;
+  if (entry.only && !entry.only.includes(month)) return true;
+  if (entry.skip && entry.skip.includes(month)) return true;
+  return false;
+}
+
+// True if an entry applies to the given report month (scope + termination).
+export function isActive(entry, month) {
+  return !isScopedOut(entry, month) && (!entry.until || !month || entry.until >= month);
+}
+
+// True if every entry for this agent+mid is out of scope for the month.
+export function midScopedOut(agentName, mid, month) {
+  const es = (AGENT_MAP[agentName] || []).filter((m) => m.mid === mid);
+  return es.length > 0 && es.every((e) => isScopedOut(e, month));
 }
 
 // Returns MIDs active for a given report month (YYYY-MM-01).
 export function getActiveMids(agentName, month) {
   return (AGENT_MAP[agentName] || [])
-    .filter((m) => !m.until || m.until >= month)
+    .filter((m) => isActive(m, month))
     .map((m) => m.mid);
 }
 
@@ -86,7 +115,7 @@ export function getMids(agentName) {
 // Returns commission pct for a specific agent+mid. Optionally checks termination for a given month.
 export function getPct(agentName, mid, month) {
   const entry = (AGENT_MAP[agentName] || []).find(
-    (m) => m.mid === mid && (!m.until || !month || m.until >= month)
+    (m) => m.mid === mid && isActive(m, month)
   );
   return entry ? entry.pct : 0;
 }
