@@ -1,4 +1,4 @@
-import { AGENT_MAP, getPct } from "./_agentMap.js";
+import { AGENT_MAP, getPct, isReseller } from "./_agentMap.js";
 
 const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
 
@@ -28,12 +28,13 @@ export default async function handler(req, res) {
   if (possibleMids.length === 0) return res.json([]);
 
   const rows = await sbGet(
-    `residuals?select=mid,report_month,paydiversenet&mid=in.(${possibleMids.join(",")})&report_month=gte.${start_date}&report_month=lte.${end_date}&order=report_month.asc&limit=5000`
+    `residuals?select=mid,report_month,isos(name),paydiversenet&mid=in.(${possibleMids.join(",")})&report_month=gte.${start_date}&report_month=lte.${end_date}&order=report_month.asc&limit=5000`
   );
   if (!Array.isArray(rows)) return res.status(500).json({ error: "DB error" });
 
   const byMonth = {};
   rows.forEach((r) => {
+    if (isReseller(r.isos?.name)) return;
     const month = r.report_month;
     const pct = getPct(agent_name, r.mid, month);
     if (!byMonth[month]) byMonth[month] = { month, paydiversenet: 0, agent_payout: 0 };
