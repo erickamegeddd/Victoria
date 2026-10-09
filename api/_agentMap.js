@@ -25,7 +25,7 @@ export const AGENT_MAP = {
     { mid: "85543291507",      pct: 25, skip: [JAN, FEB, MAR] },
     { mid: "016233303005",     pct: 25, skip: [JAN, FEB, MAR, JULY] },
     { mid: "086993303104",     pct: 25, skip: [JAN, FEB, MAR, JULY] },
-    { mid: "8739785911030320", pct: 25, skip: [JAN, FEB, MAR, APR, MAY, JUNE, JULY] },
+    { mid: "8739785911030320", pct: 25, skip: [AUG, JAN, FEB, MAR, APR, MAY, JUNE, JULY] },
     { mid: "16813274602",      pct: 25, only: [JAN, FEB, MAR, APR, MAY, JUNE] },  // HighPlains - Netevia (unprefixed in June)
     { mid: "20543274503",      pct: 25, only: [JAN, FEB, MAR, APR, MAY, JUNE] },  // Hair Pros - Netevia (unprefixed in June)
     { mid: "742174573269800",  pct: 25, only: [JAN, FEB, MAR, APR] },  // Lving Hair Growth - Netevia
