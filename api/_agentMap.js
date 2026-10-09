@@ -18,7 +18,7 @@ export const AGENT_MAP = {
     { mid: "6322970303054495", pct: 25 },
     { mid: "201100029389",     pct: 25 },
     { mid: "301128356190",     pct: 25, skip: [JAN, FEB, MAR, APR, MAY, JUNE, JULY] },
-    { mid: "30112835619",      pct: 25, only: [JAN, FEB, MAR, APR, MAY, JUNE, JULY] },
+    { mid: "30112835619",      pct: 25, only: [AUG, JAN, FEB, MAR, APR, MAY, JUNE, JULY] },
     { mid: "970100005349",     pct: 25 },
   ],
   "Drew Ukapbi": [
