@@ -1,4 +1,4 @@
-import { AGENT_MAP } from "./_agentMap.js";
+import { AGENT_MAP, isReseller } from "./_agentMap.js";
 
 const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
 
@@ -31,12 +31,13 @@ async function computeAgentPayout(agentName, merchants, date) {
 
   const mids = [...new Set(filteredActive.map((m) => m.mid))];
   const rows = await sbGet(
-    `residuals?select=mid,paydiversenet&mid=in.(${mids.join(",")})&report_month=eq.${date}&limit=5000`
+    `residuals?select=mid,paydiversenet,isos(name)&mid=in.(${mids.join(",")})&report_month=eq.${date}&limit=5000`
   );
   if (!Array.isArray(rows)) return { payout: 0, midCount: mids.length };
 
   const netByMid = {};
   rows.forEach((r) => {
+    if (isReseller(r.isos?.name)) return;
     netByMid[r.mid] = (netByMid[r.mid] || 0) + (r.paydiversenet || 0);
   });
 
