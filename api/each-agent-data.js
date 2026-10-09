@@ -1,4 +1,4 @@
-import { AGENT_MAP, getPct, isReseller } from "./_agentMap.js";
+import { AGENT_MAP, getPct, isReseller, isActive } from "./_agentMap.js";
 
 const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
 
@@ -20,7 +20,7 @@ export default async function handler(req, res) {
   if (!date || !agent_name) return res.status(400).json({ error: "date and agent_name are required" });
 
   const merchants = (AGENT_MAP[agent_name] || []).filter(
-    (m) => !m.until || m.until >= date
+    (m) => isActive(m, date)
   );
   if (merchants.length === 0) return res.json([]);
 
@@ -45,7 +45,7 @@ export default async function handler(req, res) {
 
   const byMid = {};
   rows.forEach((r) => {
-    if (isReseller(r.isos?.name)) return;
+    if (isReseller(r.isos?.name, date)) return;
     if (!byMid[r.mid]) {
       byMid[r.mid] = { mid: r.mid, dba: r.business_name || "", iso: r.isos?.name || "", paydiversenet: 0, total_residual: 0 };
     }
