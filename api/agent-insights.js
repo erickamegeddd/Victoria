@@ -1,4 +1,4 @@
-import { AGENT_MAP, getPct, isReseller } from "./_agentMap.js";
+import { AGENT_MAP, getPct, isReseller, midScopedOut, isActive } from "./_agentMap.js";
 
 const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
 
@@ -35,11 +35,11 @@ export default async function handler(req, res) {
 
   const byMonth = {};
   rows.forEach((r) => {
-    if (isReseller(r.isos?.name)) return;
     const month = r.report_month;
+    if (isReseller(r.isos?.name, month) || midScopedOut(agent_name, r.mid, month)) return;
     // Only count this MID if it was active in this specific month
     const pct = getPct(agent_name, r.mid, month);
-    if (pct === 0 && !merchants.find((m) => m.mid === r.mid && (!m.until || m.until >= month))) return;
+    if (pct === 0 && !merchants.find((m) => m.mid === r.mid && isActive(m, month))) return;
     if (!byMonth[month]) byMonth[month] = { month, total_residual: 0, paydiversenet: 0, agent_payout: 0 };
     byMonth[month].total_residual += r.gross_revenue || 0;
     byMonth[month].paydiversenet += r.paydiversenet || 0;
