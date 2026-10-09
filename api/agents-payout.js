@@ -1,4 +1,4 @@
-import { AGENT_MAP, isReseller } from "./_agentMap.js";
+import { AGENT_MAP, isReseller, isActive } from "./_agentMap.js";
 
 const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
 
@@ -13,7 +13,7 @@ async function sbGet(path) {
 // Computes payout for a single agent — identical approach as each-agent-data.
 // This guarantees the overview and detail totals match exactly.
 async function computeAgentPayout(agentName, merchants, date) {
-  const active = merchants.filter((m) => !m.until || m.until >= date);
+  const active = merchants.filter((m) => isActive(m, date));
   if (active.length === 0) return { payout: 0, midCount: 0 };
 
   // Fetch deleted-row markers — wrapped in try/catch so failures don't block payout calc
@@ -37,7 +37,7 @@ async function computeAgentPayout(agentName, merchants, date) {
 
   const netByMid = {};
   rows.forEach((r) => {
-    if (isReseller(r.isos?.name)) return;
+    if (isReseller(r.isos?.name, date)) return;
     netByMid[r.mid] = (netByMid[r.mid] || 0) + (r.paydiversenet || 0);
   });
 
