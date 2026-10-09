@@ -3,7 +3,8 @@
 // Last updated: 2026-10-09 (July 2026 agent-sheet review)
 // `until` = last eligible report_month (YYYY-MM-01) for terminated merchants
 // `only` = list of report_months the entry applies to; `skip` = list of report_months it must not apply to.
-// June and July 2026 were reviewed against the agent sheets (reseller/gateway rows excluded); other months keep the prior mapping.
+// May, June and July 2026 were reviewed against the agent sheets (reseller/gateway rows excluded); other months keep the prior mapping.
+const MAY = "2026-05-01";
 const JUNE = "2026-06-01";
 const JULY = "2026-07-01";
 
@@ -11,19 +12,19 @@ export const AGENT_MAP = {
   "Brian Miller": [
     { mid: "6322970303054495", pct: 25 },
     { mid: "201100029389",     pct: 25 },
-    { mid: "301128356190",     pct: 25, skip: [JUNE, JULY] },
-    { mid: "30112835619",      pct: 25, only: [JUNE, JULY] },
+    { mid: "301128356190",     pct: 25, skip: [MAY, JUNE, JULY] },
+    { mid: "30112835619",      pct: 25, only: [MAY, JUNE, JULY] },
     { mid: "970100005349",     pct: 25 },
   ],
   "Drew Ukapbi": [
     { mid: "85543291507",      pct: 25 },
     { mid: "016233303005",     pct: 25, skip: [JULY] },
     { mid: "086993303104",     pct: 25, skip: [JULY] },
-    { mid: "8739785911030320", pct: 25, skip: [JUNE, JULY] },
-    { mid: "16813274602",      pct: 25, only: [JUNE] },  // HighPlains - Netevia (unprefixed in June)
-    { mid: "20543274503",      pct: 25, only: [JUNE] },  // Hair Pros - Netevia (unprefixed in June)
-    { mid: "742168653291408",  pct: 25, only: [JUNE] },  // Prime Skin Products - Netevia
-    { mid: "742185543291507",  pct: 25, only: [JUNE] },  // Prime Keto Product - Netevia
+    { mid: "8739785911030320", pct: 25, skip: [MAY, JUNE, JULY] },
+    { mid: "16813274602",      pct: 25, only: [MAY, JUNE] },  // HighPlains - Netevia (unprefixed in June)
+    { mid: "20543274503",      pct: 25, only: [MAY, JUNE] },  // Hair Pros - Netevia (unprefixed in June)
+    { mid: "742168653291408",  pct: 25, only: [MAY, JUNE] },  // Prime Skin Products - Netevia
+    { mid: "742185543291507",  pct: 25, only: [MAY, JUNE] },  // Prime Keto Product - Netevia
     { mid: "742116813274602",  pct: 25, only: [JULY] },  // HighPlains Digital Goods - Netevia (stored with 7421 prefix)
     { mid: "742120543274503",  pct: 25, only: [JULY] },  // Hair Pros Healthy Living - Netevia
     { mid: "742116233303005",  pct: 25, only: [JULY] },  // Movaxx Diet Products - Netevia
@@ -32,7 +33,7 @@ export const AGENT_MAP = {
     { mid: "201100313015",     pct: 25 },
     { mid: "937500000052639",  pct: 25 },
     { mid: "937500000052621",  pct: 25 },
-    { mid: "8739759987787143", pct: 25, skip: [JUNE] },
+    { mid: "8739759987787143", pct: 25, skip: [MAY, JUNE] },
     { mid: "002081335951",     pct: 25 },
   ],
   "Michelle W Breier": [
@@ -51,16 +52,16 @@ export const AGENT_MAP = {
     { mid: "998300034884",     pct: 33.33 },  // Pro Art & Framing - Authorize.Net + Nuvei
     { mid: "700257",           pct: 33.33 },  // Financial Consulting Mgmt Group - CC Bill
     { mid: "580400000002212",  pct: 33.33 },  // GNX Web Enterprises LLC - First Direct Financial
-    { mid: "633200000177278",  pct: 33.33, skip: [JUNE, JULY] },  // 7-Gates Credit Solutions - NMI (reseller revenue; excluded for July)
+    { mid: "633200000177278",  pct: 33.33, skip: [MAY, JUNE, JULY] },  // 7-Gates Credit Solutions - NMI (reseller revenue; excluded for July)
     { mid: "8034751340",       pct: 33.33 },  // 9361-7165 Quebec Inc - Payment Cloud NXGEN
     { mid: "998300008813",     pct: 25    },  // Pet Direct Savings LLC - Nuvei
     { mid: "998300028357",     pct: 18, until: "2026-06-01" },  // Doc by Phone LLC - Nuvei (terminated Apr 21 2026; June agent sheet still carries its -8.50 fee)
   ],
   "Robert Sena": [
-    { mid: "567000000053447", pct: 25, only: [JUNE, JULY] },  // Interstate Plywood - PayArc
+    { mid: "567000000053447", pct: 25, only: [MAY, JUNE, JULY] },  // Interstate Plywood - PayArc
   ],
   "Frank Sena": [
-    { mid: "926701398962524", pct: 25, only: [JUNE, JULY] },  // Designer Support - PayArc (Authorize.Net row excluded)
+    { mid: "926701398962524", pct: 25, only: [MAY, JUNE, JULY] },  // Designer Support - PayArc (Authorize.Net row excluded)
   ],
   "Claudia Perez": [
     // No active MIDs at this time
@@ -81,7 +82,7 @@ export const AGENT_MAP = {
 // Reseller / gateway revenue is never commissionable - only merchant processing MIDs earn agent payouts.
 // Applied to reviewed months only (see REVIEWED_MONTHS); other months keep prior behavior until their agent sheets are reviewed.
 const RESELLER_ISOS = new Set(["nmi", "authorize.net", "e-fitness today", "efitness today", "fraud deflect", "midmetrics"]);
-const REVIEWED_MONTHS = new Set([JUNE, JULY]);
+const REVIEWED_MONTHS = new Set([MAY, JUNE, JULY]);
 export function isReseller(isoName, month) {
   return REVIEWED_MONTHS.has(month) && RESELLER_ISOS.has(String(isoName || "").trim().toLowerCase());
 }
