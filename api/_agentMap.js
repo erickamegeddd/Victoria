@@ -4,6 +4,7 @@
 // `until` = last eligible report_month (YYYY-MM-01) for terminated merchants
 // `only` = list of report_months the entry applies to; `skip` = list of report_months it must not apply to.
 // April-July 2026 were reviewed against the agent sheets (reseller/gateway rows excluded); other months keep the prior mapping.
+const AUG = "2026-08-01";
 const JAN = "2026-01-01";
 const FEB = "2026-02-01";
 const MAR = "2026-03-01";
@@ -68,7 +69,7 @@ export const AGENT_MAP = {
     { mid: "998300028357",     pct: 18, until: "2026-06-01" },  // Doc by Phone LLC - Nuvei (terminated Apr 21 2026; June agent sheet still carries its -8.50 fee)
   ],
   "Robert Sena": [
-    { mid: "567000000053447", pct: 25, only: [JAN, FEB, MAR, APR, MAY, JUNE, JULY] },  // Interstate Plywood - PayArc
+    { mid: "567000000053447", pct: 25, only: [JAN, FEB, MAR, APR, MAY, JUNE, JULY, AUG] },  // Interstate Plywood - PayArc
   ],
   "Frank Sena": [
     { mid: "926701398962524", pct: 25, only: [JAN, FEB, MAR, APR, MAY, JUNE, JULY] },  // Designer Support - PayArc (Authorize.Net row excluded)
@@ -92,7 +93,7 @@ export const AGENT_MAP = {
 // Reseller / gateway revenue is never commissionable - only merchant processing MIDs earn agent payouts.
 // Applied to reviewed months only (see REVIEWED_MONTHS); other months keep prior behavior until their agent sheets are reviewed.
 const RESELLER_ISOS = new Set(["nmi", "authorize.net", "e-fitness today", "efitness today", "fraud deflect", "midmetrics"]);
-const REVIEWED_MONTHS = new Set([JAN, FEB, MAR, APR, MAY, JUNE, JULY]);
+const REVIEWED_MONTHS = new Set([AUG, JAN, FEB, MAR, APR, MAY, JUNE, JULY]);
 export function isReseller(isoName, month) {
   return REVIEWED_MONTHS.has(month) && RESELLER_ISOS.has(String(isoName || "").trim().toLowerCase());
 }
