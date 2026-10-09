@@ -1,4 +1,4 @@
-import { AGENT_MAP, getPct } from "./_agentMap.js";
+import { AGENT_MAP, getPct, isReseller } from "./_agentMap.js";
 
 const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
 
@@ -45,6 +45,7 @@ export default async function handler(req, res) {
 
   const byMid = {};
   rows.forEach((r) => {
+    if (isReseller(r.isos?.name)) return;
     if (!byMid[r.mid]) {
       byMid[r.mid] = { mid: r.mid, dba: r.business_name || "", iso: r.isos?.name || "", paydiversenet: 0, total_residual: 0 };
     }
