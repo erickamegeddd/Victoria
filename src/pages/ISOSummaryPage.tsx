@@ -115,7 +115,7 @@ const ISOSummaryPage = () => {
         <div>
           <Title level={4} style={{ margin: 0 }}>ISO Summary</Title>
           <Text style={{ color: "var(--muted-color)", fontSize: 13 }}>
-            Monthly residuals (PayDiverse net) per ISO. Green / red = up / down vs the previous month with data.
+            Monthly residuals (PayDiverse net) per ISO. Green / red = up / down vs the previous month with data. Click any column header to sort.
           </Text>
         </div>
         <Space>
@@ -123,10 +123,11 @@ const ISOSummaryPage = () => {
           <Select value={year} onChange={setYear} options={yearOptions} style={{ width: 110 }} />
         </Space>
       </div>
-      <style>{`.ant-table-wrapper .ant-table-tbody > tr.iso-total-row > td, .ant-table-wrapper .ant-table-tbody > tr.iso-total-row:hover > td { background: #0f2040 !important; color: #fff !important; font-weight: 700; }`}</style>
+      <style>{`.iso-sum-table .ant-table-column-sorters { justify-content: center; gap: 6px; } .iso-sum-table .ant-table-column-sorter { color: #fff !important; font-size: 12px; } .iso-sum-table .ant-table-column-sorter-up.active, .iso-sum-table .ant-table-column-sorter-down.active { color: #fbbf24 !important; } .ant-table-wrapper .ant-table-tbody > tr.iso-total-row > td, .ant-table-wrapper .ant-table-tbody > tr.iso-total-row:hover > td { background: #0f2040 !important; color: #fff !important; font-weight: 700; }`}</style>
       <Card>
         <Spin spinning={loading}>
           <Table
+            className="iso-sum-table"
             dataSource={dataRows}
             columns={columns}
             pagination={false}
