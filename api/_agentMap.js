@@ -74,9 +74,6 @@ export const AGENT_MAP = {
   "Frank Sena": [
     { mid: "926701398962524", pct: 25, only: [JAN, FEB, MAR, APR, MAY, JUNE, JULY] },  // Designer Support - PayArc (Authorize.Net row excluded)
   ],
-  "Claudia Perez": [
-    // No active MIDs at this time
-  ],
   "Tiffany Hoffman": [
     { mid: "30119824509", pct: 10 },
   ],
