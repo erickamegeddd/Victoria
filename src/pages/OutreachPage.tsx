@@ -369,7 +369,7 @@ const OutreachPage = () => {
                 <Table.Summary.Cell index={2} align="right">
                   <span style={{color:'#fca5a5',fontWeight:900,fontSize:16}}>${total.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
                 </Table.Summary.Cell>
-                <Table.Summary.Cell index={3} colSpan={5} />
+                <Table.Summary.Cell index={3} colSpan={6} />
               </Table.Summary.Row>
             </Table.Summary>
           );
