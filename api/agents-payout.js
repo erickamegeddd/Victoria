@@ -33,7 +33,7 @@ async function computeAgentPayout(agentName, merchants, date) {
   const rows = await sbGet(
     `residuals?select=mid,paydiversenet,isos(name)&mid=in.(${mids.join(",")})&report_month=eq.${date}&limit=5000`
   );
-  if (!Array.isArray(rows)) return { payout: 0, midCount: mids.length };
+  if (!Array.isArray(rows)) return { payout: 0, midCount: 0 };
 
   const netByMid = {};
   rows.forEach((r) => {
@@ -45,7 +45,8 @@ async function computeAgentPayout(agentName, merchants, date) {
     (sum, { mid, pct }) => sum + (netByMid[mid] || 0) * pct / 100,
     0
   );
-  return { payout, midCount: mids.length };
+  // Count only MIDs that actually have a residual row this month - same set each-agent-data lists.
+  return { payout, midCount: Object.keys(netByMid).length };
 }
 
 export default async function handler(req, res) {
