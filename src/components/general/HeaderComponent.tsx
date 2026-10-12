@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect } from "react";
 import { Avatar, Badge, Dropdown, Menu } from "antd";
-import { UserOutlined, LogoutOutlined, BellOutlined, BarChartOutlined, SnippetsOutlined, DiffOutlined, SettingOutlined, DollarOutlined, AreaChartOutlined, BulbOutlined, BankOutlined, MailOutlined, CloseOutlined } from "@ant-design/icons";
+import { UserOutlined, LogoutOutlined, BellOutlined, BarChartOutlined, SnippetsOutlined, DiffOutlined, SettingOutlined, DollarOutlined, AreaChartOutlined, BulbOutlined, BankOutlined, MailOutlined, CloseOutlined, TableOutlined } from "@ant-design/icons";
 import { LuUsers } from "react-icons/lu";
 import { LiaFileInvoiceDollarSolid } from "react-icons/lia";
 import { MdPayment } from "react-icons/md";
@@ -24,6 +24,7 @@ const navItems = [
   // HIDDEN: { key: "/home/merchants",    label: "Merchants",      icon: ic(<DiffOutlined />, "#fb923c") },
   { key: "/home/revenue-mid",  label: "Revenue/MID",   icon: ic(<DollarOutlined />, "#fbbf24") },
   { key: "/home/payments",     label: "Payments",       icon: ic(<MdPayment />, "#4ade80") },
+  { key: "/home/iso-summary",  label: "ISO Summary",    icon: ic(<TableOutlined />, "#2dd4bf") },
   { key: "/home/insights",     label: "Insights",       icon: ic(<BulbOutlined />, "#fcd34d") },
   { key: "/home/outreach",     label: "Outreach",       icon: ic(<MailOutlined />, "#f472b6") },
   { key: "/home/industry",     label: "Industry",       icon: ic(<AreaChartOutlined />, "#38bdf8") },
