@@ -36,7 +36,7 @@ export default async function handler(req, res) {
   const byMonth = {};
   rows.forEach((r) => {
     const month = r.report_month;
-    if (isReseller(r.isos?.name, month) || midScopedOut(agent_name, r.mid, month)) return;
+    if (isReseller(r.isos?.name, month, agent_name) || midScopedOut(agent_name, r.mid, month)) return;
     // Only count this MID if it was active in this specific month
     const pct = getPct(agent_name, r.mid, month);
     if (pct === 0 && !merchants.find((m) => m.mid === r.mid && isActive(m, month))) return;
