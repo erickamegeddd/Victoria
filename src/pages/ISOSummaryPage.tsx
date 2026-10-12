@@ -83,17 +83,21 @@ const ISOSummaryPage = () => {
     return title ? <Tooltip title={title}>{el}</Tooltip> : el;
   };
 
+  const totalRow = { key: "__total", name: "TOTAL", months: monthTotals, total: grandTotal, isTotal: true };
+  const dataRows = [...rows, totalRow];
+
   const columns = [
-    { title: "ISO", dataIndex: "name", key: "name", fixed: "left", width: 190, render: (v) => <span style={{ fontWeight: 600 }}>{v}</span> },
+    { title: "ISO", dataIndex: "name", key: "name", fixed: "left", width: 190, render: (v, r) => <span style={{ fontWeight: r.isTotal ? 700 : 600 }}>{v}</span> },
     ...MONTHS.map((label, m) => ({
       title: label, key: label, align: "right", width: 100,
       render: (_, r) => {
+        if (r.isTotal) return <span style={{ fontWeight: 700 }}>{r.months[m] == null ? "--" : money(r.months[m])}</span>;
         let prev = null;
         for (let k = m - 1; k >= 0; k--) { if (r.months[k] != null) { prev = r.months[k]; break; } }
         return monthCell(r.months[m], prev);
       }
     })),
-    { title: `${year} Total`, key: "total", align: "right", width: 120, fixed: "right", render: (_, r) => <span style={{ fontWeight: 700, color: r.total < 0 ? "#dc2626" : "inherit" }}>{money(r.total)}</span> },
+    { title: `${year} Total`, key: "total", align: "right", width: 120, fixed: "right", render: (_, r) => <span style={{ fontWeight: 700, color: r.isTotal ? "inherit" : r.total < 0 ? "#dc2626" : "inherit" }}>{money(r.total)}</span> },
   ];
 
   return (
@@ -110,27 +114,17 @@ const ISOSummaryPage = () => {
           <Select value={year} onChange={setYear} options={yearOptions} style={{ width: 110 }} />
         </Space>
       </div>
+      <style>{`.iso-total-row > td { background: #0f2040 !important; color: #fff !important; font-weight: 700; }`}</style>
       <Card>
         <Spin spinning={loading}>
           <Table
-            dataSource={rows}
+            dataSource={dataRows}
             columns={columns}
             pagination={false}
             size="middle"
-            scroll={{ x: 1500, y: "calc(100vh - 330px)" }}
-            summary={() => (
-              <Table.Summary fixed>
-                <Table.Summary.Row>
-                  <Table.Summary.Cell index={0} fixed="left" style={{ background: "#0f2040" }}><span style={{ color: "#fff", fontWeight: 700 }}>TOTAL</span></Table.Summary.Cell>
-                  {monthTotals.map((v, i) => (
-                    <Table.Summary.Cell key={i} index={i + 1} align="right" style={{ background: "#0f2040" }}>
-                      <span style={{ color: v == null ? "#64748b" : v < 0 ? "#fca5a5" : "#fff", fontWeight: 600 }}>{v == null ? "--" : money(v)}</span>
-                    </Table.Summary.Cell>
-                  ))}
-                  <Table.Summary.Cell index={13} align="right" fixed="right" style={{ background: "#0f2040" }}><span style={{ color: "#fff", fontWeight: 700 }}>{money(grandTotal)}</span></Table.Summary.Cell>
-                </Table.Summary.Row>
-              </Table.Summary>
-            )}
+            sticky
+            rowClassName={(r) => (r.isTotal ? "iso-total-row" : "")}
+            scroll={{ x: 1500 }}
           />
         </Spin>
       </Card>
