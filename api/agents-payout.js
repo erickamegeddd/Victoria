@@ -37,7 +37,7 @@ async function computeAgentPayout(agentName, merchants, date) {
 
   const netByMid = {};
   rows.forEach((r) => {
-    if (isReseller(r.isos?.name, date)) return;
+    if (isReseller(r.isos?.name, date, agentName)) return;
     netByMid[r.mid] = (netByMid[r.mid] || 0) + (r.paydiversenet || 0);
   });
 
