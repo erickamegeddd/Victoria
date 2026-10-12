@@ -188,7 +188,9 @@ const PaymentsPage = () => {
   const savePayment=async()=>{
     setSavingPayment(true);
     const received=parseFloat(paymentForm.received_amount)||null;
-    const status=getStatus(selectedIsoForPayment.expected,received);
+    // DB check constraint only allows pending/paid/short_paid/overpaid, so map the display-only states
+    const rawStatus=getStatus(selectedIsoForPayment.expected,received);
+    const status=rawStatus==='no_report'?'pending':rawStatus==='received'?'paid':rawStatus;
     // A manually changed amount replaces the bank-sync value, so the [Bank Sync] note is dropped.
     const amountChanged=!!editingPayment&&Math.abs((received||0)-(editingPayment.received_amount||0))>=0.005;
     const record={
@@ -203,14 +205,14 @@ const PaymentsPage = () => {
       updated_at:new Date().toISOString()
     };
     try{
-      if(editingPayment){await supabase.from('iso_payments').update(record).eq('id',editingPayment.id);}
-      else{await supabase.from('iso_payments').insert([record]);}
+      const{error}=editingPayment?await supabase.from('iso_payments').update(record).eq('id',editingPayment.id):await supabase.from('iso_payments').insert([record]);
+      if(error){message.error('Could not save payment: '+error.message);return;}
       await fetchPayments();
       setPaymentModal(false);
     }finally{setSavingPayment(false);}
   };
 
-  const deletePayment=async()=>{if(!editingPayment)return;await supabase.from('iso_payments').delete().eq('id',editingPayment.id);await fetchPayments();setPaymentModal(false);};
+  const deletePayment=async()=>{if(!editingPayment)return;const{error}=await supabase.from('iso_payments').delete().eq('id',editingPayment.id);if(error){message.error('Could not delete payment: '+error.message);return;}await fetchPayments();setPaymentModal(false);};
 
   const today=dayjs().format('YYYY-MM-DD');
   const expectedByISO=getExpectedByISO();
