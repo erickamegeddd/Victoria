@@ -60,7 +60,7 @@ export const AGENT_MAP = {
     { mid: "998300034884",     pct: 33.33 },  // Pro Art & Framing - Authorize.Net + Nuvei
     { mid: "700257",           pct: 33.33 },  // Financial Consulting Mgmt Group - CC Bill
     { mid: "580400000002212",  pct: 33.33 },  // GNX Web Enterprises LLC - First Direct Financial
-    { mid: "633200000177278",  pct: 33.33, skip: [JAN, FEB, MAR, APR, MAY, JUNE, JULY] },  // 7-Gates Credit Solutions - NMI (reseller revenue; excluded for July)
+    { mid: "633200000177278",  pct: 33.33 },  // 7-Gates Credit Solutions - NMI (reseller revenue; included - Michelle is the exception)
     { mid: "8034751340",       pct: 33.33 },  // 9361-7165 Quebec Inc - Payment Cloud NXGEN
     { mid: "2130041963771",    pct: 33.33, only: [JAN, FEB, MAR] },  // Total-Apps
     { mid: "278000000001847",   pct: 33.33, only: [JAN, FEB, MAR] },  // EZ Cash / Kurv (Payment Cloud)
@@ -90,11 +90,14 @@ export const AGENT_MAP = {
   ],
 };
 
-// Reseller / gateway revenue is never commissionable - only merchant processing MIDs earn agent payouts.
+// Reseller / gateway revenue is not commissionable (except Michelle W Breier) - only merchant processing MIDs earn agent payouts.
 // Applied to reviewed months only (see REVIEWED_MONTHS); other months keep prior behavior until their agent sheets are reviewed.
 const RESELLER_ISOS = new Set(["nmi", "authorize.net", "e-fitness today", "efitness today", "fraud deflect", "midmetrics"]);
 const REVIEWED_MONTHS = new Set([AUG, JAN, FEB, MAR, APR, MAY, JUNE, JULY]);
-export function isReseller(isoName, month) {
+// Exception: Michelle W Breier is paid on reseller/gateway revenue too.
+const RESELLER_EXEMPT_AGENTS = new Set(["Michelle W Breier"]);
+export function isReseller(isoName, month, agentName) {
+  if (RESELLER_EXEMPT_AGENTS.has(agentName)) return false;
   return REVIEWED_MONTHS.has(month) && RESELLER_ISOS.has(String(isoName || "").trim().toLowerCase());
 }
 
