@@ -114,7 +114,7 @@ const ISOSummaryPage = () => {
           <Select value={year} onChange={setYear} options={yearOptions} style={{ width: 110 }} />
         </Space>
       </div>
-      <style>{`.iso-total-row > td { background: #0f2040 !important; color: #fff !important; font-weight: 700; }`}</style>
+      <style>{`.ant-table-wrapper .ant-table-tbody > tr.iso-total-row > td, .ant-table-wrapper .ant-table-tbody > tr.iso-total-row:hover > td { background: #0f2040 !important; color: #fff !important; font-weight: 700; }`}</style>
       <Card>
         <Spin spinning={loading}>
           <Table
