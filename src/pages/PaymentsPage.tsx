@@ -156,6 +156,14 @@ const PaymentsPage = () => {
   const getPaymentForISO=(isoId)=>payments.find(p=>p.iso_id===isoId);
   const getStatus=(expected,received)=>{if(received==null)return expected==null?'no_report':'pending';if(expected==null)return'received';const d=received-expected;if(Math.abs(d)<0.01)return'paid';if(d<0)return'short_paid';return'overpaid';};
   const statusMatches=(status,key)=>status===key||(key==='no_report'&&status==='received')||(key==='paid_full'&&(status==='paid'||status==='overpaid'));
+  const STATUS_FILTER_OPTIONS={
+    all:[{text:'Paid',value:'paid'},{text:'Overpaid',value:'overpaid'},{text:'Short Paid',value:'short_paid'},{text:'Pending',value:'pending'},{text:'Received',value:'received'},{text:'No residual report',value:'no_report'}],
+    paid_full:[{text:'Paid',value:'paid'},{text:'Overpaid',value:'overpaid'}],
+    paid:[{text:'Paid',value:'paid'},{text:'Overpaid',value:'overpaid'}],
+    no_report:[{text:'Received',value:'received'},{text:'No residual report',value:'no_report'}],
+    short_paid:[{text:'Short Paid',value:'short_paid'}],
+    pending:[{text:'Pending',value:'pending'}],
+  };
   const STATUS_ORDER={pending:0,short_paid:1,paid:2,overpaid:3,received:4,no_report:5};
   const STATUS_CONFIG={no_report:{label:'No residual report',color:'orange'},pending:{label:'Pending',color:'default'},paid:{label:'Paid',color:'green'},short_paid:{label:'Short Paid',color:'red'},overpaid:{label:'Overpaid',color:'blue'},received:{label:'Received',color:'cyan'}};
 
@@ -252,8 +260,8 @@ const PaymentsPage = () => {
     {title:'Difference',key:'diff',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return((pa?.received_amount||0)-(a.expected??0))-((pb?.received_amount||0)-(b.expected??0));},render:(_,r)=>{const p=getPaymentForISO(r.isoId);if(p?.received_amount==null||r.expected==null)return<Text style={{color:'var(--muted-color)'}}>--</Text>;const diff=(p?.received_amount||0)-r.expected;return<Text strong style={{color:Math.abs(diff)<0.01?'#059669':diff<0?'#dc2626':'#2563eb'}}>{diff>=0?'+':''}{fmt(diff)}</Text>;}},
     {title:'Status',key:'status',
       sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return STATUS_ORDER[getStatus(a.expected,pa?.received_amount)]-STATUS_ORDER[getStatus(b.expected,pb?.received_amount)];},
-      filters:[{text:'Paid in Full (incl. overpaid)',value:'paid_full'},{text:'Paid',value:'paid'},{text:'Short Paid',value:'short_paid'},{text:'Pending',value:'pending'},{text:'Overpaid',value:'overpaid'},{text:'Received',value:'received'},{text:'No residual report (incl. received)',value:'no_report'}],
-      onFilter:(val,r)=>{const p=getPaymentForISO(r.isoId);return statusMatches(getStatus(r.expected,p?.received_amount),val);},
+      filters:STATUS_FILTER_OPTIONS[activeStatusFilter||'all'],
+      onFilter:(val,r)=>{const p=getPaymentForISO(r.isoId);return getStatus(r.expected,p?.received_amount)===val;},
       render:(_,r)=>{const p=getPaymentForISO(r.isoId);const s=getStatus(r.expected,p?.received_amount);const cfg=STATUS_CONFIG[s];return<Tag color={cfg.color}>{cfg.label}</Tag>;}},
     {title:'Payment Expected By',key:'expdate',width:150,
       filters:[{text:'Overdue',value:'overdue'},{text:'Has Due Date',value:'has_date'},{text:'No Date Set',value:'no_date'}],
@@ -339,7 +347,7 @@ const PaymentsPage = () => {
           {activeStatusFilter&&(<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12,padding:'8px 14px',background:'#eff6ff',borderRadius:10,border:'1px solid #bfdbfe'}}><Text style={{fontSize:13,fontWeight:600,color:'#1d4ed8'}}>{(activeStatusFilter==='paid_full'||activeStatusFilter==='paid')?`Showing ${matched+overpaid} ISO${(matched+overpaid)!==1?'s':''} paid in full${overpaid>0?` (${overpaid} overpaid)`:''}`:activeStatusFilter==='short_paid'?`Showing ${shortPaid} ISO${shortPaid!==1?'s':''} with short payments`:activeStatusFilter==='overpaid'?`Showing ${overpaid} overpaid ISO${overpaid!==1?'s':''}`:activeStatusFilter==='no_report'?`Showing ${noReport} ISO${noReport!==1?'s':''} with no residual report yet${receivedOnly>0?` (${receivedOnly} already received)`:''}`:activeStatusFilter==='received'?`Showing ${receivedOnly} ISO${receivedOnly!==1?'s':''} paid with no residuals yet`:`Showing ${pending} pending ISO${pending!==1?'s':''}`}</Text><Button size="small" onClick={()=>setActiveStatusFilter(null)} style={{marginLeft:'auto'}}>Clear x</Button></div>)}
           {(shortPaid>0||pending>0)&&<Alert type="warning" showIcon style={{marginBottom:16}} message={`Action needed: ${shortPaid>0?`${shortPaid} ISO${shortPaid>1?'s':''} paid less than expected. `:''}${pending>0?`${pending} ISO${pending>1?' have':' has'} no payment recorded yet.`:''}`}/>}
 
-          <Card><Table dataSource={filteredISOs} columns={reconCols} rowKey="isoId" pagination={false} size="middle"
+          <Card><Table key={activeStatusFilter||'all'} dataSource={filteredISOs} columns={reconCols} rowKey="isoId" pagination={false} size="middle"
               scroll={{x:1000,y:'calc(100vh - 340px)'}}
               onRow={r=>({style:{background:(()=>{const p=getPaymentForISO(r.isoId);const s=getStatus(r.expected,p?.received_amount);if(s==='short_paid')return'#fff5f5';if(s==='pending')return'#fffbeb';if(s==='paid')return'#f0fdf4';return undefined;})(),cursor:'pointer'},onClick:()=>setExpandedRows(prev=>prev.includes(r.isoId)?prev.filter(k=>k!==r.isoId):[...prev,r.isoId])})}
               expandedRowKeys={expandedRows}
