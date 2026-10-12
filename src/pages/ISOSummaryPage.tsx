@@ -86,10 +86,19 @@ const ISOSummaryPage = () => {
   const totalRow = { key: "__total", name: "TOTAL", months: monthTotals, total: grandTotal, isTotal: true };
   const dataRows = [...rows, totalRow];
 
+  // TOTAL row always stays last regardless of sort direction
+  const sortBy = (get) => (a, b, order) => {
+    if (a.isTotal) return order === "ascend" ? 1 : -1;
+    if (b.isTotal) return order === "ascend" ? -1 : 1;
+    const x = get(a), y = get(b);
+    if (typeof x === "string") return x.localeCompare(y);
+    return (x == null ? -Infinity : x) - (y == null ? -Infinity : y);
+  };
+
   const columns = [
-    { title: "ISO", dataIndex: "name", key: "name", fixed: "left", width: 190, render: (v, r) => <span style={{ fontWeight: r.isTotal ? 700 : 600 }}>{v}</span> },
+    { title: "ISO", dataIndex: "name", key: "name", sorter: sortBy(r => r.name), sortDirections: ["ascend", "descend"], fixed: "left", width: 190, render: (v, r) => <span style={{ fontWeight: r.isTotal ? 700 : 600 }}>{v}</span> },
     ...MONTHS.map((label, m) => ({
-      title: label, key: label, align: "right", width: 100,
+      title: label, key: label, align: "right", width: 100, sorter: sortBy(r => r.months[m]), sortDirections: ["descend", "ascend"],
       render: (_, r) => {
         if (r.isTotal) return <span style={{ fontWeight: 700 }}>{r.months[m] == null ? "--" : money(r.months[m])}</span>;
         let prev = null;
@@ -97,7 +106,7 @@ const ISOSummaryPage = () => {
         return monthCell(r.months[m], prev);
       }
     })),
-    { title: `${year} Total`, key: "total", align: "right", width: 120, fixed: "right", render: (_, r) => <span style={{ fontWeight: 700, color: r.isTotal ? "inherit" : r.total < 0 ? "#dc2626" : "inherit" }}>{money(r.total)}</span> },
+    { title: `${year} Total`, key: "total", align: "right", width: 120, sorter: sortBy(r => r.total), sortDirections: ["descend", "ascend"], fixed: "right", render: (_, r) => <span style={{ fontWeight: 700, color: r.isTotal ? "inherit" : r.total < 0 ? "#dc2626" : "inherit" }}>{money(r.total)}</span> },
   ];
 
   return (
