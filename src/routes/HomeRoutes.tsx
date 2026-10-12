@@ -26,6 +26,7 @@ import AddAgentsPage from "../pages/users/AddAgentsPage";
 import ViewUsersPage from "../pages/users/ViewUsersPage";
 import MidPerIso from "../pages/iso/MidPerIsoPage";
 import BankMappingsPage from "../pages/BankMappingsPage";
+import ISOSummaryPage from "../pages/ISOSummaryPage";
 
 const SP = ({ children }) => <Suspense fallback={<Spin className="app-loading-wrapper"/>}>{children}</Suspense>;
 
@@ -54,6 +55,7 @@ const HomeRoutes = () => {
       <Route path="/logs" element={<SP><LogsPage/></SP>}/>
       <Route path="/users/:id" element={<SP><AddAgentsPage/></SP>}/>
       <Route path="/users" element={<SP><ViewUsersPage/></SP>}/>
+      <Route path="/iso-summary" element={<SP><ISOSummaryPage/></SP>}/>
       <Route path="/payments" element={<SP><PaymentsPage/></SP>}/>
       <Route path="/iso/:id" element={<SP><AddIsoPage/></SP>}/>
       <Route path="/iso" element={<SP><ViewIsoPage/></SP>}/>
