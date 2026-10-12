@@ -10,25 +10,6 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 const FIRST_YEAR = 2026;
 const money = (n) => `$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const Sparkline = ({ values }) => {
-  const pts = values.map((v, i) => (v == null ? null : { i, v })).filter(Boolean);
-  if (pts.length < 2) return <Text style={{ color: "var(--muted-color)", fontSize: 12 }}>--</Text>;
-  const w = 90, h = 26, pad = 3;
-  const min = Math.min(...pts.map(p => p.v)), max = Math.max(...pts.map(p => p.v));
-  const span = max - min || 1;
-  const x = (i) => pad + (i / 11) * (w - pad * 2);
-  const y = (v) => h - pad - ((v - min) / span) * (h - pad * 2);
-  const d = pts.map((p, k) => `${k === 0 ? "M" : "L"}${x(p.i).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
-  const up = pts[pts.length - 1].v >= pts[0].v;
-  const last = pts[pts.length - 1];
-  return (
-    <svg width={w} height={h} style={{ display: "block", margin: "0 auto" }}>
-      <path d={d} fill="none" stroke={up ? "#059669" : "#dc2626"} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
-      <circle cx={x(last.i)} cy={y(last.v)} r="2.4" fill={up ? "#059669" : "#dc2626"} />
-    </svg>
-  );
-};
-
 const ISOSummaryPage = () => {
   const currentYear = dayjs().year();
   const [year, setYear] = useState(Math.max(currentYear, FIRST_YEAR));
@@ -78,7 +59,7 @@ const ISOSummaryPage = () => {
         const months = (byIso[i.id] || Array(12).fill(null)).map(v => (v == null ? null : Math.round(v * 100) / 100));
         const have = months.filter(v => v != null);
         const total = Math.round(have.reduce((s, v) => s + v, 0) * 100) / 100;
-        return { key: i.id, name: i.name, months, total, avg: have.length ? Math.round((total / have.length) * 100) / 100 : null };
+        return { key: i.id, name: i.name, months, total };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [isos, residuals]);
@@ -112,8 +93,6 @@ const ISOSummaryPage = () => {
         return monthCell(r.months[m], prev);
       }
     })),
-    { title: "Trend", key: "trend", align: "center", width: 110, render: (_, r) => <Sparkline values={r.months} /> },
-    { title: "Avg / Mo", key: "avg", align: "right", width: 110, render: (_, r) => (r.avg == null ? <span style={{ color: "#c0c4cc" }}>--</span> : money(r.avg)) },
     { title: `${year} Total`, key: "total", align: "right", width: 120, fixed: "right", render: (_, r) => <span style={{ fontWeight: 700, color: r.total < 0 ? "#dc2626" : "inherit" }}>{money(r.total)}</span> },
   ];
 
@@ -138,19 +117,17 @@ const ISOSummaryPage = () => {
             columns={columns}
             pagination={false}
             size="middle"
-            scroll={{ x: 1700, y: "calc(100vh - 330px)" }}
+            scroll={{ x: 1500, y: "calc(100vh - 330px)" }}
             summary={() => (
               <Table.Summary fixed>
-                <Table.Summary.Row style={{ background: "#0f2040" }}>
-                  <Table.Summary.Cell index={0} fixed="left"><span style={{ color: "#fff", fontWeight: 700 }}>TOTAL</span></Table.Summary.Cell>
+                <Table.Summary.Row>
+                  <Table.Summary.Cell index={0} fixed="left" style={{ background: "#0f2040" }}><span style={{ color: "#fff", fontWeight: 700 }}>TOTAL</span></Table.Summary.Cell>
                   {monthTotals.map((v, i) => (
-                    <Table.Summary.Cell key={i} index={i + 1} align="right">
+                    <Table.Summary.Cell key={i} index={i + 1} align="right" style={{ background: "#0f2040" }}>
                       <span style={{ color: v == null ? "#64748b" : v < 0 ? "#fca5a5" : "#fff", fontWeight: 600 }}>{v == null ? "--" : money(v)}</span>
                     </Table.Summary.Cell>
                   ))}
-                  <Table.Summary.Cell index={13} />
-                  <Table.Summary.Cell index={14} />
-                  <Table.Summary.Cell index={15} align="right" fixed="right"><span style={{ color: "#fff", fontWeight: 700 }}>{money(grandTotal)}</span></Table.Summary.Cell>
+                  <Table.Summary.Cell index={13} align="right" fixed="right" style={{ background: "#0f2040" }}><span style={{ color: "#fff", fontWeight: 700 }}>{money(grandTotal)}</span></Table.Summary.Cell>
                 </Table.Summary.Row>
               </Table.Summary>
             )}
