@@ -106,14 +106,13 @@ const OutreachPage = () => {
       const data = await res.json();
       if (!Array.isArray(data)) return;
 
-      const today = dayjs().format("YYYY-MM-DD");
-      const overdue = data.filter(p => {
-        const m = p.notes?.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/);
-        return !!m;
-      }).map(p => {
+      // Only ISOs that are 2+ days past their due date (same rule as auto-send)
+      const todayD = dayjs().startOf("day");
+      const overdue = data.map(p => {
         const due = p.notes?.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/)?.[1];
-        const payment_status = due < today ? "overdue" : "due_soon";
-        return { ...p, due_date: due, iso_name: p.isos?.name, iso_email: p.isos?.email || "", payment_status };
+        return { p, due, days_past_due: due ? todayD.diff(dayjs(due), "day") : null };
+      }).filter(x => x.due && x.days_past_due >= 2).map(({ p, due, days_past_due }) => {
+        return { ...p, due_date: due, days_past_due, iso_name: p.isos?.name, iso_email: p.isos?.email || "", payment_status: "overdue" };
       }).sort((a, b) => (a.due_date || "").localeCompare(b.due_date || ""));
 
       // Fetch residuals to compute correct expected amounts (expected_amount is now null)
@@ -217,7 +216,6 @@ const OutreachPage = () => {
       dataIndex: "iso_name",
       width: 160,
       sorter: (a, b) => (a.iso_name || "").localeCompare(b.iso_name || ""),
-      defaultSortOrder: "ascend",
       filters: [...new Set(records.map(r => r.iso_name).filter(Boolean))].sort().map(n => ({ text: n, value: n })),
       onFilter: (value, record) => record.iso_name === value,
       filterSearch: true,
@@ -247,12 +245,18 @@ const OutreachPage = () => {
       render: (v) => <span style={{ color: "#f59e0b" }}>{dayjs(v).format("MMM D, YYYY")}</span>
     },
     {
+      title: "Days Past Due",
+      dataIndex: "days_past_due",
+      width: 120,
+      sorter: (a, b) => (a.days_past_due || 0) - (b.days_past_due || 0),
+      defaultSortOrder: "descend",
+      render: (v) => <span style={{ color: v >= 30 ? "#dc2626" : "#f59e0b", fontWeight: 600 }}>{v} {v === 1 ? "day" : "days"}</span>
+    },
+    {
       title: "Payment Status",
       dataIndex: "payment_status",
       width: 120,
-      filters: [{ text: "Overdue", value: "overdue" }, { text: "Due Soon", value: "due_soon" }],
-      onFilter: (value, record) => record.payment_status === value,
-      render: (v) => v === "overdue"
+            render: (v) => v === "overdue"
         ? <Tag color="error" style={{ fontWeight: 600 }}>OVERDUE</Tag>
         : <Tag color="orange" style={{ fontWeight: 600 }}>DUE SOON</Tag>
     },
@@ -315,7 +319,7 @@ const OutreachPage = () => {
         <div>
           <h2 style={{ margin: 0 }}>Payment Outreach</h2>
           <p style={{ color: "#6f7280", margin: "4px 0 0", fontSize: 13 }}>
-            {records.filter(r => r.payment_status === "overdue").length} overdue &nbsp;·&nbsp; {records.filter(r => r.payment_status === "due_soon").length} due soon — add emails and send reminders
+            {records.length} overdue by 2+ days — add emails and send reminders
           </p>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 6, background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 6, padding: "2px 10px", fontSize: 12, color: "#15803d", fontWeight: 600 }}>
             <MailOutlined style={{ fontSize: 11 }} /> Sending from: residuals@elmpayments.com
