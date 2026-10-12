@@ -20,11 +20,11 @@ const ic = (icon, color) => (<span style={{color, fontSize:15, display:"inline-f
 
 const navItems = [
   { key: "/home",              label: "Overview",   icon: ic(<TbLayoutDashboard />, "#60a5fa") },
+  { key: "/home/iso-summary",  label: "ISO Summary",    icon: ic(<TableOutlined />, "#2dd4bf") },
   // HIDDEN: { key: "/home/iso-merchants",label: "ISOs",         icon: ic(<BankOutlined />, "#818cf8") },
   // HIDDEN: { key: "/home/merchants",    label: "Merchants",      icon: ic(<DiffOutlined />, "#fb923c") },
   { key: "/home/revenue-mid",  label: "Revenue/MID",   icon: ic(<DollarOutlined />, "#fbbf24") },
   { key: "/home/payments",     label: "Payments",       icon: ic(<MdPayment />, "#4ade80") },
-  { key: "/home/iso-summary",  label: "ISO Summary",    icon: ic(<TableOutlined />, "#2dd4bf") },
   { key: "/home/insights",     label: "Insights",       icon: ic(<BulbOutlined />, "#fcd34d") },
   { key: "/home/outreach",     label: "Outreach",       icon: ic(<MailOutlined />, "#f472b6") },
   { key: "/home/industry",     label: "Industry",       icon: ic(<AreaChartOutlined />, "#38bdf8") },
