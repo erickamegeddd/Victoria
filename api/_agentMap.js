@@ -65,6 +65,8 @@ export const AGENT_MAP = {
     { mid: "2130041963771",    pct: 33.33, only: [JAN, FEB, MAR] },  // Total-Apps
     { mid: "278000000001847",   pct: 33.33, only: [JAN, FEB, MAR] },  // EZ Cash / Kurv (Payment Cloud)
     { mid: "9180314821610104", pct: 25, only: [FEB] },  // American Discount Network - Celero (Finical)
+    { mid: "2089018",          pct: 33.33, only: [AUG] },  // GA Online Books - Authorize.Net (Aug file uses its own Auth.Net MID)
+    { mid: "2545356",          pct: 33.33, only: [AUG] },  // Pro Art & Framing - Authorize.Net (Aug)
     { mid: "998300008813",     pct: 25    },  // Pet Direct Savings LLC - Nuvei
     { mid: "998300028357",     pct: 18, until: "2026-06-01" },  // Doc by Phone LLC - Nuvei (terminated Apr 21 2026; June agent sheet still carries its -8.50 fee)
   ],
