@@ -48,7 +48,7 @@ const AgentsDashboard = () => {
 
   const calculateTotalPayout = () => {
     return (
-      agentData?.reduce((total, item) => total + (item.agent_payout || 0), 0) ||
+      agentData?.reduce((total, item) => total + Math.max(0, item.agent_payout || 0), 0) ||
       0
     );
   };
