@@ -265,7 +265,7 @@ const ModalComponent: React.FC<ModalComponentProps> = ({
           else if (apiNumber === 4) return { MID: item?.mid || "Not Provided", ISO: item?.iso || "Not Provided", DBA: item?.dba || "Not Provided", Corporation: item?.corporation || "Not Provided", Volume: item?.volume || "Not Provided", "Total Residual": item?.total_residual ? Number(item?.total_residual) : 0.0, "PayDiverse Residual": item?.paydiverse_residual ? Number(item?.paydiverse_residual) : 0.0 };
           return item;
         });
-      if (apiNumber === 3) { const totalAgentPayout = currentTableData.reduce((sum, item) => sum + (item?.agent_payout || 0), 0); dataToDownload.push({ ISO: "", Corporation: "", DBA: "", MID: "", "Total Residual": "", "PayDiverse Residual": "", "Agent Percentage": "", "Agent Payout": `Total: ${formatCurrency(totalAgentPayout)}` }); }
+      if (apiNumber === 3) { const totalAgentPayout = currentTableData.reduce((sum, item) => sum + Math.max(0, item?.agent_payout || 0), 0); dataToDownload.push({ ISO: "", Corporation: "", DBA: "", MID: "", "Total Residual": "", "PayDiverse Residual": "", "Agent Percentage": "", "Agent Payout": `Total: ${formatCurrency(totalAgentPayout)}` }); }
       const worksheet = XLSX.utils.json_to_sheet(dataToDownload);
       worksheet["!cols"] = Array(11).fill({ wch: 30 });
       const workbook = XLSX.utils.book_new();
@@ -319,7 +319,7 @@ const ModalComponent: React.FC<ModalComponentProps> = ({
                         loading={agentLoading} pagination={{pageSize: 200}}
                         summary={(pageData) => {
                           let agentPayout = 0;
-                          pageData.forEach(({ agent_payout }) => { agentPayout += agent_payout || 0; });
+                          pageData.forEach(({ agent_payout }) => { agentPayout += Math.max(0, agent_payout || 0); });
                           return ((agentData?.length || 0) > 0 && (
                             <Table.Summary.Row className="total-row">
                               <Table.Summary.Cell index={1} colSpan={2}><strong>Total Agent Payout</strong></Table.Summary.Cell>
