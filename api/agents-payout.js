@@ -42,7 +42,7 @@ async function computeAgentPayout(agentName, merchants, date) {
   });
 
   const payout = filteredActive.reduce(
-    (sum, { mid, pct }) => sum + (netByMid[mid] || 0) * pct / 100,
+    (sum, { mid, pct }) => sum + Math.max(0, (netByMid[mid] || 0) * pct / 100),  // negative MIDs never reduce earnings
     0
   );
   // Count only MIDs that actually have a residual row this month - same set each-agent-data lists.
