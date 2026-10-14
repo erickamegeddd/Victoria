@@ -34,6 +34,7 @@ export default async function handler(req, res) {
   if (!Array.isArray(rows)) return res.status(500).json({ error: "DB error" });
 
   const byMonth = {};
+  const midNet = {};
   rows.forEach((r) => {
     const month = r.report_month;
     if (isReseller(r.isos?.name, month, agent_name) || midScopedOut(agent_name, r.mid, month)) return;
@@ -43,8 +44,13 @@ export default async function handler(req, res) {
     if (!byMonth[month]) byMonth[month] = { month, total_residual: 0, paydiversenet: 0, agent_payout: 0 };
     byMonth[month].total_residual += r.gross_revenue || 0;
     byMonth[month].paydiversenet += r.paydiversenet || 0;
-    byMonth[month].agent_payout += (r.paydiversenet || 0) * pct / 100;
+    const k = month + "|" + r.mid;
+    midNet[k] = midNet[k] || { month, pct, net: 0 };
+    midNet[k].net += r.paydiversenet || 0;
   });
+
+  // Payout per MID is floored at 0 so a negative MID never reduces earnings from other MIDs/ISOs.
+  Object.values(midNet).forEach(({ month, pct, net }) => { byMonth[month].agent_payout += Math.max(0, net * pct / 100); });
 
   return res.json(Object.values(byMonth).map((m) => ({
     month: m.month,
