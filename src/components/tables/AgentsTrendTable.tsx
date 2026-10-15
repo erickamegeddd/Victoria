@@ -13,7 +13,7 @@ const money = (n) => `$${Number(n).toLocaleString("en-US", { minimumFractionDigi
 const AgentsTrendTable = () => {
   const currentYear = dayjs().year();
   const [year, setYear] = useState(Math.max(currentYear, FIRST_YEAR));
-  const [byMonth, setByMonth] = useState(Array(12).fill(null));
+  const [byMonth, setByMonth] = useState(MONTHS.map(() => []));
   const [loading, setLoading] = useState(false);
 
   const yearOptions = [];
@@ -38,9 +38,9 @@ const AgentsTrendTable = () => {
   }, [year]);
 
   const rows = useMemo(() => {
-    const names = new Set();
-    byMonth.forEach(list => list.forEach(a => names.add(a.agent_name)));
-    return [...names].map(name => {
+    const seen = {};
+    byMonth.forEach(list => list.forEach(a => { seen[a.agent_name] = true; }));
+    return Object.keys(seen).map(name => {
       const months = byMonth.map(list => {
         const a = list.find(x => x.agent_name === name);
         // no MIDs reporting and no payout = no data for that month
