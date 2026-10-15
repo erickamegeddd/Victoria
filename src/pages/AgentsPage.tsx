@@ -1,9 +1,10 @@
-import { Button, Table, Tag } from "antd";
+import { Button, Table, Tag, Tabs } from "antd";
 import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { useState, useEffect } from "react";
 import dayjs from "dayjs";
 import AgentsPayoutBarChart from "../components/charts/AgentsPayoutBarChart";
 import AgentsCardsComponent from "../components/cards/AgentsCardsComponent";
+import AgentsTrendTable from "../components/tables/AgentsTrendTable";
 import RevenuePerAgentTable from "../components/tables/RevenuePerAgentTable";
 import agentClient from "../utils/agentAxios";
 import formatCurrency from "../utils/formatCurrency";
@@ -71,7 +72,14 @@ const AgentsPage = () => {
   }, [date]);
 
   return (
-    <>
+    <Tabs
+      defaultActiveKey="month"
+      items={[
+        {
+          key: "month",
+          label: "Monthly View",
+          children: (
+            <>
       <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, marginBottom: 20 }}>
         <Button icon={<LeftOutlined />} onClick={() => go(-1)} />
         <span style={{ minWidth: 140, textAlign: "center", fontWeight: 600, fontSize: 15 }}>
@@ -101,7 +109,12 @@ const AgentsPage = () => {
         scroll={{x:900,y:'calc(100vh - 300px)'}}
         
       />
-    </>
+            </>
+          ),
+        },
+        { key: "trend", label: "Monthly Trend", children: <AgentsTrendTable /> },
+      ]}
+    />
   );
 };
 
