@@ -1,4 +1,4 @@
-import { Button, Table, Tag, Tabs } from "antd";
+import { Button, Table, Tag, Tabs, DatePicker } from "antd";
 import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { useState, useEffect } from "react";
 import dayjs from "dayjs";
@@ -82,9 +82,14 @@ const AgentsPage = () => {
             <>
       <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, marginBottom: 20 }}>
         <Button icon={<LeftOutlined />} onClick={() => go(-1)} />
-        <span style={{ minWidth: 140, textAlign: "center", fontWeight: 600, fontSize: 15 }}>
-          {dayjs(date).format("MMMM YYYY")}
-        </span>
+        <DatePicker
+          picker="month"
+          value={dayjs(date)}
+          onChange={(d) => d && setDate(d.startOf("month").format("YYYY-MM-DD"))}
+          format="MMMM YYYY"
+          allowClear={false}
+          style={{ width: 170 }}
+        />
         <Button icon={<RightOutlined />} onClick={() => go(1)} />
         <Button onClick={() => setDate(dayjs().format("YYYY-MM-01"))} size="middle">Current Month</Button>
       </div>
