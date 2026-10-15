@@ -81,9 +81,6 @@ export const AGENT_MAP = {
     { mid: "5160041877686",   pct: 25 },  // The Credit Pros - Cardworks
     { mid: "941000137750",    pct: 25 },  // The Credit Pros - MerchantE-Synovous
   ],
-  "Pedro Teixeira Payinsight": [
-    { mid: "002327562203", pct: 30 },  // styraapp.com - Nexio | CMS
-  ],
 };
 
 // Reseller / gateway revenue is not commissionable (except Michelle W Breier) - only merchant processing MIDs earn agent payouts.
