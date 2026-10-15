@@ -57,17 +57,9 @@ const AgentsTrendTable = () => {
   });
   const grandTotal = Math.round(rows.reduce((s, r) => s + r.total, 0) * 100) / 100;
 
-  const monthCell = (v, prev) => {
+  const monthCell = (v) => {
     if (v == null) return <span style={{ color: "#c0c4cc" }}>--</span>;
-    let color = v < 0 ? "#dc2626" : "inherit";
-    let title = null;
-    if (prev != null && prev !== 0) {
-      const pct = ((v - prev) / Math.abs(prev)) * 100;
-      title = `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}% vs previous month`;
-      if (v > prev) color = "#059669"; else if (v < prev) color = "#dc2626";
-    }
-    const el = <span style={{ color, fontWeight: 500 }}>{money(v)}</span>;
-    return title ? <Tooltip title={title}>{el}</Tooltip> : el;
+    return <span style={{ fontWeight: 500 }}>{money(v)}</span>;
   };
 
   const totalRow = { key: "__total", name: "TOTAL", months: monthTotals, total: grandTotal, isTotal: true };
@@ -88,19 +80,17 @@ const AgentsTrendTable = () => {
       title: label, key: label, align: "right", width: 100, sorter: sortBy(r => r.months[m]), sortDirections: ["descend", "ascend"],
       render: (_, r) => {
         if (r.isTotal) return <span style={{ fontWeight: 700 }}>{r.months[m] == null ? "--" : money(r.months[m])}</span>;
-        let prev = null;
-        for (let k = m - 1; k >= 0; k--) { if (r.months[k] != null) { prev = r.months[k]; break; } }
-        return monthCell(r.months[m], prev);
+        return monthCell(r.months[m]);
       }
     })),
-    { title: `${year} Total`, key: "total", align: "right", width: 120, sorter: sortBy(r => r.total), sortDirections: ["descend", "ascend"], fixed: "right", render: (_, r) => <span style={{ fontWeight: 700, color: r.isTotal ? "inherit" : r.total < 0 ? "#dc2626" : "inherit" }}>{money(r.total)}</span> },
+    { title: `${year} Total`, key: "total", align: "right", width: 120, sorter: sortBy(r => r.total), sortDirections: ["descend", "ascend"], fixed: "right", render: (_, r) => <span style={{ fontWeight: 700, color: "inherit" }}>{money(r.total)}</span> },
   ];
 
   return (
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
         <Text style={{ color: "var(--muted-color)", fontSize: 13 }}>
-          Monthly agent payout per agent (same numbers as Revenue Per Agent). Green / red = up / down vs the previous month with data. Click any column header to sort.
+          Monthly agent payout per agent (same numbers as Revenue Per Agent). Click any column header to sort.
         </Text>
         <Space>
           <Text style={{ fontWeight: 600 }}>Year</Text>
