@@ -43,13 +43,16 @@ const TicketsPage = () => {
     if (!form.title.trim()) { message.warning("Please add a short title"); return; }
     if (!form.description.trim()) { message.warning("Please describe the issue or request"); return; }
     setSaving(true);
-    const { error } = await supabase.from("tickets").insert({
+    const { data: created, error } = await supabase.from("tickets").insert({
       type: form.type, page: form.page, priority: form.priority,
       title: form.title.trim(), description: form.description.trim(),
       submitted_by: user?.name || user?.email || "Unknown", status: "Open",
-    });
+    }).select().single();
     setSaving(false);
     if (error) { message.error("Could not save ticket: " + error.message); return; }
+    try {
+      fetch("/api/send-payment-reminder?action=ticket", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: created.id }) }).catch(() => {});
+    } catch (e) {}
     message.success("Ticket submitted");
     setOpen(false); setForm(empty); load();
   };
