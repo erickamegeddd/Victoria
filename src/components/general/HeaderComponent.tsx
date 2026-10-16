@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect } from "react";
 import { Avatar, Badge, Dropdown, Menu } from "antd";
-import { UserOutlined, LogoutOutlined, BellOutlined, BarChartOutlined, SnippetsOutlined, DiffOutlined, SettingOutlined, DollarOutlined, AreaChartOutlined, BulbOutlined, BankOutlined, MailOutlined, CloseOutlined, TableOutlined } from "@ant-design/icons";
+import { UserOutlined, LogoutOutlined, BellOutlined, BarChartOutlined, SnippetsOutlined, DiffOutlined, SettingOutlined, DollarOutlined, AreaChartOutlined, BulbOutlined, BankOutlined, MailOutlined, CloseOutlined, TableOutlined, ToolOutlined } from "@ant-design/icons";
 import { LuUsers } from "react-icons/lu";
 import { LiaFileInvoiceDollarSolid } from "react-icons/lia";
 import { MdPayment } from "react-icons/md";
@@ -28,6 +28,7 @@ const navItems = [
   { key: "/home/insights",     label: "Insights",       icon: ic(<BulbOutlined />, "#fcd34d") },
   { key: "/home/outreach",     label: "Outreach",       icon: ic(<MailOutlined />, "#f472b6") },
   { key: "/home/industry",     label: "Industry",       icon: ic(<AreaChartOutlined />, "#38bdf8") },
+  { key: "/home/tickets",      label: "Tickets",        icon: ic(<ToolOutlined />, "#fb923c") },
   {
     key: "admin", label: "Administrator", icon: ic(<SettingOutlined />, "#a78bfa"),
     children: [
@@ -235,3 +236,4 @@ const HeaderComponent = () => {
   );
 };
 export default HeaderComponent;
+
