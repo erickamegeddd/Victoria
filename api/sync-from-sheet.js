@@ -1,6 +1,8 @@
 // api/sync-from-sheet.js
 // Called by the Google Sheets Apps Script to push reviewed data into Supabase
 
+import { adminResiduals } from "./_adminResiduals.js";
+
 const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
 const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ1cWZsb2Z1emh5YnV0a2t6cm9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwNDE3NTYsImV4cCI6MjEwMTYxNzc1Nn0.46kKCy_3cY7oKuONb9e2e18yKVNui3oSOzySK33fMFE";
 
@@ -38,6 +40,8 @@ export default async function handler(req, res) {
   const SYNC_TOKEN = process.env.SYNC_TOKEN;
   const token = req.headers["x-sync-token"] || req.body?.token;
   if (token !== SYNC_TOKEN) return res.status(401).json({ error: "Invalid sync token" });
+
+  if (req.body?.action) return adminResiduals(req, res);
 
   const { data } = req.body || {};
   if (!Array.isArray(data) || data.length === 0) {
