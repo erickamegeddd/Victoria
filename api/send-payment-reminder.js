@@ -227,6 +227,37 @@ async function handleTicketNotify(req, res) {
   }
 }
 
+// Ticket cleanup — POST ?action=ticket-cleanup {id}; deletes video attachments once a ticket is Done (verified in the DB, not trusted from the request)
+async function handleTicketCleanup(req, res) {
+  if (req.method !== "POST") return res.status(405).end();
+  const SVC = process.env.SUPABASE_SERVICE_KEY;
+  if (!SVC) return res.status(500).json({ ok: false, error: "Service key not configured" });
+  const id = String(req.body?.id || "");
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ ok: false, error: "Invalid id" });
+  const H = { apikey: SVC, Authorization: `Bearer ${SVC}`, "Content-Type": "application/json" };
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/tickets?id=eq.${id}&select=id,status,attachments,response`, { headers: H });
+  const rows = await r.json().catch(() => []);
+  const t = Array.isArray(rows) ? rows[0] : null;
+  if (!t) return res.status(404).json({ ok: false, error: "Ticket not found" });
+  if (t.status !== "Done") return res.status(409).json({ ok: false, error: "Ticket is not Done" });
+  const all = Array.isArray(t.attachments) ? t.attachments : [];
+  const isVid = u => /\.(mp4|webm|mov)(\?|$)/i.test(u);
+  const vids = all.filter(isVid);
+  if (!vids.length) return res.status(200).json({ ok: true, removed: 0 });
+  const prefix = `${SUPABASE_URL}/storage/v1/object/public/ticket-attachments/`;
+  const names = vids.filter(u => u.startsWith(prefix)).map(u => decodeURIComponent(u.slice(prefix.length).split("?")[0]));
+  if (names.length) {
+    const d = await fetch(`${SUPABASE_URL}/storage/v1/object/ticket-attachments`, { method: "DELETE", headers: H, body: JSON.stringify({ prefixes: names }) });
+    if (!d.ok) return res.status(500).json({ ok: false, error: "Storage delete failed" });
+  }
+  const note = `[${vids.length} video${vids.length > 1 ? "s" : ""} removed automatically when this ticket was marked Done]`;
+  await fetch(`${SUPABASE_URL}/rest/v1/tickets?id=eq.${id}`, {
+    method: "PATCH", headers: H,
+    body: JSON.stringify({ attachments: all.filter(u => !isVid(u)), response: t.response ? `${t.response}\n${note}` : note })
+  });
+  return res.status(200).json({ ok: true, removed: names.length });
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -243,6 +274,7 @@ export default async function handler(req, res) {
   }
 
   if (action === "ticket") return handleTicketNotify(req, res);
+  if (action === "ticket-cleanup") return handleTicketCleanup(req, res);
 
   // Cron auto-send — called via /api/auto-reminders rewrite (Vercel cron uses GET)
   if (action === "cron" || (req.method === "GET" && !action)) {
