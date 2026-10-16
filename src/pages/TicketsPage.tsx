@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
-import { Card, Input, Button, Typography, Select, Tag, Table, message, Modal, Radio, Space, Empty } from "antd";
-import { PlusOutlined, ToolOutlined } from "@ant-design/icons";
+import { Card, Input, Button, Typography, Select, Tag, Table, message, Modal, Radio, Space, Empty, Upload, Image } from "antd";
+import { PlusOutlined, ToolOutlined, PictureOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { supabase } from "../utils/supabase";
 import { getUserFromLocalStorage } from "../utils/getUser";
@@ -11,6 +11,8 @@ const PAGES = ["Overview", "ISO Summary", "Revenue/MID", "Payments", "Insights",
 const STATUSES = ["Open", "In Progress", "Done", "Won't Do"];
 const STATUS_COLOR = { "Open": "blue", "In Progress": "gold", "Done": "green", "Won't Do": "default" };
 const PRIORITY_COLOR = { Low: "default", Medium: "orange", High: "red" };
+const MAX_FILES = 5;
+const MAX_MB = 5;
 const empty = { type: "Issue", page: undefined, priority: "Medium", title: "", description: "" };
 
 const TicketsPage = () => {
@@ -27,6 +29,24 @@ const TicketsPage = () => {
   const [fType, setFType] = useState("All");
   const [detail, setDetail] = useState(null);
   const [reply, setReply] = useState("");
+  const [files, setFiles] = useState([]);
+
+  const addFiles = (list) => {
+    const imgs = Array.from(list || []).filter(f => f && f.type && f.type.startsWith("image/"));
+    if (!imgs.length) return;
+    const ok = imgs.filter(f => f.size <= MAX_MB * 1024 * 1024);
+    if (ok.length < imgs.length) message.warning(`Images must be under ${MAX_MB} MB`);
+    setFiles(prev => {
+      const next = [...prev, ...ok].slice(0, MAX_FILES);
+      if (prev.length + ok.length > MAX_FILES) message.warning(`Up to ${MAX_FILES} screenshots per ticket`);
+      return next;
+    });
+  };
+  const onPaste = (e) => {
+    const items = Array.from((e.clipboardData && e.clipboardData.items) || []);
+    const imgs = items.filter(i => i.type && i.type.startsWith("image/")).map(i => i.getAsFile()).filter(Boolean);
+    if (imgs.length) { e.preventDefault(); addFiles(imgs); }
+  };
 
   useEffect(() => { load(); }, []);
 
@@ -43,7 +63,16 @@ const TicketsPage = () => {
     if (!form.title.trim()) { message.warning("Please add a short title"); return; }
     if (!form.description.trim()) { message.warning("Please describe the issue or request"); return; }
     setSaving(true);
+    const urls = [];
+    for (const f of files) {
+      const ext = (f.name && f.name.includes(".") ? f.name.split(".").pop() : (f.type.split("/")[1] || "png")).toLowerCase();
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const up = await supabase.storage.from("ticket-attachments").upload(path, f, { contentType: f.type });
+      if (up.error) { setSaving(false); message.error("Screenshot upload failed: " + up.error.message); return; }
+      urls.push(supabase.storage.from("ticket-attachments").getPublicUrl(path).data.publicUrl);
+    }
     const { data: created, error } = await supabase.from("tickets").insert({
+      ...(urls.length ? { attachments: urls } : {}),
       type: form.type, page: form.page, priority: form.priority,
       title: form.title.trim(), description: form.description.trim(),
       submitted_by: user?.name || user?.email || "Unknown", status: "Open",
@@ -54,7 +83,7 @@ const TicketsPage = () => {
       fetch("/api/send-payment-reminder?action=ticket", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: created.id }) }).catch(() => {});
     } catch (e) {}
     message.success("Ticket submitted");
-    setOpen(false); setForm(empty); load();
+    setOpen(false); setForm(empty); setFiles([]); load();
   };
 
   const updateTicket = async (id, patch) => {
@@ -72,6 +101,7 @@ const TicketsPage = () => {
     { title: "Type", dataIndex: "type", width: 120, render: v => <Tag color={v === "Issue" ? "red" : "purple"}>{v}</Tag> },
     { title: "Page", dataIndex: "page", width: 140 },
     { title: "Title", dataIndex: "title", render: (v, r) => <a onClick={() => { setDetail(r); setReply(r.response || ""); }}>{v}</a> },
+    { title: "", dataIndex: "attachments", width: 40, render: v => Array.isArray(v) && v.length ? <PictureOutlined title={`${v.length} screenshot(s)`} /> : null },
     { title: "Priority", dataIndex: "priority", width: 100, render: v => <Tag color={PRIORITY_COLOR[v]}>{v}</Tag> },
     { title: "Status", dataIndex: "status", width: 120, render: v => <Tag color={STATUS_COLOR[v]}>{v}</Tag> },
     { title: "Submitted by", dataIndex: "submitted_by", width: 150 },
@@ -132,8 +162,24 @@ const TicketsPage = () => {
           </div>
           <div>
             <div style={{ marginBottom: 4, fontWeight: 600 }}>Details</div>
-            <Input.TextArea rows={5} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
+            <Input.TextArea rows={5} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} onPaste={onPaste}
               placeholder="What happened or what would you like? Include the ISO, month or merchant if it applies." />
+          </div>
+          <div onPaste={onPaste}>
+            <div style={{ marginBottom: 4, fontWeight: 600 }}>Screenshots <Text type="secondary" style={{ fontWeight: 400 }}>(optional - paste with Ctrl+V, drag in, or browse)</Text></div>
+            <Upload.Dragger multiple accept="image/*" showUploadList={false} beforeUpload={(f, list) => { if (f === list[0]) addFiles(list); return false; }} style={{ padding: 4 }}>
+              <div style={{ padding: "6px 0", color: "#6b7280" }}><PictureOutlined /> Click, drag, or paste screenshots here</div>
+            </Upload.Dragger>
+            {files.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                {files.map((f, i) => (
+                  <div key={i} style={{ position: "relative" }}>
+                    <img src={URL.createObjectURL(f)} alt="" style={{ height: 70, borderRadius: 6, border: "1px solid #e5e7eb" }} />
+                    <span onClick={() => setFiles(files.filter((_, j) => j !== i))} style={{ position: "absolute", top: -6, right: -6, background: "#dc2626", color: "#fff", borderRadius: "50%", width: 18, height: 18, lineHeight: "18px", textAlign: "center", cursor: "pointer", fontSize: 12 }}>x</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </Space>
       </Modal>
@@ -149,6 +195,11 @@ const TicketsPage = () => {
             </Space>
             <Text type="secondary">Submitted by {detail.submitted_by} on {dayjs(detail.created_at).format("MMM D, YYYY h:mm A")}</Text>
             <Paragraph style={{ whiteSpace: "pre-wrap", background: "#f9fafb", padding: 12, borderRadius: 8 }}>{detail.description}</Paragraph>
+            {Array.isArray(detail.attachments) && detail.attachments.length > 0 && (
+              <Image.PreviewGroup>
+                <Space wrap>{detail.attachments.map((u, i) => <Image key={i} src={u} height={90} style={{ borderRadius: 6, border: "1px solid #e5e7eb", objectFit: "cover" }} />)}</Space>
+              </Image.PreviewGroup>
+            )}
             {isAdmin ? (
               <>
                 <div style={{ fontWeight: 600 }}>Status</div>
