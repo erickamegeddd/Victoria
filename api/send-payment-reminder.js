@@ -195,6 +195,38 @@ async function handleCron(req, res) {
   return res.json({ ok: true, sent: results.length, results, errors });
 }
 
+
+// New-ticket notification — POST ?action=ticket {id}; content is read from the tickets table, never from the request
+async function handleTicketNotify(req, res) {
+  if (req.method !== "POST") return res.status(405).end();
+  const GMAIL_USER = process.env.GMAIL_USER;
+  const GMAIL_PASS = process.env.GMAIL_APP_PASSWORD;
+  if (!GMAIL_USER || !GMAIL_PASS) return res.status(500).json({ ok: false, error: "Gmail not configured" });
+  const id = String(req.body?.id || "");
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ ok: false, error: "Invalid id" });
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/tickets?id=eq.${id}&select=*`, {
+    headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` }
+  });
+  const rows = await r.json().catch(() => []);
+  const t = Array.isArray(rows) ? rows[0] : null;
+  if (!t) return res.status(404).json({ ok: false, error: "Ticket not found" });
+  if (Date.now() - new Date(t.created_at).getTime() > 10 * 60 * 1000) return res.status(409).json({ ok: false, error: "Ticket too old to notify" });
+  const esc = v => String(v || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+  try {
+    const transporter = nodemailer.createTransport({ service: "gmail", auth: { user: GMAIL_USER, pass: GMAIL_PASS } });
+    await transporter.sendMail({
+      from: `Victoria Tickets <${GMAIL_USER}>`,
+      to: "ericka@paydiverse.com",
+      subject: `[Victoria Ticket #${t.ticket_no}] ${t.type} - ${t.page}: ${t.title}`,
+      text: `${t.type} on ${t.page} (${t.priority})\nFrom: ${t.submitted_by}\n\n${t.title}\n\n${t.description}\n\nhttps://paydiverse-victoria.vercel.app/home/tickets`,
+      html: `<div style="font-family:Arial,sans-serif;font-size:14px;color:#222"><p><b>${esc(t.type)}</b> on <b>${esc(t.page)}</b> &middot; Priority: ${esc(t.priority)}<br>From: ${esc(t.submitted_by)}</p><h3 style="margin:8px 0">#${t.ticket_no} ${esc(t.title)}</h3><p>${esc(t.description)}</p><p><a href="https://paydiverse-victoria.vercel.app/home/tickets">Open in Victoria</a></p></div>`
+    });
+    return res.status(200).json({ ok: true });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: String(e && e.message || e) });
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -209,6 +241,8 @@ export default async function handler(req, res) {
     if (req.method === "POST") return handleTogglePost(req, res);
     return res.status(405).end();
   }
+
+  if (action === "ticket") return handleTicketNotify(req, res);
 
   // Cron auto-send — called via /api/auto-reminders rewrite (Vercel cron uses GET)
   if (action === "cron" || (req.method === "GET" && !action)) {
@@ -304,3 +338,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ ok: false, error: err.message });
   }
 }
+
