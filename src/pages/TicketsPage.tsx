@@ -210,7 +210,19 @@ const TicketsPage = () => {
               <>
                 <div style={{ fontWeight: 600 }}>Status</div>
                 <Select value={detail.status} style={{ width: 180 }} options={STATUSES.map(s => ({ value: s, label: s }))}
-                  onChange={async v => { if (await updateTicket(detail.id, { status: v })) setDetail({ ...detail, status: v }); }} />
+                  onChange={async v => {
+                    if (await updateTicket(detail.id, { status: v })) {
+                      let next = { ...detail, status: v };
+                      if (v === "Done" && (detail.attachments || []).some(isVideoUrl)) {
+                        try {
+                          const r = await fetch("/api/send-payment-reminder?action=ticket-cleanup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: detail.id }) });
+                          const j = await r.json();
+                          if (j.ok && j.removed) { message.info("Video attachments removed to free up storage"); await load(); next = { ...next, attachments: (detail.attachments || []).filter(u => !isVideoUrl(u)) }; }
+                        } catch (e) {}
+                      }
+                      setDetail(next);
+                    }
+                  }} />
                 <div style={{ fontWeight: 600 }}>Response / notes</div>
                 <Input.TextArea rows={3} value={reply} onChange={e => setReply(e.target.value)} placeholder="Reply to the requester" />
                 <Button type="primary" onClick={async () => { if (await updateTicket(detail.id, { response: reply })) { message.success("Saved"); setDetail({ ...detail, response: reply }); } }}>Save response</Button>
