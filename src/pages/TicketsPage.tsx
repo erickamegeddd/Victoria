@@ -12,7 +12,9 @@ const STATUSES = ["Open", "In Progress", "Done", "Won't Do"];
 const STATUS_COLOR = { "Open": "blue", "In Progress": "gold", "Done": "green", "Won't Do": "default" };
 const PRIORITY_COLOR = { Low: "default", Medium: "orange", High: "red" };
 const MAX_FILES = 5;
-const MAX_MB = 5;
+const MAX_IMG_MB = 5;
+const MAX_VID_MB = 50;
+const isVideoUrl = (u) => /\.(mp4|webm|mov)(\?|$)/i.test(u || "");
 const empty = { type: "Issue", page: undefined, priority: "Medium", title: "", description: "" };
 
 const TicketsPage = () => {
@@ -32,13 +34,13 @@ const TicketsPage = () => {
   const [files, setFiles] = useState([]);
 
   const addFiles = (list) => {
-    const imgs = Array.from(list || []).filter(f => f && f.type && f.type.startsWith("image/"));
+    const imgs = Array.from(list || []).filter(f => f && f.type && (f.type.startsWith("image/") || f.type.startsWith("video/")));
     if (!imgs.length) return;
-    const ok = imgs.filter(f => f.size <= MAX_MB * 1024 * 1024);
-    if (ok.length < imgs.length) message.warning(`Images must be under ${MAX_MB} MB`);
+    const ok = imgs.filter(f => f.size <= (f.type.startsWith("video/") ? MAX_VID_MB : MAX_IMG_MB) * 1024 * 1024);
+    if (ok.length < imgs.length) message.warning(`Images must be under ${MAX_IMG_MB} MB and videos under ${MAX_VID_MB} MB`);
     setFiles(prev => {
       const next = [...prev, ...ok].slice(0, MAX_FILES);
-      if (prev.length + ok.length > MAX_FILES) message.warning(`Up to ${MAX_FILES} screenshots per ticket`);
+      if (prev.length + ok.length > MAX_FILES) message.warning(`Up to ${MAX_FILES} files per ticket`);
       return next;
     });
   };
@@ -101,7 +103,7 @@ const TicketsPage = () => {
     { title: "Type", dataIndex: "type", width: 120, render: v => <Tag color={v === "Issue" ? "red" : "purple"}>{v}</Tag> },
     { title: "Page", dataIndex: "page", width: 140 },
     { title: "Title", dataIndex: "title", render: (v, r) => <a onClick={() => { setDetail(r); setReply(r.response || ""); }}>{v}</a> },
-    { title: "", dataIndex: "attachments", width: 40, render: v => Array.isArray(v) && v.length ? <PictureOutlined title={`${v.length} screenshot(s)`} /> : null },
+    { title: "", dataIndex: "attachments", width: 40, render: v => Array.isArray(v) && v.length ? <PictureOutlined title={`${v.length} attachment(s)`} /> : null },
     { title: "Priority", dataIndex: "priority", width: 100, render: v => <Tag color={PRIORITY_COLOR[v]}>{v}</Tag> },
     { title: "Status", dataIndex: "status", width: 120, render: v => <Tag color={STATUS_COLOR[v]}>{v}</Tag> },
     { title: "Submitted by", dataIndex: "submitted_by", width: 150 },
@@ -166,15 +168,17 @@ const TicketsPage = () => {
               placeholder="What happened or what would you like? Include the ISO, month or merchant if it applies." />
           </div>
           <div onPaste={onPaste}>
-            <div style={{ marginBottom: 4, fontWeight: 600 }}>Screenshots <Text type="secondary" style={{ fontWeight: 400 }}>(optional - paste with Ctrl+V, drag in, or browse)</Text></div>
-            <Upload.Dragger multiple accept="image/*" showUploadList={false} beforeUpload={(f, list) => { if (f === list[0]) addFiles(list); return false; }} style={{ padding: 4 }}>
-              <div style={{ padding: "6px 0", color: "#6b7280" }}><PictureOutlined /> Click, drag, or paste screenshots here</div>
+            <div style={{ marginBottom: 4, fontWeight: 600 }}>Screenshots / videos <Text type="secondary" style={{ fontWeight: 400 }}>(optional - paste, drag in, or browse; videos up to 50 MB)</Text></div>
+            <Upload.Dragger multiple accept="image/*,video/mp4,video/webm,video/quicktime" showUploadList={false} beforeUpload={(f, list) => { if (f === list[0]) addFiles(list); return false; }} style={{ padding: 4 }}>
+              <div style={{ padding: "6px 0", color: "#6b7280" }}><PictureOutlined /> Click, drag, or paste screenshots or a screen recording here</div>
             </Upload.Dragger>
             {files.length > 0 && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
                 {files.map((f, i) => (
                   <div key={i} style={{ position: "relative" }}>
-                    <img src={URL.createObjectURL(f)} alt="" style={{ height: 70, borderRadius: 6, border: "1px solid #e5e7eb" }} />
+                    {f.type.startsWith("video/")
+                      ? <video src={URL.createObjectURL(f)} muted style={{ height: 70, borderRadius: 6, border: "1px solid #e5e7eb" }} />
+                      : <img src={URL.createObjectURL(f)} alt="" style={{ height: 70, borderRadius: 6, border: "1px solid #e5e7eb" }} />}
                     <span onClick={() => setFiles(files.filter((_, j) => j !== i))} style={{ position: "absolute", top: -6, right: -6, background: "#dc2626", color: "#fff", borderRadius: "50%", width: 18, height: 18, lineHeight: "18px", textAlign: "center", cursor: "pointer", fontSize: 12 }}>x</span>
                   </div>
                 ))}
@@ -197,7 +201,9 @@ const TicketsPage = () => {
             <Paragraph style={{ whiteSpace: "pre-wrap", background: "#f9fafb", padding: 12, borderRadius: 8 }}>{detail.description}</Paragraph>
             {Array.isArray(detail.attachments) && detail.attachments.length > 0 && (
               <Image.PreviewGroup>
-                <Space wrap>{detail.attachments.map((u, i) => <Image key={i} src={u} height={90} style={{ borderRadius: 6, border: "1px solid #e5e7eb", objectFit: "cover" }} />)}</Space>
+                <Space wrap>{detail.attachments.map((u, i) => isVideoUrl(u)
+                  ? <video key={i} src={u} controls preload="metadata" style={{ maxWidth: 560, maxHeight: 320, borderRadius: 6, border: "1px solid #e5e7eb" }} />
+                  : <Image key={i} src={u} height={90} style={{ borderRadius: 6, border: "1px solid #e5e7eb", objectFit: "cover" }} />)}</Space>
               </Image.PreviewGroup>
             )}
             {isAdmin ? (
