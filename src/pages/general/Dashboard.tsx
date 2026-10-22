@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useEffect, useState, useRef } from "react";
-import { Card, Row, Col, Table, Select, DatePicker, Button, Typography, Space, Statistic, Tabs, Input, AutoComplete, Tag } from "antd";
+import { Card, Row, Col, Table, Select, DatePicker, Button, Typography, Space, Statistic, Tabs, Input, AutoComplete, Tag, Modal } from "antd";
 import { FileExcelOutlined, SearchOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { supabase } from "../../utils/supabase";
@@ -10,6 +10,9 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 const GATEWAY_ISO_NAMES = new Set(["nmi","authorize.net","e-fitness today","efitness today","fraud deflect","midmetrics"]);
 const isGatewayRow = (r) => GATEWAY_ISO_NAMES.has((r.isos?.name||"").toLowerCase());
+// Spreadsheet imports left some MIDs as "123.0" or "1.23E+11"; treat them as the plain-digit MID.
+const normMid = (mid) => { const s=String(mid||'').trim(); if(/^\d+\.0+$/.test(s)) return s.replace(/\.0+$/,''); if(/^\d(\.\d+)?e\+?\d+$/i.test(s)){try{return BigInt(Math.round(Number(s))).toString();}catch(e){return s;}} return s; };
+const isAddedEligibleMid = (mid) => !!mid && String(mid)!=='No MID' && !String(mid).includes('_COMBINED_');
 const isAggregateMid = (mid) => { if(!mid) return true; const m=String(mid).toUpperCase(); return m.startsWith("PC_COMBINED")||m.startsWith("RAC_COMBINED")||m.startsWith("NMI_COMBINED")||m.startsWith("ALTO_COMBINED"); };
 const isCCBillRow = (r) => (r.isos?.name||'').toLowerCase() === 'cc bill';
 const fmt = (n) => n != null ? `$${Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}` : '--';
@@ -51,6 +54,8 @@ const Dashboard = () => {
   const [recentWindowMids, setRecentWindowMids] = useState(new Set());
   const [newMerchantMids, setNewMerchantMids] = useState(new Set());
   const [newGatewayCount, setNewGatewayCount] = useState(0);
+  const [firstMonth, setFirstMonth] = useState(null);
+  const [addedModal, setAddedModal] = useState(null); // 'merchant' | 'gateway' | null
   const [prevResiduals, setPrevResiduals] = useState([]);
   const [filteredResiduals, setFilteredResiduals] = useState([]);
   const [activeGatewayCount, setActiveGatewayCount] = useState(0);
@@ -69,8 +74,16 @@ const Dashboard = () => {
   const merchantsRevenue = usePayments?isoPayments.filter(p=>!GATEWAY_ISO_NAMES.has((p.isos?.name||'').toLowerCase())).reduce((s,p)=>s+(p.expected_amount||0),0):residuals.filter(r=>!isGatewayRow(r)).reduce((s,r)=>s+(r.paydiversenet||0),0);
   const resellerRevenue = usePayments?isoPayments.filter(p=>GATEWAY_ISO_NAMES.has((p.isos?.name||'').toLowerCase())).reduce((s,p)=>s+(p.expected_amount||0),0):residuals.filter(r=>isGatewayRow(r)).reduce((s,r)=>s+(r.paydiversenet||0),0);
   const activeGatewayMids = new Set(residuals.filter(r=>isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.mid).map(r=>r.mid)).size;
-  const addedMerchantMidsCount = 0;
-  const addedGatewayMidsCount = 0;
+  // A MID counts as "added" only in the month it first appears in our records (never again if it returns later).
+  const priorNorm = new Set([...allPriorMids].map(normMid));
+  const addedRows = []; const seenAdded = new Set();
+  residuals.forEach(r=>{ if(!isAddedEligibleMid(r.mid)||isAggregateMid(r.mid)) return; const k=normMid(r.mid); if(priorNorm.has(k)||seenAdded.has(k)) return; seenAdded.add(k); addedRows.push({mid:k,business_name:r.business_name||'',iso:r.isos?.name||'',gateway:isGatewayRow(r)}); });
+  const isFirstMonth = !!firstMonth && (selectedMonth||LATEST_MONTH)===firstMonth;
+  const addedMerchantRows = addedRows.filter(r=>!r.gateway);
+  const addedGatewayRows = addedRows.filter(r=>r.gateway);
+  const addedMerchantMidsCount = (loading||isFirstMonth) ? null : addedMerchantRows.length;
+  const addedGatewayMidsCount = (loading||isFirstMonth) ? null : addedGatewayRows.length;
+  const addedDisplay = (n) => n===null ? (isFirstMonth?'n/a':'...') : n;
 
   useEffect(()=>{fetchIsos();},[]);
   useEffect(()=>{
@@ -113,7 +126,7 @@ const Dashboard = () => {
   const fetchIsoPayments=async()=>{if(!selectedMonth)return;let ipq=supabase.from('iso_payments').select('iso_id,expected_amount,isos(name)').eq('report_month',selectedMonth);if(selectedIso)ipq=ipq.eq('iso_id',selectedIso);const{data}=await ipq;setIsoPayments(data||[]);};
   const fetchIsos=async()=>{const{data}=await supabase.from('isos').select('*').eq('status','active').order('name');if(data)setIsos(data);};
   const fetchAllRows=async(base)=>{let all=[],from=0;while(true){const{data:batch}=await base.range(from,from+999);if(!batch||batch.length===0)break;all=all.concat(batch);if(batch.length<1000)break;from+=1000;}return all;};
-  const fetchResiduals=async()=>{setLoading(true);let q=supabase.from('residuals').select('*,isos(id,name,slug)').order('report_month',{ascending:false});if(selectedIso)q=q.eq('iso_id',selectedIso);if(selectedMonth)q=q.eq('report_month',selectedMonth);const data=await fetchAllRows(q);setResiduals(data);const pm=dayjs(selectedMonth||LATEST_MONTH).subtract(1,'month').startOf('month').format('YYYY-MM-DD');let pq=supabase.from('residuals').select('*,isos(id,name,slug)').eq('report_month',pm);if(selectedIso)pq=pq.eq('iso_id',selectedIso);const pdata=await fetchAllRows(pq);setPrevResiduals(pdata);setPrevMonthMids(new Set(pdata.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)).map(r=>r.mid)));let aq=supabase.from('residuals').select('mid').lt('report_month',selectedMonth||LATEST_MONTH).not('mid','is',null);if(selectedIso)aq=aq.eq('iso_id',selectedIso);const aprior=await fetchAllRows(aq);setAllPriorMids(new Set(aprior.filter(r=>r.mid&&!isAggregateMid(r.mid)).map(r=>r.mid)));const nm=dayjs(selectedMonth||LATEST_MONTH);const{data:newMs}=await supabase.from('merchants').select('mid').gte('created_at',nm.format('YYYY-MM-DD')).lt('created_at',nm.add(1,'month').startOf('month').format('YYYY-MM-DD')).not('mid','is',null);setNewMerchantMids(new Set((newMs||[]).map(r=>r.mid)));const{data:newGw}=await supabase.from('merchants').select('mid').gte('created_at',nm.format('YYYY-MM-DD')).lt('created_at',nm.add(1,'month').startOf('month').format('YYYY-MM-DD')).not('mid','is',null).eq('merchant_type','gateway');setNewGatewayCount((newGw||[]).length);const winStart=nm.subtract(7,'month').startOf('month').format('YYYY-MM-DD');let wq=supabase.from('residuals').select('mid').gte('report_month',winStart).lte('report_month',selectedMonth||LATEST_MONTH).not('mid','is',null);if(selectedIso)wq=wq.eq('iso_id',selectedIso);const wdata=await fetchAllRows(wq);setRecentWindowMids(new Set(wdata.filter(r=>r.mid&&!isAggregateMid(r.mid)).map(r=>r.mid)));setLoading(false);};
+  const fetchResiduals=async()=>{setLoading(true);let q=supabase.from('residuals').select('*,isos(id,name,slug)').order('report_month',{ascending:false});if(selectedIso)q=q.eq('iso_id',selectedIso);if(selectedMonth)q=q.eq('report_month',selectedMonth);const data=await fetchAllRows(q);setResiduals(data);const pm=dayjs(selectedMonth||LATEST_MONTH).subtract(1,'month').startOf('month').format('YYYY-MM-DD');let pq=supabase.from('residuals').select('*,isos(id,name,slug)').eq('report_month',pm);if(selectedIso)pq=pq.eq('iso_id',selectedIso);const pdata=await fetchAllRows(pq);setPrevResiduals(pdata);setPrevMonthMids(new Set(pdata.filter(r=>!isGatewayRow(r)&&!isAggregateMid(r.mid)).map(r=>r.mid)));let aq=supabase.from('residuals').select('mid').lt('report_month',selectedMonth||LATEST_MONTH).not('mid','is',null);if(selectedIso)aq=aq.eq('iso_id',selectedIso);const aprior=await fetchAllRows(aq);setAllPriorMids(new Set(aprior.filter(r=>r.mid&&!isAggregateMid(r.mid)).map(r=>r.mid)));const nm=dayjs(selectedMonth||LATEST_MONTH);const{data:newMs}=await supabase.from('merchants').select('mid').gte('created_at',nm.format('YYYY-MM-DD')).lt('created_at',nm.add(1,'month').startOf('month').format('YYYY-MM-DD')).not('mid','is',null);setNewMerchantMids(new Set((newMs||[]).map(r=>r.mid)));const{data:newGw}=await supabase.from('merchants').select('mid').gte('created_at',nm.format('YYYY-MM-DD')).lt('created_at',nm.add(1,'month').startOf('month').format('YYYY-MM-DD')).not('mid','is',null).eq('merchant_type','gateway');setNewGatewayCount((newGw||[]).length);const winStart=nm.subtract(7,'month').startOf('month').format('YYYY-MM-DD');let wq=supabase.from('residuals').select('mid').gte('report_month',winStart).lte('report_month',selectedMonth||LATEST_MONTH).not('mid','is',null);if(selectedIso)wq=wq.eq('iso_id',selectedIso);const wdata=await fetchAllRows(wq);setRecentWindowMids(new Set(wdata.filter(r=>r.mid&&!isAggregateMid(r.mid)).map(r=>r.mid)));const{data:fm}=await supabase.from('residuals').select('report_month').order('report_month',{ascending:true}).limit(1);setFirstMonth(fm&&fm[0]?fm[0].report_month:null);setLoading(false);};
 
   const getSearchProps=(dataIndex,label)=>({
     filterDropdown:({setSelectedKeys,selectedKeys,confirm,clearFilters})=>(<div style={{padding:8,minWidth:200}}><Input ref={searchInput} placeholder={`Search ${label}`} value={selectedKeys[0]} onChange={e=>setSelectedKeys(e.target.value?[e.target.value]:[])} onPressEnter={confirm} style={{marginBottom:8,display:'block'}}/><Space><Button type="primary" onClick={confirm} icon={<SearchOutlined/>} size="small" style={{width:90}}>Search</Button><Button onClick={()=>{clearFilters();confirm();}} size="small" style={{width:90}}>Reset</Button></Space></div>),
@@ -160,12 +173,12 @@ const Dashboard = () => {
         <Col span={6}><div onClick={()=>setActiveTypeFilter(p=>p==='merchant'?null:'merchant')} style={{height:'100%',background:activeTypeFilter==='merchant'?'#fbbf24':'#fef3c7',border:`1.5px solid ${activeTypeFilter==='merchant'?'#d97706':'#fbbf24'}`,borderRadius:10,padding:'20px 24px',boxShadow:activeTypeFilter==='merchant'?'0 4px 12px rgba(251,191,36,0.45)':'0 1px 4px rgba(0,0,0,0.06)',cursor:'pointer',transition:'all 0.15s',transform:activeTypeFilter==='merchant'?'translateY(-2px)':'none',boxSizing:'border-box'}}><Statistic title={<span>{activeTypeFilter==='merchant'?'▼ ':''}Total Merchants Income</span>} value={merchantsRevenue} prefix="$" precision={2} valueStyle={{color:'#059669',fontWeight:700}}/><div style={{fontSize:11,fontWeight:600,color:'#b45309',marginTop:6}}>{activeTypeFilter==='merchant'?'Click to clear filter':'Click here to filter'}</div></div></Col>
         <Col span={6}><div style={{height:'100%',background:'#fef3c7',border:'1.5px solid #fbbf24',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)',boxSizing:'border-box'}}><Statistic title="Total Volume Processed" value={totalVolume} prefix="$" precision={2} valueStyle={{color:'#6b7a99',fontWeight:700}}/></div></Col>
         <Col span={6}><div style={{height:'100%',background:'#fef3c7',border:'1.5px solid #fbbf24',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)',boxSizing:'border-box'}}><div style={{fontSize:14,fontWeight:800,textTransform:'uppercase',letterSpacing:'0.5px',color:'var(--black-color)',marginBottom:10}}>Active MIDs</div><div><span style={{fontSize:26,fontWeight:800,color:'var(--primary-color)'}}>{activeMids}</span><span style={{fontSize:13,fontWeight:600,color:'var(--muted-color)',marginLeft:6}}>active</span></div>{churnedCount>0&&<div style={{fontSize:12,color:'#dc2626',marginTop:8,fontWeight:600}}>{churnedCount} churned (8-mo rule)</div>}</div></Col>
-        <Col span={6}><div style={{height:'100%',background:'#fef3c7',border:'1.5px solid #fbbf24',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)',boxSizing:'border-box'}}><Statistic title="# of MIDs Added" value={addedMerchantMidsCount} precision={0} valueStyle={{color:'#059669',fontWeight:700}}/></div></Col>
+        <Col span={6}><div style={{height:'100%',background:'#fef3c7',border:'1.5px solid #fbbf24',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)',boxSizing:'border-box'}}><div onClick={()=>addedMerchantRows.length>0&&setAddedModal('merchant')} style={{cursor:addedMerchantRows.length>0?'pointer':'default'}}><Statistic title="# of MIDs Added" value={addedDisplay(addedMerchantMidsCount)} precision={0} valueStyle={{color:'#059669',fontWeight:700}}/>{isFirstMonth&&<div style={{fontSize:11,color:'var(--muted-color)',marginTop:4}}>First month on record</div>}</div></div></Col>
       </Row>
       <Row gutter={16} style={{marginBottom:20}}>
         <Col span={8}><div onClick={()=>setActiveTypeFilter(p=>p==='gateway'?null:'gateway')} style={{background:activeTypeFilter==='gateway'?'#c084fc':'#f3e8ff',border:`1.5px solid ${activeTypeFilter==='gateway'?'#9333ea':'#c084fc'}`,borderRadius:10,padding:'20px 24px',boxShadow:activeTypeFilter==='gateway'?'0 4px 12px rgba(192,132,252,0.45)':'0 1px 4px rgba(0,0,0,0.06)',cursor:'pointer',transition:'all 0.15s',transform:activeTypeFilter==='gateway'?'translateY(-2px)':'none'}}><Statistic title={<span>{activeTypeFilter==='gateway'?'▼ ':''}Total Reseller Revenue</span>} value={resellerRevenue} prefix="$" precision={2} valueStyle={{color:'#059669',fontWeight:700}}/><div style={{fontSize:11,fontWeight:600,color:'#7c3aed',marginTop:6}}>{activeTypeFilter==='gateway'?'Click to clear filter':'Click here to filter'}</div></div></Col>
         <Col span={8}><div style={{background:'#f3e8ff',border:'1.5px solid #c084fc',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}><Statistic title="Active Accounts" value={activeGatewayMids} precision={0} valueStyle={{color:'#7c3aed',fontWeight:700}}/></div></Col>
-        <Col span={8}><div style={{background:'#f3e8ff',border:'1.5px solid #c084fc',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}><Statistic title="# of Accounts Added" value={addedGatewayMidsCount} precision={0} valueStyle={{color:'#7c3aed',fontWeight:700}}/></div></Col>
+        <Col span={8}><div style={{background:'#f3e8ff',border:'1.5px solid #c084fc',borderRadius:10,padding:'20px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}><div onClick={()=>addedGatewayRows.length>0&&setAddedModal('gateway')} style={{cursor:addedGatewayRows.length>0?'pointer':'default'}}><Statistic title="# of Accounts Added" value={addedDisplay(addedGatewayMidsCount)} precision={0} valueStyle={{color:'#7c3aed',fontWeight:700}}/>{isFirstMonth&&<div style={{fontSize:11,color:'var(--muted-color)',marginTop:4}}>First month on record</div>}</div></div></Col>
       </Row>
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
         {key:'residuals',label:`Residuals (${displayResiduals.length})`,children:(
@@ -243,6 +256,16 @@ const Dashboard = () => {
         { key:'monthly', label:'Monthly', children: monthlyView },
         { key:'yearly',  label:'Yearly',  children: yearlyView },
       ]}/>
+      <Modal open={!!addedModal} footer={null} width={720} onCancel={()=>setAddedModal(null)}
+        title={`${addedModal==='gateway'?'Accounts':'MIDs'} Added - ${dayjs(selectedMonth||LATEST_MONTH).format('MMMM YYYY')} (${(addedModal==='gateway'?addedGatewayRows:addedMerchantRows).length})`}>
+        <Table size="small" rowKey="mid" pagination={{pageSize:20,showSizeChanger:false}}
+          dataSource={addedModal==='gateway'?addedGatewayRows:addedMerchantRows}
+          columns={[
+            {title:'MID',dataIndex:'mid',width:200},
+            {title:'Business Name',dataIndex:'business_name',ellipsis:true,render:v=>v||'--'},
+            {title:'ISO',dataIndex:'iso',width:150},
+          ]}/>
+      </Modal>
     </div>
   );
 };
