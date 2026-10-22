@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
-import { Card, Tag, Typography, Table, Select, Input, Segmented, Row, Col, Statistic, Empty } from "antd";
+import { Card, Tag, Typography, Table, Select, Input, Segmented, Row, Col, Statistic, Empty, Modal, Form, DatePicker, Switch, Tooltip, message } from "antd";
+import { EditOutlined } from "@ant-design/icons";
 import { supabase } from "../utils/supabase";
 import dayjs from "dayjs";
 import { AGENT_MAP } from "../../api/_agentMap.js";
@@ -57,6 +58,9 @@ const ISOsMerchantsPage = () => {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
+  const [editing, setEditing] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [form] = Form.useForm();
 
   useEffect(() => {
     (async () => {
@@ -115,6 +119,35 @@ const ISOsMerchantsPage = () => {
     (!q || (m.mid || "").toLowerCase().includes(q) || (m.business_name || "").toLowerCase().includes(q) || (m.agentName || "").toLowerCase().includes(q))
   );
 
+  const openEdit = (r) => {
+    setEditing(r);
+  };
+
+  // Entering a termination date on or before today switches the MID to inactive (can still be overridden).
+  const onFormChange = (changed) => {
+    if (changed.termination_date && !changed.termination_date.isAfter(dayjs(), "day")) form.setFieldsValue({ active: false });
+  };
+
+  const saveEdit = async () => {
+    const v = form.getFieldsValue();
+    const patch = {
+      status: v.active ? "active" : "inactive",
+      approval_date: v.approval_date ? v.approval_date.format("YYYY-MM-DD") : null,
+      termination_date: v.termination_date ? v.termination_date.format("YYYY-MM-DD") : null,
+      notes: (v.notes || "").trim() || null,
+    };
+    setSaving(true);
+    const { data, error } = await supabase.from("merchants").update(patch).eq("id", editing.id).select("id");
+    setSaving(false);
+    if (error || !data || data.length === 0) {
+      message.error(error ? "Save failed: " + error.message : "Save was blocked. The merchants edit permission has not been enabled in Supabase yet.");
+      return;
+    }
+    setMerchants(list => list.map(m => m.id === editing.id ? { ...m, ...patch } : m));
+    message.success("Saved " + (editing.business_name || editing.mid));
+    setEditing(null);
+  };
+
   const muted = <Text style={{ color: "var(--muted-color)" }}>--</Text>;
   const byText = (k) => (a, b) => (a[k] || "").localeCompare(b[k] || "");
 
@@ -136,9 +169,19 @@ const ISOsMerchantsPage = () => {
       onFilter: (v, r) => r.type === v,
       render: (_, r) => <Tag color="blue" style={{ color: "var(--navy-color)" }}>{r.type}</Tag> },
     { title: "Approval Date", key: "start", width: 130,
-      render: (_, r) => midDates[r.mid]?.start ? <Text style={{ color: "#059669", fontWeight: 600 }}>{fmt(midDates[r.mid].start)}</Text> : muted },
+      render: (_, r) => r.approval_date
+        ? <Text style={{ color: "#059669", fontWeight: 600 }}>{dayjs(r.approval_date).format("YYYY-MM-DD")}</Text>
+        : midDates[r.mid]?.start
+          ? <Tooltip title="Not entered yet; showing the month of the first residual"><Text type="secondary" italic>{fmt(midDates[r.mid].start)}</Text></Tooltip>
+          : muted },
     { title: "Termination Date", key: "end", width: 140,
-      render: (_, r) => r.status !== "active" && midDates[r.mid]?.end ? <Text style={{ color: "#dc2626", fontWeight: 600 }}>{fmt(midDates[r.mid].end)}</Text> : muted },
+      render: (_, r) => r.termination_date
+        ? <Text style={{ color: "#dc2626", fontWeight: 600 }}>{dayjs(r.termination_date).format("YYYY-MM-DD")}</Text>
+        : r.status !== "active" && midDates[r.mid]?.end
+          ? <Tooltip title="Not entered yet; showing the month of the last residual"><Text type="secondary" italic>{fmt(midDates[r.mid].end)}</Text></Tooltip>
+          : muted },
+    { title: "Action", key: "action", width: 80, align: "center", fixed: "right",
+      render: (_, r) => <Tooltip title="Edit"><EditOutlined style={{ fontSize: 18, color: "var(--primary-color)", cursor: "pointer" }} onClick={() => openEdit(r)} /></Tooltip> },
   ];
 
   return (
@@ -185,6 +228,29 @@ const ISOsMerchantsPage = () => {
           />
         </>
       )}
+      <Modal
+        open={!!editing}
+        title={editing ? "Edit " + (editing.business_name || editing.mid) : ""}
+        okText="Save"
+        confirmLoading={saving}
+        onOk={saveEdit}
+        onCancel={() => setEditing(null)}
+        destroyOnClose
+      >
+        {editing && <Text type="secondary">MID {editing.mid} | {isoName}</Text>}
+        {editing && <Form form={form} key={editing.id} layout="vertical" onValuesChange={onFormChange}
+          initialValues={{
+            active: editing.status === "active",
+            approval_date: editing.approval_date ? dayjs(editing.approval_date) : null,
+            termination_date: editing.termination_date ? dayjs(editing.termination_date) : null,
+            notes: editing.notes || "",
+          }} style={{ marginTop: 16 }}>
+          <Form.Item name="active" label="Active" valuePropName="checked"><Switch /></Form.Item>
+          <Form.Item name="approval_date" label="Approval Date"><DatePicker style={{ width: "100%" }} /></Form.Item>
+          <Form.Item name="termination_date" label="Termination Date" extra="Entering a date on or before today marks the MID inactive. Clear it to remove the date."><DatePicker style={{ width: "100%" }} /></Form.Item>
+          <Form.Item name="notes" label="Notes"><Input.TextArea rows={3} placeholder="e.g. termination email received Oct 22" /></Form.Item>
+        </Form>}
+      </Modal>
     </div>
   );
 };
