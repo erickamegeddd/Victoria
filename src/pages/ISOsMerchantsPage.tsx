@@ -152,35 +152,35 @@ const ISOsMerchantsPage = () => {
   const byText = (k) => (a, b) => (a[k] || "").localeCompare(b[k] || "");
 
   const columns = [
-    { title: "MID", dataIndex: "mid", key: "mid", width: 170, sorter: byText("mid"), render: v => v || muted },
-    { title: "ISO", key: "iso", width: 150, render: () => isoName },
-    { title: "DBA", dataIndex: "business_name", key: "dba", ellipsis: true, defaultSortOrder: "ascend", sorter: byText("business_name"), render: v => <Text strong>{v || "--"}</Text> },
-    { title: "Corporation", key: "corp", width: 150, render: () => muted },
-    { title: "Operating Partner", key: "op", width: 150, render: () => muted },
-    { title: "Active", key: "active", width: 90,
+    { title: "MID", dataIndex: "mid", key: "mid", width: 150, sorter: byText("mid"), render: v => v || muted },
+    { title: "ISO", key: "iso", width: 120, render: () => isoName },
+    { title: "DBA", dataIndex: "business_name", key: "dba", width: 200, ellipsis: true, defaultSortOrder: "ascend", sorter: byText("business_name"), render: v => <Text strong>{v || "--"}</Text> },
+    { title: "Corporation", key: "corp", width: 200, render: () => muted },
+    { title: "Operating Partner", key: "op", width: 200, render: () => muted },
+    { title: "Active", key: "active", width: 80,
       filters: [{ text: "Yes", value: true }, { text: "No", value: false }],
       onFilter: (v, r) => (r.status === "active") === v,
       render: (_, r) => r.status === "active" ? <Tag color="green">Yes</Tag> : <Tag color="error">No</Tag> },
-    { title: "Agent", key: "agent", width: 170,
+    { title: "Agent", key: "agent", width: 150,
       sorter: (a, b) => (a.agentName || "").localeCompare(b.agentName || ""),
       render: (_, r) => r.agentName || muted },
-    { title: "Type", key: "type", width: 110,
+    { title: "Type", key: "type", width: 90,
       filters: [{ text: "MID", value: "MID" }, { text: "Gateway", value: "Gateway" }],
       onFilter: (v, r) => r.type === v,
       render: (_, r) => <Tag color="blue" style={{ color: "var(--navy-color)" }}>{r.type}</Tag> },
-    { title: "Approval Date", key: "start", width: 130,
+    { title: "Approval Date", key: "start", width: 120,
       render: (_, r) => r.approval_date
         ? <Text style={{ color: "#059669", fontWeight: 600 }}>{dayjs(r.approval_date).format("YYYY-MM-DD")}</Text>
         : midDates[r.mid]?.start
           ? <Tooltip title="Not entered yet; showing the month of the first residual"><Text type="secondary" italic>{fmt(midDates[r.mid].start)}</Text></Tooltip>
           : muted },
-    { title: "Termination Date", key: "end", width: 140,
+    { title: "Termination Date", key: "end", width: 130,
       render: (_, r) => r.termination_date
         ? <Text style={{ color: "#dc2626", fontWeight: 600 }}>{dayjs(r.termination_date).format("YYYY-MM-DD")}</Text>
         : r.status !== "active" && midDates[r.mid]?.end
           ? <Tooltip title="Not entered yet; showing the month of the last residual"><Text type="secondary" italic>{fmt(midDates[r.mid].end)}</Text></Tooltip>
           : muted },
-    { title: "Action", key: "action", width: 80, align: "center", fixed: "right",
+    { title: "Action", key: "action", width: 70, align: "center", fixed: "right",
       render: (_, r) => <Tooltip title="Edit"><EditOutlined style={{ fontSize: 18, color: "var(--primary-color)", cursor: "pointer" }} onClick={() => openEdit(r)} /></Tooltip> },
   ];
 
@@ -218,7 +218,7 @@ const ISOsMerchantsPage = () => {
             <Input.Search allowClear placeholder="Search MID, DBA or agent" style={{ width: 300 }} value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <Table
-            scroll={{ x: "max-content" }}
+            scroll={{ x: 1510 }}
             rowKey={r => r.id || r.mid}
             size="small"
             loading={loading}
