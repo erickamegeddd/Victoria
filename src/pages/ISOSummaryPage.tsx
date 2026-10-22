@@ -113,7 +113,7 @@ const ISOSummaryPage = () => {
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
         <div>
-          <Title level={4} style={{ margin: 0 }}>ISO Summary</Title>
+          <Title level={4} style={{ margin: 0 }}>ISO Payment Summary</Title>
           <Text style={{ color: "var(--muted-color)", fontSize: 13 }}>
             Monthly residuals (PayDiverse net) per ISO. Green / red = up / down vs the previous month with data. Click any column header to sort.
           </Text>
