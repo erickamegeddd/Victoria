@@ -28,7 +28,6 @@ const navItems = [
   { key: "/home/insights",     label: "Insights",       icon: ic(<BulbOutlined />, "#fcd34d") },
   { key: "/home/outreach",     label: "Outreach",       icon: ic(<MailOutlined />, "#f472b6") },
   { key: "/home/industry",     label: "Industry",       icon: ic(<AreaChartOutlined />, "#38bdf8") },
-  { key: "/home/tickets",      label: "Tickets",        icon: ic(<ToolOutlined />, "#fb923c") },
   {
     key: "admin", label: "Administrator", icon: ic(<SettingOutlined />, "#a78bfa"),
     children: [
@@ -37,6 +36,7 @@ const navItems = [
       { key: "/home/agents",       label: "Agents Data",  icon: ic(<BarChartOutlined />, "#22d3ee") },
       { key: "/home/logs",         label: "Logs",         icon: ic(<SnippetsOutlined />, "#94a3b8") },
       { key: "/home/bank-mappings", label: "Bank Mappings", icon: ic(<BankOutlined />, "#6ee7b7") },
+      { key: "/home/tickets",      label: "Tickets",      icon: ic(<ToolOutlined />, "#fb923c") },
     ]
   },
 ];
@@ -159,7 +159,7 @@ const HeaderComponent = () => {
   );
 
   const getSelectedKey = () => {
-    const adminPaths = ["/home/users","/home/adjustments","/home/agents","/home/logs","/home/bank-mappings"];
+    const adminPaths = ["/home/users","/home/adjustments","/home/agents","/home/logs","/home/bank-mappings","/home/tickets"];
     if (adminPaths.some(p => currentPath.startsWith(p))) return currentPath;
     if (currentPath.startsWith("/home/merchants")) return "/home/merchants";
     return currentPath;
