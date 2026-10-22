@@ -5,6 +5,7 @@ import dayjs from "dayjs";
 import AgentsPayoutBarChart from "../components/charts/AgentsPayoutBarChart";
 import AgentsCardsComponent from "../components/cards/AgentsCardsComponent";
 import AgentsTrendTable from "../components/tables/AgentsTrendTable";
+import AgentMidsSummaryTable from "../components/tables/AgentMidsSummaryTable";
 import RevenuePerAgentTable from "../components/tables/RevenuePerAgentTable";
 import agentClient from "../utils/agentAxios";
 import formatCurrency from "../utils/formatCurrency";
@@ -118,6 +119,7 @@ const AgentsPage = () => {
           ),
         },
         { key: "trend", label: "Monthly Trend", children: <AgentsTrendTable /> },
+        { key: "mids", label: "MIDs Summary", children: <AgentMidsSummaryTable /> },
       ]}
     />
   );
