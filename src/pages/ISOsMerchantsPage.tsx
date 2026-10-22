@@ -177,9 +177,7 @@ const ISOsMerchantsPage = () => {
     { title: "Termination Date", key: "end", width: 130,
       render: (_, r) => r.termination_date
         ? <Text style={{ color: "#dc2626", fontWeight: 600 }}>{dayjs(r.termination_date).format("YYYY-MM-DD")}</Text>
-        : r.status !== "active" && midDates[r.mid]?.end
-          ? <Tooltip title="Not entered yet; showing the month of the last residual"><Text type="secondary" italic>{fmt(midDates[r.mid].end)}</Text></Tooltip>
-          : muted },
+        : muted },
     { title: "Action", key: "action", width: 70, align: "center", fixed: "right",
       render: (_, r) => <Tooltip title="Edit"><EditOutlined style={{ fontSize: 18, color: "var(--primary-color)", cursor: "pointer" }} onClick={() => openEdit(r)} /></Tooltip> },
   ];
