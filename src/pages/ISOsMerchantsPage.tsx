@@ -17,6 +17,24 @@ const fetchAllPaginated = async (build) => {
   return all;
 };
 
+// Spreadsheet imports left some MIDs as "998300053298.0" or "9.98300053298E11"; show them as plain digits.
+const normMid = (mid) => {
+  const s = String(mid || "").trim();
+  if (/^\d+\.0+$/.test(s)) return s.replace(/\.0+$/, "");
+  if (/^\d(\.\d+)?e\+?\d+$/i.test(s)) { try { return BigInt(Math.round(Number(s))).toString(); } catch (e) { return s; } }
+  return s;
+};
+
+// One row per MID: where a malformed copy ("123.0") sits next to the clean one, keep the clean one.
+const dedupe = (list) => {
+  const seen = {};
+  list.forEach(m => {
+    const k = normMid(m.mid) || m.id;
+    if (!seen[k] || (seen[k].mid !== normMid(seen[k].mid) && m.mid === normMid(m.mid))) seen[k] = m;
+  });
+  return list.filter(m => seen[normMid(m.mid) || m.id] === m);
+};
+
 const fmt = (d) => d ? dayjs(d).format("MMM YYYY") : "--";
 
 const ISOsMerchantsPage = () => {
@@ -34,10 +52,12 @@ const ISOsMerchantsPage = () => {
     (async () => {
       const [isoData, mData] = await Promise.all([
         supabase.from("isos").select("id,name").order("name").then(r => r.data || []),
-        fetchAllPaginated(() => supabase.from("merchants").select("current_iso_id")),
+        fetchAllPaginated(() => supabase.from("merchants").select("id,mid,current_iso_id")),
       ]);
+      const byIso = {};
+      mData.forEach(m => { (byIso[m.current_iso_id] = byIso[m.current_iso_id] || []).push(m); });
       const c = {};
-      mData.forEach(m => { c[m.current_iso_id] = (c[m.current_iso_id] || 0) + 1; });
+      Object.keys(byIso).forEach(k => { c[k] = dedupe(byIso[k]).length; });
       setIsos(isoData);
       setCounts(c);
       setLoadingIsos(false);
@@ -61,7 +81,8 @@ const ISOsMerchantsPage = () => {
         if (r.report_month < dates[r.mid].start) dates[r.mid].start = r.report_month;
         if (r.report_month > dates[r.mid].end) dates[r.mid].end = r.report_month;
       });
-      setMerchants(mData);
+      const clean = dedupe(mData).map(m => ({ ...m, mid: normMid(m.mid) }));
+      setMerchants(clean);
       setMidDates(dates);
       setStatus("all");
       setSearch("");
