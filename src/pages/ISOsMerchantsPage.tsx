@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Card, Tag, Typography, Table, Select, Input, Segmented, Row, Col, Statistic, Empty } from "antd";
 import { supabase } from "../utils/supabase";
 import dayjs from "dayjs";
+import { AGENT_MAP } from "../../api/_agentMap.js";
 const { Title, Text } = Typography;
 
 const fetchAllPaginated = async (build) => {
@@ -34,6 +35,15 @@ const dedupe = (list) => {
   });
   return list.filter(m => seen[normMid(m.mid) || m.id] === m);
 };
+
+// MID -> agent name(s), from the same map that drives agent commissions.
+const AGENTS_BY_MID = {};
+Object.keys(AGENT_MAP).forEach(name => {
+  AGENT_MAP[name].forEach(e => {
+    const list = (AGENTS_BY_MID[e.mid] = AGENTS_BY_MID[e.mid] || []);
+    if (list.indexOf(name) === -1) list.push(name);
+  });
+});
 
 const fmt = (d) => d ? dayjs(d).format("MMM YYYY") : "--";
 
@@ -91,26 +101,44 @@ const ISOsMerchantsPage = () => {
     return () => { cancelled = true; };
   }, [isoId]);
 
+  const isoName = (isos.find(i => i.id === isoId) || {}).name || "";
+  const enriched = merchants.map(m => ({
+    ...m,
+    agentName: (AGENTS_BY_MID[m.mid] || []).join(", "),
+    type: m.merchant_type === "gateway" ? "Gateway" : "MID",
+  }));
   const active = merchants.filter(m => m.status === "active").length;
   const inactive = merchants.length - active;
   const q = search.trim().toLowerCase();
-  const rows = merchants.filter(m =>
+  const rows = enriched.filter(m =>
     (status === "all" || (status === "active" ? m.status === "active" : m.status !== "active")) &&
-    (!q || (m.mid || "").toLowerCase().includes(q) || (m.business_name || "").toLowerCase().includes(q))
+    (!q || (m.mid || "").toLowerCase().includes(q) || (m.business_name || "").toLowerCase().includes(q) || (m.agentName || "").toLowerCase().includes(q))
   );
 
+  const muted = <Text style={{ color: "var(--muted-color)" }}>--</Text>;
+  const byText = (k) => (a, b) => (a[k] || "").localeCompare(b[k] || "");
+
   const columns = [
-    { title: "MID", dataIndex: "mid", key: "mid", width: 170, sorter: (a, b) => (a.mid || "").localeCompare(b.mid || ""), render: v => v || "--" },
-    { title: "Business Name", dataIndex: "business_name", key: "name", ellipsis: true, defaultSortOrder: "ascend",
-      sorter: (a, b) => (a.business_name || "").localeCompare(b.business_name || ""), render: v => <Text strong>{v}</Text> },
-    { title: "Status", dataIndex: "status", key: "status", width: 110,
-      render: v => <Tag color={v === "active" ? "green" : "default"} style={{ fontWeight: 600 }}>{v === "active" ? "Active" : "Inactive"}</Tag> },
-    { title: "First Residual", key: "start", width: 130,
-      render: (_, r) => midDates[r.mid]?.start ? <Text style={{ color: "#059669", fontWeight: 600 }}>{fmt(midDates[r.mid].start)}</Text> : "--" },
-    { title: "Last Residual", key: "end", width: 130,
-      render: (_, r) => midDates[r.mid]?.end ? <Text style={{ fontWeight: 600 }}>{fmt(midDates[r.mid].end)}</Text> : "--" },
-    { title: "Notes", dataIndex: "notes", key: "notes", ellipsis: true,
-      render: v => <span style={{ color: "var(--muted-color)", fontSize: 11 }}>{v || "--"}</span> },
+    { title: "MID", dataIndex: "mid", key: "mid", width: 170, sorter: byText("mid"), render: v => v || muted },
+    { title: "ISO", key: "iso", width: 150, render: () => isoName },
+    { title: "DBA", dataIndex: "business_name", key: "dba", ellipsis: true, defaultSortOrder: "ascend", sorter: byText("business_name"), render: v => <Text strong>{v || "--"}</Text> },
+    { title: "Corporation", key: "corp", width: 150, render: () => muted },
+    { title: "Operating Partner", key: "op", width: 150, render: () => muted },
+    { title: "Active", key: "active", width: 90,
+      filters: [{ text: "Yes", value: true }, { text: "No", value: false }],
+      onFilter: (v, r) => (r.status === "active") === v,
+      render: (_, r) => r.status === "active" ? <Tag color="green">Yes</Tag> : <Tag color="error">No</Tag> },
+    { title: "Agent", key: "agent", width: 170,
+      sorter: (a, b) => (a.agentName || "").localeCompare(b.agentName || ""),
+      render: (_, r) => r.agentName || muted },
+    { title: "Type", key: "type", width: 110,
+      filters: [{ text: "MID", value: "MID" }, { text: "Gateway", value: "Gateway" }],
+      onFilter: (v, r) => r.type === v,
+      render: (_, r) => <Tag color="blue" style={{ color: "var(--navy-color)" }}>{r.type}</Tag> },
+    { title: "Approval Date", key: "start", width: 130,
+      render: (_, r) => midDates[r.mid]?.start ? <Text style={{ color: "#059669", fontWeight: 600 }}>{fmt(midDates[r.mid].start)}</Text> : muted },
+    { title: "Termination Date", key: "end", width: 140,
+      render: (_, r) => r.status !== "active" && midDates[r.mid]?.end ? <Text style={{ color: "#dc2626", fontWeight: 600 }}>{fmt(midDates[r.mid].end)}</Text> : muted },
   ];
 
   return (
@@ -144,9 +172,10 @@ const ISOsMerchantsPage = () => {
           </Row>
           <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
             <Segmented value={status} onChange={setStatus} options={[{ label: "All", value: "all" }, { label: "Active", value: "active" }, { label: "Inactive", value: "inactive" }]} />
-            <Input.Search allowClear placeholder="Search MID or business name" style={{ width: 300 }} value={search} onChange={e => setSearch(e.target.value)} />
+            <Input.Search allowClear placeholder="Search MID, DBA or agent" style={{ width: 300 }} value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <Table
+            scroll={{ x: "max-content" }}
             rowKey={r => r.id || r.mid}
             size="small"
             loading={loading}
