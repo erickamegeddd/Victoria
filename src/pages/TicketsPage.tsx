@@ -7,7 +7,7 @@ import { supabase } from "../utils/supabase";
 import { getUserFromLocalStorage } from "../utils/getUser";
 const { Title, Text, Paragraph } = Typography;
 
-const PAGES = ["Overview", "ISO Summary", "Revenue/MID", "Payments", "Insights", "Outreach", "Industry", "Users", "Adjustments", "Agents Data", "Logs", "Bank Mappings", "Ask Victoria", "Other"];
+const PAGES = ["Overview", "ISO Payment Summary", "Revenue/MID", "Payments", "Insights", "Outreach", "Industry", "Users", "Adjustments", "Agents Data", "Logs", "Bank Mappings", "Ask Victoria", "Other"];
 const STATUSES = ["Open", "In Progress", "Done", "Won't Do"];
 const STATUS_COLOR = { "Open": "blue", "In Progress": "gold", "Done": "green", "Won't Do": "default" };
 const PRIORITY_COLOR = { Low: "default", Medium: "orange", High: "red" };
