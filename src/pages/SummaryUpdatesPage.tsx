@@ -172,11 +172,11 @@ const SummaryUpdatesPage = () => {
     const body = r.latest ? (
       <div>
         <Tag color={STATUS_COLOR[r.latest.status] || "default"}>{r.latest.status}</Tag>
-        <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{r.latest.note}</div>
+        <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", textAlign: "left" }}>{r.latest.note}</div>
         <div><Text type="secondary" style={{ fontSize: 11 }}>{dayjs(r.latest.created_at).format("MMM D, YYYY")}{r.latest.author ? " - " + r.latest.author : ""}</Text></div>
       </div>
     ) : <Text type="secondary">{editable ? "Click to add an update" : "--"}</Text>;
-    return editable ? <div onClick={startEdit} style={{ cursor: "text", minHeight: 22 }} title="Click to edit">{body}</div> : body;
+    return editable ? <div onClick={startEdit} style={{ cursor: "text", minHeight: 22, textAlign: "left" }} title="Click to edit">{body}</div> : body;
   };
 
   const expandedRow = (r) => (
@@ -200,19 +200,19 @@ const SummaryUpdatesPage = () => {
     { title: "Expected", dataIndex: "expected", width: 120, align: "right", render: v => fmt(v) },
     { title: "Received", dataIndex: "received", width: 120, align: "right", render: v => v != null ? fmt(v) : "--" },
     { title: "Status", width: 150, render: (_, r) => payStatus(r) },
-    { title: "Latest Update", render: (_, r) => noteCell(r) },
+    { title: "Latest Update", align: "left", onCell: () => ({ style: { textAlign: "left" } }), render: (_, r) => noteCell(r) },
     ...editCol,
   ];
   const noReportCols = [
     { title: "ISO", dataIndex: "name", width: 200, sorter: (a, b) => a.name.localeCompare(b.name) },
     { title: "Expected", dataIndex: "expected", width: 120, align: "right", render: v => v != null ? fmt(v) : "--" },
     { title: "Status", width: 170, render: (_, r) => reportStatus(r) },
-    { title: "Latest Update", render: (_, r) => noteCell(r) },
+    { title: "Latest Update", align: "left", onCell: () => ({ style: { textAlign: "left" } }), render: (_, r) => noteCell(r) },
     ...editCol,
   ];
   const resolvedCols = [
     { title: "ISO", dataIndex: "name", width: 200 },
-    { title: "Latest Update", render: (_, r) => noteCell(r) },
+    { title: "Latest Update", align: "left", onCell: () => ({ style: { textAlign: "left" } }), render: (_, r) => noteCell(r) },
   ];
 
   const monthLabel = dayjs(month).format("MMMM YYYY");
