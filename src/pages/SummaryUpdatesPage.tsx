@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
-import { Card, Select, Table, Tag, Typography, Button, Modal, Input, Space, Empty, Statistic, Popconfirm, Tooltip, message } from "antd";
-import { FileTextOutlined, EditOutlined, CheckOutlined, CheckCircleFilled, ClockCircleOutlined } from "@ant-design/icons";
+import { Card, Select, DatePicker, Table, Tag, Typography, Button, Modal, Input, Space, Empty, Statistic, Popconfirm, Tooltip, message } from "antd";
+import { LeftOutlined, RightOutlined, FileTextOutlined, EditOutlined, CheckOutlined, CheckCircleFilled, ClockCircleOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { supabase } from "../utils/supabase";
 import { getUserFromLocalStorage } from "../utils/getUser";
@@ -22,7 +22,8 @@ const monthOptions = () => {
 const SummaryUpdatesPage = () => {
   const user = getUserFromLocalStorage();
   const canEdit = user?.role === "admin";
-  const [month, setMonth] = useState(dayjs().subtract(2, "month").format("YYYY-MM-01"));
+  const LATEST_MONTH = dayjs().subtract(2, "month").format("YYYY-MM-01");
+  const [month, setMonth] = useState(LATEST_MONTH);
   const [isos, setIsos] = useState([]);
   const [residuals, setResiduals] = useState([]);
   const [payments, setPayments] = useState([]);
@@ -191,7 +192,12 @@ const SummaryUpdatesPage = () => {
           <Text type="secondary">{monthLabel} residual report status. Updates automatically as reports are imported and payments are logged.</Text>
           {lastChanged && <div><Text type="secondary" style={{ fontSize: 12 }}>Last updated: {lastChanged}</Text></div>}
         </div>
-        <Select value={month} onChange={setMonth} style={{ width: 190 }} options={monthOptions()} />
+        <Space size={8} wrap>
+          <Button icon={<LeftOutlined />} size="small" onClick={() => setMonth(dayjs(month).subtract(1, "month").startOf("month").format("YYYY-MM-DD"))} />
+          <DatePicker picker="month" value={dayjs(month)} onChange={d => d && setMonth(d.startOf("month").format("YYYY-MM-DD"))} format="MMMM YYYY" allowClear={false} style={{ width: 160 }} />
+          <Button icon={<RightOutlined />} size="small" onClick={() => setMonth(dayjs(month).add(1, "month").startOf("month").format("YYYY-MM-DD"))} />
+          <Button size="small" onClick={() => setMonth(LATEST_MONTH)} style={{ color: "var(--primary-color)", fontSize: 12, fontWeight: 600 }}>Current Month</Button>
+        </Space>
       </div>
 
       <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
