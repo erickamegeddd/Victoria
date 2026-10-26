@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
-import { Card, Select, DatePicker, Table, Tag, Typography, Button, Modal, Input, Space, Empty, Statistic, Popconfirm, Tooltip, message } from "antd";
+import { Card, Select, DatePicker, Table, Tag, Typography, Button, Modal, Input, Space, Empty, Statistic, Tabs, Popconfirm, Tooltip, message } from "antd";
 import { LeftOutlined, RightOutlined, FileTextOutlined, EditOutlined, CheckOutlined, CheckCircleFilled, ClockCircleOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { supabase } from "../utils/supabase";
@@ -215,6 +215,21 @@ const SummaryUpdatesPage = () => {
     { title: "Latest Update", align: "left", onCell: () => ({ style: { textAlign: "left" } }), render: (_, r) => noteCell(r) },
   ];
 
+  const overallRows = rows.map(r => ({ ...r, owed: !r.reportIn || r.received == null && r.expected <= 0.005 ? 0 : r.status === "short_paid" ? r.expected - r.received : r.status === "pending" ? r.expected : 0 }));
+  const overallExpected = overallRows.reduce((s, r) => s + (r.expected || 0), 0);
+  const overallReceived = overallRows.reduce((s, r) => s + (r.received || 0), 0);
+  const overallOwed = overallRows.reduce((s, r) => s + r.owed, 0);
+  const overallCols = [
+    { title: "ISO", dataIndex: "name", width: 190, sorter: (a, b) => a.name.localeCompare(b.name), defaultSortOrder: "ascend" },
+    { title: "Report", width: 160, render: (_, r) => reportStatus(r) },
+    { title: "Expected", dataIndex: "expected", width: 110, align: "right", sorter: (a, b) => (a.expected || 0) - (b.expected || 0), render: v => v != null ? fmt(v) : "--" },
+    { title: "Received", dataIndex: "received", width: 110, align: "right", sorter: (a, b) => (a.received || 0) - (b.received || 0), render: v => v != null ? fmt(v) : "--" },
+    { title: "Pending", dataIndex: "owed", width: 110, align: "right", sorter: (a, b) => a.owed - b.owed, render: v => v > 0.005 ? <b style={{ color: "#d97706" }}>{fmt(v)}</b> : "--" },
+    { title: "Payment", width: 140, render: (_, r) => r.reportIn ? payStatus(r) : <Text type="secondary">--</Text> },
+    { title: "Latest Update", align: "left", onCell: () => ({ style: { textAlign: "left" } }), render: (_, r) => noteCell(r) },
+    ...editCol,
+  ];
+
   const monthLabel = dayjs(month).format("MMMM YYYY");
 
   return (
@@ -239,6 +254,8 @@ const SummaryUpdatesPage = () => {
         <Card size="small" style={{ minWidth: 200 }}><Statistic title="ISOs with no report yet" value={noReportCount} /></Card>
       </div>
 
+      <Tabs defaultActiveKey="updates" items={[
+        { key: "updates", label: "Updates", children: (<div>
       <Card title="ISO with Pending Payment" style={{ marginBottom: 16 }} bodyStyle={{ padding: 12 }}>
         <Table rowKey="isoId" size="middle" loading={loading} columns={pendingCols} dataSource={pending} expandable={expandable} pagination={false}
           locale={{ emptyText: <Empty description={"No pending payments for " + monthLabel} /> }} />
@@ -254,6 +271,20 @@ const SummaryUpdatesPage = () => {
           <Table rowKey="isoId" size="middle" columns={resolvedCols} dataSource={resolved} expandable={expandable} pagination={false} />
         </Card>
       )}
+
+        </div>) },
+        { key: "overall", label: "Overall Summary", children: (<div>
+          <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
+            <Card size="small" style={{ minWidth: 200 }}><Statistic title="Total expected" value={fmt(overallExpected)} /></Card>
+            <Card size="small" style={{ minWidth: 200 }}><Statistic title="Total received" value={fmt(overallReceived)} /></Card>
+            <Card size="small" style={{ minWidth: 200 }}><Statistic title="Total pending" value={fmt(overallOwed)} valueStyle={{ color: "#d97706" }} /></Card>
+            <Card size="small" style={{ minWidth: 200 }}><Statistic title="ISOs with report" value={overallRows.filter(r => r.reportIn).length + " / " + overallRows.length} /></Card>
+          </div>
+          <Card title={"All ISOs - " + monthLabel} bodyStyle={{ padding: 12 }}>
+            <Table rowKey="isoId" size="middle" loading={loading} columns={overallCols} dataSource={overallRows} expandable={expandable} pagination={false} />
+          </Card>
+        </div>) },
+      ]} />
 
       <Modal title={editIso ? "Update - " + editIso.name : ""} open={!!editIso} onCancel={() => setEditIso(null)} onOk={saveNote} okText="Save update" confirmLoading={saving} destroyOnClose>
         <Space direction="vertical" style={{ width: "100%" }} size={12}>
