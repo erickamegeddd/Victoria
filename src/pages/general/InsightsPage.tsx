@@ -185,7 +185,7 @@ const ISOCard=({iso,labelA,labelB})=>{
           {iso.lostMerchants.length>0&&(
             <div style={{marginBottom:iso.newMerchants.length>0?8:0}}>
               <Text style={{fontSize:12,fontWeight:700,color:"#dc2626",display:"block",marginBottom:6}}>
-                <UserDeleteOutlined style={{marginRight:4}}/>{iso.lostMerchants.length} Not processing in {labelB}
+                <UserDeleteOutlined style={{marginRight:4}}/>{iso.lostMerchants.length} Left (no residuals in 8+ months)
               </Text>
               <Space wrap size={4}>
                 {iso.lostMerchants.map(m=><Tag key={m.mid} style={{margin:0,background:"#fef2f2",borderColor:"#fecaca",color:"#dc2626"}}>{m.name}</Tag>)}
@@ -195,7 +195,7 @@ const ISOCard=({iso,labelA,labelB})=>{
           {iso.newMerchants.length>0&&(
             <div>
               <Text style={{fontSize:12,fontWeight:700,color:"#059669",display:"block",marginBottom:6}}>
-                <UserAddOutlined style={{marginRight:4}}/>{iso.newMerchants.length} Active in {labelB} (not in {labelA})
+                <UserAddOutlined style={{marginRight:4}}/>{iso.newMerchants.length} Newly added in {labelB}
               </Text>
               <Space wrap size={4}>
                 {iso.newMerchants.map(m=><Tag key={m.mid} style={{margin:0,background:"#f0fdf4",borderColor:"#bbf7d0",color:"#059669"}}>{m.name}</Tag>)}
@@ -259,7 +259,7 @@ const InsightsPage=()=>{
   const groupData=(rows)=>{const map={};rows.forEach(r=>{const k=r.iso_id;if(!map[k])map[k]={isoId:k,isoName:r.isos?.name||"Unknown",rows:[],totalNet:0,totalVolume:0,mids:new Map()};map[k].rows.push(r);map[k].totalNet+=(r.paydiversenet||0);map[k].totalVolume+=(r.gross_volume||0);// Skip summary placeholders, gateway MIDs, and fee/adjustment entries from merchant count
 const _mid=String(r.mid||"").trim();if(!r.mid?.includes("-summary")&&!gatewayMids.has(_mid)&&!isAdjEntry(r.business_name)&&!isAdjEntry(_mid)){map[k].mids.set(r.mid,r.business_name||r.mid);}});return map;};
 
-  const fetchMidsBefore=async(beforeDate)=>{const r=await fetch(`/api/agent-adjustments?action=insights_mids_before&before=${beforeDate}`);const rows=await r.json();const map=new Map();rows.forEach(r=>{const iso=r.iso_id;if(!map.has(iso))map.set(iso,new Set());map.get(iso).add(r.mid);});return map;};
+  const fetchMidsBefore=async(beforeDate)=>{const r=await fetch(`/api/agent-adjustments?action=insights_mids_before&before=${beforeDate}`);const rows=await r.json();const map=new Map();const info=new Map();rows.forEach(r=>{const iso=r.iso_id;if(!map.has(iso))map.set(iso,new Set());map.get(iso).add(r.mid);const k=iso+"|"+r.mid;const cur=info.get(k);const nm=String(r.business_name||"").trim();if(!cur)info.set(k,{iso,mid:r.mid,name:nm||r.mid,last:r.report_month||""});else{if((r.report_month||"")>=cur.last){cur.last=r.report_month||cur.last;if(nm)cur.name=nm;}}});map.info=info;map.before=beforeDate;return map;};
 
   const buildComparison=(rowsA,rowsB,labelA,labelB,historicalMids)=>{
     const gA=groupData(rowsA),gB=groupData(rowsB);
@@ -271,8 +271,10 @@ const _mid=String(r.mid||"").trim();if(!r.mid?.includes("-summary")&&!gatewayMid
       const midsA=a?.mids||new Map(),midsB=b?.mids||new Map();
       const netChange=netB-netA,netPct=netA!==0?(netChange/Math.abs(netA)*100):(netB!==0?100:0);
       const volChange=volB-volA,volPct=volA!==0?(volChange/Math.abs(volA)*100):0;
-      const lostMerchants=b?[...midsA.entries()].filter(([mid])=>!midsB.has(mid)).map(([mid,name])=>({mid,name})):[];
       const histIso=historicalMids?.get(isoId)||null;
+      // Left = no residuals for 8+ months before this period (and not present in it); falls back to period-vs-period when history is unavailable
+      const lostCutoff=historicalMids?.before?dayjs(historicalMids.before).subtract(8,"month").format("YYYY-MM-DD"):null;
+      const lostMerchants=lostCutoff?[...historicalMids.info.values()].filter(v=>v.iso===isoId&&v.last<lostCutoff&&!midsB.has(v.mid)&&!gatewayMids.has(String(v.mid||"").trim())&&!String(v.mid||"").includes("-summary")&&!isAdjEntry(v.name)&&!isAdjEntry(String(v.mid||""))).map(v=>({mid:v.mid,name:v.name})):(b?[...midsA.entries()].filter(([mid])=>!midsB.has(mid)).map(([mid,name])=>({mid,name})):[]);
       const newMerchants=histIso?[...midsB.entries()].filter(([mid])=>!histIso.has(mid)).map(([mid,name])=>({mid,name})):a?[...midsB.entries()].filter(([mid])=>!midsA.has(mid)).map(([mid,name])=>({mid,name})):[];
       const summary=generateSummary(netChange,netPct,lostMerchants,newMerchants,!!a,!!b,netA,labelA,labelB);
       return{isoId,isoName,netA,netB,netChange,netPct,volA,volB,volChange,volPct,midsA:midsA.size,midsB:midsB.size,lostMerchants,newMerchants,hasDataA:!!a,hasDataB:!!b,summary};
@@ -299,7 +301,7 @@ const _mid=String(r.mid||"").trim();if(!r.mid?.includes("-summary")&&!gatewayMid
     });
     byMerchant.sort((a,b)=>Math.abs(b.netChange)-Math.abs(a.netChange));
     const histFlat=historicalMids?new Set([...historicalMids.values()].flatMap(s=>[...s])):null;
-    return{labelA,labelB,isos:isoList,merchants:byMerchant,overall:{netA:totNetA,netB:totNetB,netChange:totNetB-totNetA,netPct:totNetA!==0?((totNetB-totNetA)/Math.abs(totNetA)*100):0,volA:totVolA,volB:totVolB,volChange:totVolB-totVolA,volPct:totVolA!==0?((totVolB-totVolA)/Math.abs(totVolA)*100):0,midsA:midSetA.size,midsB:midSetB.size,lostMerchants:[...midSetA].filter(m=>!midSetB.has(m)).length,newMerchants:histFlat?[...midSetB].filter(m=>!histFlat.has(m)).length:[...midSetB].filter(m=>!midSetA.has(m)).length},drops:isoList.filter(i=>i.netChange<-50).length,gains:isoList.filter(i=>i.netChange>50).length};
+    return{labelA,labelB,isos:isoList,merchants:byMerchant,overall:{netA:totNetA,netB:totNetB,netChange:totNetB-totNetA,netPct:totNetA!==0?((totNetB-totNetA)/Math.abs(totNetA)*100):0,volA:totVolA,volB:totVolB,volChange:totVolB-totVolA,volPct:totVolA!==0?((totVolB-totVolA)/Math.abs(totVolA)*100):0,midsA:midSetA.size,midsB:midSetB.size,lostMerchants:isoList.reduce((s,i)=>s+i.lostMerchants.length,0),newMerchants:histFlat?[...midSetB].filter(m=>!histFlat.has(m)).length:[...midSetB].filter(m=>!midSetA.has(m)).length},drops:isoList.filter(i=>i.netChange<-50).length,gains:isoList.filter(i=>i.netChange>50).length};
   };
 
   const loadOverview=async()=>{
