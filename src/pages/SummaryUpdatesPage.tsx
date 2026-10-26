@@ -141,7 +141,7 @@ const SummaryUpdatesPage = () => {
   ];
   const noReportCols = [
     { title: "ISO", dataIndex: "name", width: 200, sorter: (a, b) => a.name.localeCompare(b.name) },
-    { title: "Why / What is needed", render: (_, r) => noteCell(r) },
+    { title: "Latest Update", render: (_, r) => noteCell(r) },
     ...editCol,
   ];
   const resolvedCols = [
