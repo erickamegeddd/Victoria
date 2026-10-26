@@ -145,8 +145,10 @@ const SummaryUpdatesPage = () => {
     if (!t) return message.warning("Please enter an update");
     if (r.latest && t === (r.latest.note || "").trim()) { setInlineIso(null); return; }
     setSaving(true);
-    // Saved as a new dated entry (same status) so the history keeps the earlier wording
-    const { error } = await supabase.from("iso_updates").insert({ iso_id: r.isoId, report_month: month, note: t, status: r.latest?.status || "Open", author: user?.name || user?.email || null });
+    // Edit the existing update in place; only create a new entry when the ISO has none yet
+    const { error } = r.latest
+      ? await supabase.from("iso_updates").update({ note: t }).eq("id", r.latest.id)
+      : await supabase.from("iso_updates").insert({ iso_id: r.isoId, report_month: month, note: t, status: "Open", author: user?.name || user?.email || null });
     setSaving(false);
     if (error) return message.error("Could not save: " + error.message);
     setInlineIso(null);
