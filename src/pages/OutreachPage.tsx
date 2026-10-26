@@ -136,7 +136,8 @@ const OutreachPage = () => {
           return { ...p, computed_amount: computedAmount, body: buildEmailBody(p.iso_name, computedAmount, p.report_month, p.due_date) };
         });
       }
-      setRecords(enriched);
+      // Zero / negative amounts owe nothing, so they never appear on Outreach
+      setRecords(enriched.filter(p => (p.computed_amount || 0) > 0.005));
     } catch (e) {
       message.error("Failed to load overdue payments");
     } finally {
