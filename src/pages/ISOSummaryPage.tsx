@@ -178,7 +178,7 @@ const ISOSummaryPage = () => {
         </Space>
       </div>
       <style>{`.iso-sum-table .ant-table-column-sorters { justify-content: center; gap: 6px; } .iso-sum-table .ant-table-column-sorter { color: #fff !important; font-size: 12px; } .iso-sum-table .ant-table-column-sorter-up.active, .iso-sum-table .ant-table-column-sorter-down.active { color: #fbbf24 !important; } .ant-table-wrapper .ant-table-tbody > tr.iso-total-row > td, .ant-table-wrapper .ant-table-tbody > tr.iso-total-row:hover > td { background: #0f2040 !important; color: #fff !important; font-weight: 700; }`}</style>
-      <Tabs activeKey={tab} onChange={setTab} items={[{ key: "residual", label: "Residual" }, { key: "payments", label: "Payments" }]} />
+      <Tabs activeKey={tab} onChange={setTab} items={[{ key: "residual", label: "Residuals" }, { key: "payments", label: "Payments" }]} />
       <Card>
         {tab === "residual" ? (
         <Spin spinning={loading}>
