@@ -172,7 +172,7 @@ const SummaryUpdatesPage = () => {
     const body = r.latest ? (
       <div>
         <Tag color={STATUS_COLOR[r.latest.status] || "default"}>{r.latest.status}</Tag>
-        <Text>{r.latest.note}</Text>
+        <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{r.latest.note}</div>
         <div><Text type="secondary" style={{ fontSize: 11 }}>{dayjs(r.latest.created_at).format("MMM D, YYYY")}{r.latest.author ? " - " + r.latest.author : ""}</Text></div>
       </div>
     ) : <Text type="secondary">{editable ? "Click to add an update" : "--"}</Text>;
@@ -185,7 +185,7 @@ const SummaryUpdatesPage = () => {
       {r.history.map(h => (
         <div key={h.id} style={{ marginTop: 6 }}>
           <Tag color={STATUS_COLOR[h.status] || "default"}>{h.status}</Tag>
-          <Text>{h.note}</Text>
+          <span style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{h.note}</span>
           <Text type="secondary" style={{ fontSize: 11, marginLeft: 8 }}>{dayjs(h.created_at).format("MMM D, YYYY")}{h.author ? " - " + h.author : ""}</Text>
         </div>
       ))}
