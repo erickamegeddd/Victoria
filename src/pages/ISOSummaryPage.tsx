@@ -139,8 +139,9 @@ const ISOSummaryPage = () => {
   const payMonthPending = MONTHS.map((_, m) => Math.round(payRows.reduce((s, r) => s + r.cells[m].pending, 0) * 100) / 100);
   const payGrand = Math.round(payRows.reduce((s, r) => s + r.total, 0) * 100) / 100;
   const payPendingGrand = Math.round(payRows.reduce((s, r) => s + r.pendingTotal, 0) * 100) / 100;
+  const payMonthExpected = MONTHS.map((_, m) => Math.round(payRows.reduce((s, r) => s + (r.cells[m].expected || 0), 0) * 100) / 100);
   const payExpectedGrand = Math.round(payRows.reduce((s, r) => s + r.expectedTotal, 0) * 100) / 100;
-  const payDataRows = [{ key: "__a_total", name: "TOTAL RECEIVED", isTotal: true, cells: payMonthTotals.map(v => ({ received: v })), total: payGrand, pendingTotal: payPendingGrand, expectedTotal: payExpectedGrand }, { key: "__b_pending", name: "STILL PENDING", isTotal: true, cells: payMonthPending.map(v => ({ pending: v })), total: null, pendingTotal: payPendingGrand, expectedTotal: null }, ...payRows];
+  const payDataRows = [{ key: "__0_expected", name: "TOTAL EXPECTED", isTotal: true, cells: payMonthExpected.map(v => ({ expected: v })), total: null, pendingTotal: 0, expectedTotal: payExpectedGrand }, { key: "__a_total", name: "TOTAL RECEIVED", isTotal: true, cells: payMonthTotals.map(v => ({ received: v })), total: payGrand, pendingTotal: payPendingGrand, expectedTotal: payExpectedGrand }, { key: "__b_pending", name: "STILL PENDING", isTotal: true, cells: payMonthPending.map(v => ({ pending: v })), total: null, pendingTotal: payPendingGrand, expectedTotal: null }, ...payRows];
   const payCell = (c) => {
     if (c.received != null) {
       const diff = c.expected != null ? c.received - c.expected : 0;
@@ -156,15 +157,14 @@ const ISOSummaryPage = () => {
     ...MONTHS.map((label, m) => ({
       title: label, key: label, align: "right", width: 100,
       render: (_, r) => {
+        if (r.key === "__0_expected") return <span style={{ fontWeight: 700 }}>{money(r.cells[m].expected)}</span>;
         if (r.key === "__a_total") return <span style={{ fontWeight: 700 }}>{r.cells[m].received == null ? "--" : money(r.cells[m].received)}</span>;
         if (r.key === "__b_pending") return <span style={{ fontWeight: 700, color: r.cells[m].pending > 0 ? "#d97706" : "#c0c4cc" }}>{r.cells[m].pending > 0 ? money(r.cells[m].pending) : "--"}</span>;
         return payCell(r.cells[m]);
       }
     })),
-    { title: `${year} Expected`, key: "expectedTotal", align: "right", width: 130, fixed: "right", sorter: sortBy(r => r.expectedTotal), sortDirections: ["descend", "ascend"],
-      render: (_, r) => r.expectedTotal == null ? <span style={{ color: "#c0c4cc" }}>--</span> : <span style={{ fontWeight: 700 }}>{money(r.expectedTotal)}</span> },
     { title: `${year} Received`, key: "total", align: "right", width: 130, fixed: "right", sorter: sortBy(r => r.total), sortDirections: ["descend", "ascend"],
-      render: (_, r) => r.key === "__b_pending" ? <span style={{ color: "#c0c4cc" }}>--</span> : <span style={{ fontWeight: 700 }}>{money(r.total)}</span> },
+      render: (_, r) => r.total == null ? <span style={{ color: "#c0c4cc" }}>--</span> : <span style={{ fontWeight: 700 }}>{money(r.total)}</span> },
     { title: `${year} Pending`, key: "pendingTotal", align: "right", width: 130, fixed: "right", sorter: sortBy(r => r.pendingTotal), sortDirections: ["descend", "ascend"],
       render: (_, r) => <span style={{ fontWeight: 700, color: r.pendingTotal > 0 ? "#d97706" : "#c0c4cc" }}>{r.pendingTotal > 0 ? money(r.pendingTotal) : "--"}</span> },
   ];
