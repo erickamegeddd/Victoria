@@ -214,9 +214,9 @@ const SummaryUpdatesPage = () => {
 
   const pendingCols = [
     { title: "ISO", dataIndex: "name", width: 200, sorter: (a, b) => a.name.localeCompare(b.name) },
-    { title: "Commission Pending", dataIndex: "owed", width: 170, align: "right", sorter: (a, b) => a.owed - b.owed, render: (v, r) => <span><b>{fmt(v)}</b></span> },
     { title: "Expected", dataIndex: "expected", width: 120, align: "right", render: v => fmt(v) },
     { title: "Received", dataIndex: "received", width: 120, align: "right", render: v => v != null ? fmt(v) : "--" },
+    { title: "Commission Pending", dataIndex: "owed", width: 170, align: "right", sorter: (a, b) => a.owed - b.owed, onHeaderCell: () => ({ style: { background: "#f97316", color: "#fff" } }), onCell: () => ({ style: { background: "#ffedd5" } }), render: (v, r) => <span style={{ color: "#c2410c", fontWeight: 700 }}>{fmt(v)}</span> },
     { title: "Status", width: 150, render: (_, r) => payStatus(r) },
     { title: "Latest Update", align: "left", onCell: () => ({ style: { textAlign: "left" } }), render: (_, r) => noteCell(r) },
     ...editCol,
