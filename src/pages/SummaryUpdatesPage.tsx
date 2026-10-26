@@ -67,10 +67,23 @@ const SummaryUpdatesPage = () => {
     if (u.error) { setSetupNeeded(true); setUpdates([]); } else { setSetupNeeded(false); setUpdates(u.data || []); }
     setLoading(false);
   };
+  const [tab, setTab] = useState("monthly");
+  const [allData, setAllData] = useState(null);
+  const loadAll = async () => {
+    const page = async (q) => { let out = [], from = 0; while (true) { const { data } = await q().range(from, from + 999); if (!data) break; out = out.concat(data); if (data.length < 1000) break; from += 1000; } return out; };
+    const [res, pays, ups] = await Promise.all([
+      page(() => supabase.from("residuals").select("iso_id,paydiversenet,created_at,report_month").order("id")),
+      page(() => supabase.from("iso_payments").select("iso_id,expected_amount,received_amount,report_month").order("id")),
+      page(() => supabase.from("iso_updates").select("*").order("created_at", { ascending: false })),
+    ]);
+    setAllData({ res, pays, ups });
+  };
+  const refresh = () => { load(); if (allData) loadAll(); };
   useEffect(() => { load(); }, [month]);
+  useEffect(() => { if (tab === "overall") loadAll(); }, [tab]);
 
   // Same expected / received / status logic as the Payments page
-  const rows = useMemo(() => {
+  const computeRows = (isoList, residuals, payments, updates, mon, firstMap) => {
     const resMap = {};
     const resFirst = {};
     residuals.forEach(r => { resMap[r.iso_id] = (resMap[r.iso_id] || 0) + (Number(r.paydiversenet) || 0); if (!resFirst[r.iso_id] || r.created_at < resFirst[r.iso_id]) resFirst[r.iso_id] = r.created_at; });
@@ -80,7 +93,7 @@ const SummaryUpdatesPage = () => {
     updates.forEach(u => { (upMap[u.iso_id] = upMap[u.iso_id] || []).push(u); });
     const hasVal = (id) => residuals.some(r => r.iso_id === id && Math.abs(Number(r.paydiversenet) || 0) > 0.005) || payments.some(p => p.iso_id === id && ((Number(p.expected_amount) || 0) !== 0 || (Number(p.received_amount) || 0) !== 0));
     // Archived (inactive) ISOs only appear in months where they have values
-    return isos.filter(iso => iso.status === "active" || hasVal(iso.id)).map(iso => {
+    return isoList.filter(iso => (iso.status === "active" || hasVal(iso.id)) && (!firstMap || mon >= (firstMap[iso.id] || LATEST_MONTH))).map(iso => {
       const p = payMap[iso.id];
       const expected = iso.id in resMap ? resMap[iso.id] : (p?.expected_amount ?? null);
       const received = p?.received_amount ?? null;
@@ -94,17 +107,22 @@ const SummaryUpdatesPage = () => {
       // An ISO whose first note was logged before its report was uploaded stays in the "no reports yet" list (with a green check) until closed
       const oldest = history.length ? history[history.length - 1] : null;
       const fromNoReport = !!oldest && reportIn && (!resFirst[iso.id] || oldest.created_at < resFirst[iso.id]);
-      return { isoId: iso.id, name: iso.name, expected, received, status, history, latest, reportIn, fromNoReport, closed: latest?.status === "Resolved" };
+      return { isoId: iso.id, rkey: iso.id + "|" + mon, month: mon, name: iso.name, expected, received, status, history, latest, reportIn, fromNoReport, closed: latest?.status === "Resolved" };
     });
-  }, [isos, residuals, payments, updates]);
+  };
+  const rows = useMemo(() => computeRows(isos, residuals, payments, updates, month), [isos, residuals, payments, updates, month]);
 
   // Rows stay listed until closed; expected / received / status update by themselves as reports and payments arrive
-  const noReport = rows.filter(r => !r.closed && (r.status === "no_report" || r.fromNoReport));
-  const noReportIds = new Set(noReport.map(r => r.isoId));
-  const pending = rows.filter(r => !r.closed && !noReportIds.has(r.isoId) && (((r.status === "pending" && r.expected > 0.005) || r.status === "short_paid") || (r.history.length && r.expected != null && r.received != null)))
-    .map(r => ({ ...r, owed: r.status === "short_paid" ? r.expected - r.received : (r.status === "pending" ? r.expected : 0) }));
-  const inLists = new Set([...pending, ...noReport].map(r => r.isoId));
-  const resolved = rows.filter(r => r.history.length && !inLists.has(r.isoId));
+  const deriveLists = (rows) => {
+    const noReport = rows.filter(r => !r.closed && (r.status === "no_report" || r.fromNoReport));
+    const noReportIds = new Set(noReport.map(r => r.rkey));
+    const pending = rows.filter(r => !r.closed && !noReportIds.has(r.rkey) && (((r.status === "pending" && r.expected > 0.005) || r.status === "short_paid") || (r.history.length && r.expected != null && r.received != null)))
+      .map(r => ({ ...r, owed: r.status === "short_paid" ? r.expected - r.received : (r.status === "pending" ? r.expected : 0) }));
+    const inLists = new Set([...pending, ...noReport].map(r => r.rkey));
+    const resolved = rows.filter(r => r.history.length && !inLists.has(r.rkey));
+    return { noReport, pending, resolved };
+  };
+  const { noReport, pending, resolved } = deriveLists(rows);
   const totalPending = pending.reduce((s, r) => s + r.owed, 0);
   const pendingCount = pending.filter(r => r.owed > 0.005).length;
   const noReportCount = noReport.filter(r => !r.reportIn).length;
@@ -113,17 +131,17 @@ const SummaryUpdatesPage = () => {
   const saveNote = async () => {
     if (!noteText.trim()) return message.warning("Please enter a note");
     setSaving(true);
-    const { error } = await supabase.from("iso_updates").insert({ iso_id: editIso.isoId, report_month: month, note: noteText.trim(), status: noteStatus, author: user?.name || user?.email || null });
+    const { error } = await supabase.from("iso_updates").insert({ iso_id: editIso.isoId, report_month: editIso.month, note: noteText.trim(), status: noteStatus, author: user?.name || user?.email || null });
     setSaving(false);
     if (error) return message.error("Could not save: " + error.message);
     setEditIso(null);
-    load();
+    refresh();
   };
 
   const closeItem = async (r) => {
-    const { error } = await supabase.from("iso_updates").insert({ iso_id: r.isoId, report_month: month, note: "Closed", status: "Resolved", author: user?.name || user?.email || null });
+    const { error } = await supabase.from("iso_updates").insert({ iso_id: r.isoId, report_month: r.month, note: "Closed", status: "Resolved", author: user?.name || user?.email || null });
     if (error) return message.error("Could not close: " + error.message);
-    load();
+    refresh();
   };
   const closeBtn = (r) => (
     <Popconfirm title={"Close " + r.name + "?"} okText="Close" onConfirm={() => closeItem(r)}>
@@ -148,15 +166,15 @@ const SummaryUpdatesPage = () => {
     // Edit the existing update in place; only create a new entry when the ISO has none yet
     const { error } = r.latest
       ? await supabase.from("iso_updates").update({ note: t }).eq("id", r.latest.id)
-      : await supabase.from("iso_updates").insert({ iso_id: r.isoId, report_month: month, note: t, status: "Open", author: user?.name || user?.email || null });
+      : await supabase.from("iso_updates").insert({ iso_id: r.isoId, report_month: r.month, note: t, status: "Open", author: user?.name || user?.email || null });
     setSaving(false);
     if (error) return message.error("Could not save: " + error.message);
     setInlineIso(null);
-    load();
+    refresh();
   };
 
   const noteCell = (r) => {
-    if (canEdit && !setupNeeded && inlineIso === r.isoId) {
+    if (canEdit && !setupNeeded && inlineIso === r.rkey) {
       return (
         <div>
           <Input.TextArea autoFocus autoSize={{ minRows: 2, maxRows: 6 }} value={inlineText} onChange={e => setInlineText(e.target.value)} onKeyDown={e => { if (e.key === "Escape") setInlineIso(null); }} />
@@ -168,7 +186,7 @@ const SummaryUpdatesPage = () => {
       );
     }
     const editable = canEdit && !setupNeeded;
-    const startEdit = () => { setInlineIso(r.isoId); setInlineText(r.latest?.note || ""); };
+    const startEdit = () => { setInlineIso(r.rkey); setInlineText(r.latest?.note || ""); };
     const body = r.latest ? (
       <div>
         <Tag color={STATUS_COLOR[r.latest.status] || "default"}>{r.latest.status}</Tag>
@@ -215,20 +233,19 @@ const SummaryUpdatesPage = () => {
     { title: "Latest Update", align: "left", onCell: () => ({ style: { textAlign: "left" } }), render: (_, r) => noteCell(r) },
   ];
 
-  const overallRows = rows.map(r => ({ ...r, owed: !r.reportIn || r.received == null && r.expected <= 0.005 ? 0 : r.status === "short_paid" ? r.expected - r.received : r.status === "pending" ? r.expected : 0 }));
-  const overallExpected = overallRows.reduce((s, r) => s + (r.expected || 0), 0);
-  const overallReceived = overallRows.reduce((s, r) => s + (r.received || 0), 0);
-  const overallOwed = overallRows.reduce((s, r) => s + r.owed, 0);
-  const overallCols = [
-    { title: "ISO", dataIndex: "name", width: 190, sorter: (a, b) => a.name.localeCompare(b.name), defaultSortOrder: "ascend" },
-    { title: "Report", width: 160, render: (_, r) => reportStatus(r) },
-    { title: "Expected", dataIndex: "expected", width: 110, align: "right", sorter: (a, b) => (a.expected || 0) - (b.expected || 0), render: v => v != null ? fmt(v) : "--" },
-    { title: "Received", dataIndex: "received", width: 110, align: "right", sorter: (a, b) => (a.received || 0) - (b.received || 0), render: v => v != null ? fmt(v) : "--" },
-    { title: "Pending", dataIndex: "owed", width: 110, align: "right", sorter: (a, b) => a.owed - b.owed, render: v => v > 0.005 ? <b style={{ color: "#d97706" }}>{fmt(v)}</b> : "--" },
-    { title: "Payment", width: 140, render: (_, r) => r.reportIn ? payStatus(r) : <Text type="secondary">--</Text> },
-    { title: "Latest Update", align: "left", onCell: () => ({ style: { textAlign: "left" } }), render: (_, r) => noteCell(r) },
-    ...editCol,
-  ];
+  const overall = useMemo(() => {
+    if (!allData) return null;
+    const by = (arr) => { const m = {}; arr.forEach(x => { if (x.report_month) (m[x.report_month] = m[x.report_month] || []).push(x); }); return m; };
+    const rBy = by(allData.res), pBy = by(allData.pays), uBy = by(allData.ups);
+    const firstMap = {};
+    [...allData.res, ...allData.pays].forEach(x => { if (x.report_month && (!firstMap[x.iso_id] || x.report_month < firstMap[x.iso_id])) firstMap[x.iso_id] = x.report_month; });
+    const months = [...new Set([...Object.keys(rBy), ...Object.keys(pBy), ...Object.keys(uBy)])].filter(m => m <= LATEST_MONTH);
+    const all = months.flatMap(m => computeRows(isos, rBy[m] || [], pBy[m] || [], uBy[m] || [], m, firstMap));
+    const L = deriveLists(all);
+    const srt = (a) => [...a].sort((x, y) => y.month.localeCompare(x.month) || x.name.localeCompare(y.name));
+    return { noReport: srt(L.noReport), pending: srt(L.pending), resolved: srt(L.resolved) };
+  }, [allData, isos]);
+  const monthCol = { title: "Month", dataIndex: "month", width: 110, render: v => dayjs(v).format("MMM YYYY"), sorter: (a, b) => a.month.localeCompare(b.month) };
 
   const monthLabel = dayjs(month).format("MMMM YYYY");
 
@@ -254,35 +271,40 @@ const SummaryUpdatesPage = () => {
         <Card size="small" style={{ minWidth: 200 }}><Statistic title="ISOs with no report yet" value={noReportCount} /></Card>
       </div>
 
-      <Tabs defaultActiveKey="updates" items={[
-        { key: "updates", label: "Updates", children: (<div>
+      <Tabs activeKey={tab} onChange={setTab} items={[
+        { key: "monthly", label: "Monthly Updates", children: (<div>
       <Card title="ISO with Pending Payment" style={{ marginBottom: 16 }} bodyStyle={{ padding: 12 }}>
-        <Table rowKey="isoId" size="middle" loading={loading} columns={pendingCols} dataSource={pending} expandable={expandable} pagination={false}
+        <Table rowKey="rkey" size="middle" loading={loading} columns={pendingCols} dataSource={pending} expandable={expandable} pagination={false}
           locale={{ emptyText: <Empty description={"No pending payments for " + monthLabel} /> }} />
       </Card>
 
       <Card title="ISO with No Reports Yet" style={{ marginBottom: 16 }} bodyStyle={{ padding: 12 }}>
-        <Table rowKey="isoId" size="middle" loading={loading} columns={noReportCols} dataSource={noReport} expandable={expandable} pagination={false}
+        <Table rowKey="rkey" size="middle" loading={loading} columns={noReportCols} dataSource={noReport} expandable={expandable} pagination={false}
           locale={{ emptyText: <Empty description={"All reports received for " + monthLabel} /> }} />
       </Card>
 
       {resolved.length > 0 && (
         <Card title="Resolved this month" bodyStyle={{ padding: 12 }}>
-          <Table rowKey="isoId" size="middle" columns={resolvedCols} dataSource={resolved} expandable={expandable} pagination={false} />
+          <Table rowKey="rkey" size="middle" columns={resolvedCols} dataSource={resolved} expandable={expandable} pagination={false} />
         </Card>
       )}
 
         </div>) },
         { key: "overall", label: "Overall Summary", children: (<div>
-          <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
-            <Card size="small" style={{ minWidth: 200 }}><Statistic title="Total expected" value={fmt(overallExpected)} /></Card>
-            <Card size="small" style={{ minWidth: 200 }}><Statistic title="Total received" value={fmt(overallReceived)} /></Card>
-            <Card size="small" style={{ minWidth: 200 }}><Statistic title="Total pending" value={fmt(overallOwed)} valueStyle={{ color: "#d97706" }} /></Card>
-            <Card size="small" style={{ minWidth: 200 }}><Statistic title="ISOs with report" value={overallRows.filter(r => r.reportIn).length + " / " + overallRows.length} /></Card>
-          </div>
-          <Card title={"All ISOs - " + monthLabel} bodyStyle={{ padding: 12 }}>
-            <Table rowKey="isoId" size="middle" loading={loading} columns={overallCols} dataSource={overallRows} expandable={expandable} pagination={false} />
+          <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>Every open item across all months, same tables as Monthly Updates. Month shown in the first column.</Text>
+          <Card title="ISO with Pending Payment" style={{ marginBottom: 16 }} bodyStyle={{ padding: 12 }}>
+            <Table rowKey="rkey" size="middle" loading={!overall} columns={[monthCol, ...pendingCols]} dataSource={overall ? overall.pending : []} expandable={expandable} pagination={{ pageSize: 25, hideOnSinglePage: true }}
+              locale={{ emptyText: <Empty description="No pending payments" /> }} />
           </Card>
+          <Card title="ISO with No Reports Yet" style={{ marginBottom: 16 }} bodyStyle={{ padding: 12 }}>
+            <Table rowKey="rkey" size="middle" loading={!overall} columns={[monthCol, ...noReportCols]} dataSource={overall ? overall.noReport : []} expandable={expandable} pagination={{ pageSize: 25, hideOnSinglePage: true }}
+              locale={{ emptyText: <Empty description="All reports received" /> }} />
+          </Card>
+          {overall && overall.resolved.length > 0 && (
+            <Card title="Resolved" bodyStyle={{ padding: 12 }}>
+              <Table rowKey="rkey" size="middle" columns={[monthCol, ...resolvedCols]} dataSource={overall.resolved} expandable={expandable} pagination={{ pageSize: 25, hideOnSinglePage: true }} />
+            </Card>
+          )}
         </div>) },
       ]} />
 
