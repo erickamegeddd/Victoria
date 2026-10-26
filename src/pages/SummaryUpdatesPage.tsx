@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
-import { Card, Select, Table, Tag, Typography, Button, Modal, Input, Space, Empty, Statistic, message } from "antd";
-import { FileTextOutlined, EditOutlined } from "@ant-design/icons";
+import { Card, Select, Table, Tag, Typography, Button, Modal, Input, Space, Empty, Statistic, Popconfirm, Tooltip, message } from "antd";
+import { FileTextOutlined, EditOutlined, CheckOutlined, CheckCircleFilled, ClockCircleOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { supabase } from "../utils/supabase";
 import { getUserFromLocalStorage } from "../utils/getUser";
@@ -45,7 +45,7 @@ const SummaryUpdatesPage = () => {
     // residuals can exceed the 1000-row API cap, so page through them
     let res = [], from = 0;
     while (true) {
-      const { data } = await supabase.from("residuals").select("iso_id,paydiversenet").eq("report_month", month).range(from, from + 999);
+      const { data } = await supabase.from("residuals").select("iso_id,paydiversenet,created_at").eq("report_month", month).range(from, from + 999);
       if (!data) break;
       res = res.concat(data);
       if (data.length < 1000) break;
@@ -69,7 +69,8 @@ const SummaryUpdatesPage = () => {
   // Same expected / received / status logic as the Payments page
   const rows = useMemo(() => {
     const resMap = {};
-    residuals.forEach(r => { resMap[r.iso_id] = (resMap[r.iso_id] || 0) + (Number(r.paydiversenet) || 0); });
+    const resFirst = {};
+    residuals.forEach(r => { resMap[r.iso_id] = (resMap[r.iso_id] || 0) + (Number(r.paydiversenet) || 0); if (!resFirst[r.iso_id] || r.created_at < resFirst[r.iso_id]) resFirst[r.iso_id] = r.created_at; });
     const payMap = {};
     payments.forEach(p => { payMap[p.iso_id] = p; });
     const upMap = {};
@@ -85,17 +86,25 @@ const SummaryUpdatesPage = () => {
       else if (expected == null) status = "received";
       else { const d = received - expected; status = Math.abs(d) < 0.01 ? "paid" : d < 0 ? "short_paid" : "overpaid"; }
       const history = upMap[iso.id] || [];
-      return { isoId: iso.id, name: iso.name, expected, received, status, history, latest: history[0] || null };
+      const latest = history[0] || null;
+      const reportIn = expected != null;
+      // An ISO whose first note was logged before its report was uploaded stays in the "no reports yet" list (with a green check) until closed
+      const oldest = history.length ? history[history.length - 1] : null;
+      const fromNoReport = !!oldest && reportIn && (!resFirst[iso.id] || oldest.created_at < resFirst[iso.id]);
+      return { isoId: iso.id, name: iso.name, expected, received, status, history, latest, reportIn, fromNoReport, closed: latest?.status === "Resolved" };
     });
   }, [isos, residuals, payments, updates]);
 
-  const pending = rows.filter(r => (r.status === "pending" && r.expected > 0.005) || r.status === "short_paid")
-    .map(r => ({ ...r, owed: r.status === "short_paid" ? r.expected - r.received : r.expected }))
-    .filter(r => r.latest?.status !== "Resolved");
-  const noReport = rows.filter(r => r.status === "no_report" && r.latest?.status !== "Resolved");
+  // Rows stay listed until closed; expected / received / status update by themselves as reports and payments arrive
+  const noReport = rows.filter(r => !r.closed && (r.status === "no_report" || r.fromNoReport));
+  const noReportIds = new Set(noReport.map(r => r.isoId));
+  const pending = rows.filter(r => !r.closed && !noReportIds.has(r.isoId) && (((r.status === "pending" && r.expected > 0.005) || r.status === "short_paid") || (r.history.length && r.expected != null && r.received != null)))
+    .map(r => ({ ...r, owed: r.status === "short_paid" ? r.expected - r.received : (r.status === "pending" ? r.expected : 0) }));
   const inLists = new Set([...pending, ...noReport].map(r => r.isoId));
   const resolved = rows.filter(r => r.history.length && !inLists.has(r.isoId));
   const totalPending = pending.reduce((s, r) => s + r.owed, 0);
+  const pendingCount = pending.filter(r => r.owed > 0.005).length;
+  const noReportCount = noReport.filter(r => !r.reportIn).length;
 
   const openEdit = (r) => { setEditIso(r); setNoteText(""); setNoteStatus(r.latest?.status || "Open"); };
   const saveNote = async () => {
@@ -106,6 +115,26 @@ const SummaryUpdatesPage = () => {
     if (error) return message.error("Could not save: " + error.message);
     setEditIso(null);
     load();
+  };
+
+  const closeItem = async (r) => {
+    const { error } = await supabase.from("iso_updates").insert({ iso_id: r.isoId, report_month: month, note: "Closed", status: "Resolved", author: user?.name || user?.email || null });
+    if (error) return message.error("Could not close: " + error.message);
+    load();
+  };
+  const closeBtn = (r) => (
+    <Popconfirm title={"Close " + r.name + "?"} okText="Close" onConfirm={() => closeItem(r)}>
+      <Tooltip title="Close this item"><Button size="small" icon={<CheckOutlined />} /></Tooltip>
+    </Popconfirm>
+  );
+  const green = { color: "#16a34a" };
+  const reportStatus = (r) => r.reportIn ? <span style={green}><CheckCircleFilled /> Report uploaded</span> : <span style={{ color: "#d97706" }}><ClockCircleOutlined /> Waiting</span>;
+  const payStatus = (r) => {
+    if (r.status === "paid") return <span style={green}><CheckCircleFilled /> Paid</span>;
+    if (r.status === "overpaid") return <span style={green}><CheckCircleFilled /> Paid (over)</span>;
+    if (r.status === "received") return <span style={green}><CheckCircleFilled /> Received</span>;
+    if (r.status === "short_paid") return <Tag color="red" style={{ margin: 0 }}>Short paid</Tag>;
+    return <span style={{ color: "#d97706" }}><ClockCircleOutlined /> Pending</span>;
   };
 
   const noteCell = (r) => r.latest ? (
@@ -129,18 +158,21 @@ const SummaryUpdatesPage = () => {
     </div>
   );
   const expandable = { expandedRowRender: expandedRow, rowExpandable: r => r.history.length > 1 };
-  const editCol = canEdit && !setupNeeded ? [{ title: "", width: 60, render: (_, r) => <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} /> }] : [];
+  const editCol = canEdit && !setupNeeded ? [{ title: "", width: 90, render: (_, r) => <Space size={4}><Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />{closeBtn(r)}</Space> }] : [];
 
   const pendingCols = [
     { title: "ISO", dataIndex: "name", width: 200, sorter: (a, b) => a.name.localeCompare(b.name) },
-    { title: "Commission Pending", dataIndex: "owed", width: 170, align: "right", sorter: (a, b) => a.owed - b.owed, render: (v, r) => <span><b>{fmt(v)}</b>{r.status === "short_paid" ? <Tag color="red" style={{ marginLeft: 6 }}>short paid</Tag> : null}</span> },
+    { title: "Commission Pending", dataIndex: "owed", width: 170, align: "right", sorter: (a, b) => a.owed - b.owed, render: (v, r) => <span><b>{fmt(v)}</b></span> },
     { title: "Expected", dataIndex: "expected", width: 120, align: "right", render: v => fmt(v) },
     { title: "Received", dataIndex: "received", width: 120, align: "right", render: v => v != null ? fmt(v) : "--" },
+    { title: "Status", width: 150, render: (_, r) => payStatus(r) },
     { title: "Latest Update", render: (_, r) => noteCell(r) },
     ...editCol,
   ];
   const noReportCols = [
     { title: "ISO", dataIndex: "name", width: 200, sorter: (a, b) => a.name.localeCompare(b.name) },
+    { title: "Expected", dataIndex: "expected", width: 120, align: "right", render: v => v != null ? fmt(v) : "--" },
+    { title: "Status", width: 170, render: (_, r) => reportStatus(r) },
     { title: "Latest Update", render: (_, r) => noteCell(r) },
     ...editCol,
   ];
@@ -164,8 +196,8 @@ const SummaryUpdatesPage = () => {
 
       <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
         <Card size="small" style={{ minWidth: 200 }}><Statistic title="Total commission pending" value={fmt(totalPending)} /></Card>
-        <Card size="small" style={{ minWidth: 200 }}><Statistic title="ISOs with pending payment" value={pending.length} /></Card>
-        <Card size="small" style={{ minWidth: 200 }}><Statistic title="ISOs with no report yet" value={noReport.length} /></Card>
+        <Card size="small" style={{ minWidth: 200 }}><Statistic title="ISOs with pending payment" value={pendingCount} /></Card>
+        <Card size="small" style={{ minWidth: 200 }}><Statistic title="ISOs with no report yet" value={noReportCount} /></Card>
       </div>
 
       <Card title="ISO with Pending Payment" style={{ marginBottom: 16 }} bodyStyle={{ padding: 12 }}>
