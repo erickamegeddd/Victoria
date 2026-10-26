@@ -128,7 +128,8 @@ const ISOSummaryPage = () => {
       });
       const total = Math.round(cells.reduce((s, c) => s + (c.received || 0), 0) * 100) / 100;
       const pendingTotal = Math.round(cells.reduce((s, c) => s + c.pending, 0) * 100) / 100;
-      return { key: r.key, name: r.name, cells, total, pendingTotal };
+      const expectedTotal = Math.round(cells.reduce((s, c) => s + (c.expected || 0), 0) * 100) / 100;
+      return { key: r.key, name: r.name, cells, total, pendingTotal, expectedTotal };
     }).filter(r => r.cells.some(c => c.received != null || c.pending > 0));
   }, [rows, payments]);
   const payMonthTotals = MONTHS.map((_, m) => {
@@ -138,7 +139,8 @@ const ISOSummaryPage = () => {
   const payMonthPending = MONTHS.map((_, m) => Math.round(payRows.reduce((s, r) => s + r.cells[m].pending, 0) * 100) / 100);
   const payGrand = Math.round(payRows.reduce((s, r) => s + r.total, 0) * 100) / 100;
   const payPendingGrand = Math.round(payRows.reduce((s, r) => s + r.pendingTotal, 0) * 100) / 100;
-  const payDataRows = [{ key: "__a_total", name: "TOTAL RECEIVED", isTotal: true, cells: payMonthTotals.map(v => ({ received: v })), total: payGrand, pendingTotal: payPendingGrand }, { key: "__b_pending", name: "STILL PENDING", isTotal: true, cells: payMonthPending.map(v => ({ pending: v })), total: null, pendingTotal: payPendingGrand }, ...payRows];
+  const payExpectedGrand = Math.round(payRows.reduce((s, r) => s + r.expectedTotal, 0) * 100) / 100;
+  const payDataRows = [{ key: "__a_total", name: "TOTAL RECEIVED", isTotal: true, cells: payMonthTotals.map(v => ({ received: v })), total: payGrand, pendingTotal: payPendingGrand, expectedTotal: payExpectedGrand }, { key: "__b_pending", name: "STILL PENDING", isTotal: true, cells: payMonthPending.map(v => ({ pending: v })), total: null, pendingTotal: payPendingGrand, expectedTotal: null }, ...payRows];
   const payCell = (c) => {
     if (c.received != null) {
       const diff = c.expected != null ? c.received - c.expected : 0;
@@ -159,6 +161,8 @@ const ISOSummaryPage = () => {
         return payCell(r.cells[m]);
       }
     })),
+    { title: `${year} Expected`, key: "expectedTotal", align: "right", width: 130, fixed: "right", sorter: sortBy(r => r.expectedTotal), sortDirections: ["descend", "ascend"],
+      render: (_, r) => r.expectedTotal == null ? <span style={{ color: "#c0c4cc" }}>--</span> : <span style={{ fontWeight: 700 }}>{money(r.expectedTotal)}</span> },
     { title: `${year} Received`, key: "total", align: "right", width: 130, fixed: "right", sorter: sortBy(r => r.total), sortDirections: ["descend", "ascend"],
       render: (_, r) => r.key === "__b_pending" ? <span style={{ color: "#c0c4cc" }}>--</span> : <span style={{ fontWeight: 700 }}>{money(r.total)}</span> },
     { title: `${year} Pending`, key: "pendingTotal", align: "right", width: 130, fixed: "right", sorter: sortBy(r => r.pendingTotal), sortDirections: ["descend", "ascend"],
