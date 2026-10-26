@@ -28,6 +28,7 @@ const SummaryUpdatesPage = () => {
   const [payments, setPayments] = useState([]);
   const [updates, setUpdates] = useState([]);
   const [setupNeeded, setSetupNeeded] = useState(false);
+  const [lastChanged, setLastChanged] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editIso, setEditIso] = useState(null);
   const [noteText, setNoteText] = useState("");
@@ -50,6 +51,13 @@ const SummaryUpdatesPage = () => {
       if (data.length < 1000) break;
       from += 1000;
     }
+    const [lp, lu, lr] = await Promise.all([
+      supabase.from("iso_payments").select("updated_at").order("updated_at", { ascending: false }).limit(1),
+      supabase.from("iso_updates").select("created_at").order("created_at", { ascending: false }).limit(1),
+      supabase.from("residuals").select("created_at").order("created_at", { ascending: false }).limit(1),
+    ]);
+    const stamps = [lp.data?.[0]?.updated_at, lu.data?.[0]?.created_at, lr.data?.[0]?.created_at].filter(Boolean).sort();
+    setLastChanged(stamps.length ? dayjs(stamps[stamps.length - 1]).format("MMM D, YYYY h:mm A") : null);
     setIsos(i.data || []);
     setPayments(p.data || []);
     setResiduals(res);
@@ -86,11 +94,6 @@ const SummaryUpdatesPage = () => {
   const inLists = new Set([...pending, ...noReport].map(r => r.isoId));
   const resolved = rows.filter(r => r.history.length && !inLists.has(r.isoId));
   const totalPending = pending.reduce((s, r) => s + r.owed, 0);
-
-  const lastChanged = useMemo(() => {
-    const stamps = [...updates.map(u => u.created_at), ...payments.map(p => p.updated_at)].filter(Boolean).sort();
-    return stamps.length ? dayjs(stamps[stamps.length - 1]).format("MMM D, YYYY h:mm A") : null;
-  }, [updates, payments]);
 
   const openEdit = (r) => { setEditIso(r); setNoteText(""); setNoteStatus(r.latest?.status || "Open"); };
   const saveNote = async () => {
