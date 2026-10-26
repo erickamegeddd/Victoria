@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect } from "react";
 import { Avatar, Badge, Dropdown, Menu } from "antd";
-import { UserOutlined, LogoutOutlined, BellOutlined, BarChartOutlined, SnippetsOutlined, DiffOutlined, SettingOutlined, DollarOutlined, AreaChartOutlined, BulbOutlined, BankOutlined, MailOutlined, CloseOutlined, TableOutlined, ToolOutlined, FileTextOutlined } from "@ant-design/icons";
+import { UserOutlined, LogoutOutlined, BellOutlined, BarChartOutlined, SnippetsOutlined, DiffOutlined, SettingOutlined, DollarOutlined, AreaChartOutlined, BulbOutlined, BankOutlined, MailOutlined, CloseOutlined, TableOutlined, ToolOutlined, FileTextOutlined, DownOutlined } from "@ant-design/icons";
 import { LuUsers } from "react-icons/lu";
 import { LiaFileInvoiceDollarSolid } from "react-icons/lia";
 import { MdPayment } from "react-icons/md";
@@ -194,6 +194,16 @@ const HeaderComponent = () => {
           font-weight: 700 !important;
           padding-inline: 10px !important;
         }
+        /* Narrow screens: tabs that do not fit collapse into a clearly visible "More" button */
+        header .ant-menu-overflow-item-rest {
+          background: rgba(255,255,255,0.14) !important;
+          color: #fff !important;
+          border-radius: 8px !important;
+          margin-left: 6px !important;
+        }
+        header .ant-menu-overflow-item-rest:hover { background: rgba(255,255,255,0.24) !important; }
+        @media (max-width: 1500px) { header .nav-user-text { display: none !important; } }
+        @media (max-width: 1100px) { header .nav-logo-pill { padding: 4px 8px !important; } header .nav-logo-pill img { height: 30px !important; max-width: 110px !important; } }
         header .ant-menu-item .anticon,
         header .ant-menu-submenu-title .anticon { margin-inline-end: 6px !important; }
       `}</style>
@@ -202,7 +212,7 @@ const HeaderComponent = () => {
 
         {/* Logo — white pill so white background looks intentional */}
         <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-          <div style={{ background: "#fff", borderRadius: 10, padding: "6px 14px", display: "inline-flex", alignItems: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.2)" }}>
+          <div className="nav-logo-pill" style={{ background: "#fff", borderRadius: 10, padding: "6px 14px", display: "inline-flex", alignItems: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.2)" }}>
             <img src="/paydiverse-logo.webp" alt="PayDiverse" style={{ height: 42, objectFit: "contain", maxWidth: 170 }} />
           </div>
         </div>
@@ -213,6 +223,7 @@ const HeaderComponent = () => {
           selectedKeys={[getSelectedKey()]}
           onClick={({ key }) => { if (key !== "admin") navigate(key); }}
           items={visibleNavItems}
+          overflowedIndicator={<span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "0 4px" }}>More <DownOutlined style={{ fontSize: 10 }} /></span>}
           theme="dark"
           style={{ flex: 1, background: "transparent", border: "none", minWidth: 0, margin: "0 16px", fontSize: 14, fontWeight: 700 }}
         />
@@ -226,7 +237,7 @@ const HeaderComponent = () => {
               </Badge>
             </div>
           </Dropdown>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+          <div className="nav-user-text" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
             <span style={{ fontSize: "14px", fontWeight: "600", color: "#fff" }}>{user?.name || "PayDiverse"}</span>
             <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{user?.role === "admin" ? "Admin" : user?.role === "agent" ? "Agent" : "Dashboard"}</span>
           </div>
