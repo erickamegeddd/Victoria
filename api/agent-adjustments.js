@@ -108,7 +108,7 @@ export default async function handler(req, res) {
         const { before } = req.query;
         if (!before) return res.json([]);
         const data = await fetchAllSvc(
-          `${SUPABASE_URL}/rest/v1/residuals?select=mid,iso_id&report_month=lt.${before}&order=mid`,
+          `${SUPABASE_URL}/rest/v1/residuals?select=mid,iso_id,business_name,report_month&report_month=lt.${before}&order=mid`,
           svcKey
         );
         return res.json(data);
