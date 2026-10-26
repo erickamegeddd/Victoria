@@ -38,7 +38,7 @@ const SummaryUpdatesPage = () => {
   const load = async () => {
     setLoading(true);
     const [i, p, u] = await Promise.all([
-      supabase.from("isos").select("id,name").eq("status", "active").order("name"),
+      supabase.from("isos").select("id,name,status").order("name"),
       supabase.from("iso_payments").select("iso_id,expected_amount,received_amount,updated_at").eq("report_month", month),
       supabase.from("iso_updates").select("*").eq("report_month", month).order("created_at", { ascending: false }),
     ]);
@@ -74,7 +74,9 @@ const SummaryUpdatesPage = () => {
     payments.forEach(p => { payMap[p.iso_id] = p; });
     const upMap = {};
     updates.forEach(u => { (upMap[u.iso_id] = upMap[u.iso_id] || []).push(u); });
-    return isos.map(iso => {
+    const hasVal = (id) => residuals.some(r => r.iso_id === id && Math.abs(Number(r.paydiversenet) || 0) > 0.005) || payments.some(p => p.iso_id === id && ((Number(p.expected_amount) || 0) !== 0 || (Number(p.received_amount) || 0) !== 0));
+    // Archived (inactive) ISOs only appear in months where they have values
+    return isos.filter(iso => iso.status === "active" || hasVal(iso.id)).map(iso => {
       const p = payMap[iso.id];
       const expected = iso.id in resMap ? resMap[iso.id] : (p?.expected_amount ?? null);
       const received = p?.received_amount ?? null;
