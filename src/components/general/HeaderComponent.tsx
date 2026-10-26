@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect } from "react";
 import { Avatar, Badge, Dropdown, Menu } from "antd";
-import { UserOutlined, LogoutOutlined, BellOutlined, BarChartOutlined, SnippetsOutlined, DiffOutlined, SettingOutlined, DollarOutlined, AreaChartOutlined, BulbOutlined, BankOutlined, MailOutlined, CloseOutlined, TableOutlined, ToolOutlined } from "@ant-design/icons";
+import { UserOutlined, LogoutOutlined, BellOutlined, BarChartOutlined, SnippetsOutlined, DiffOutlined, SettingOutlined, DollarOutlined, AreaChartOutlined, BulbOutlined, BankOutlined, MailOutlined, CloseOutlined, TableOutlined, ToolOutlined, FileTextOutlined } from "@ant-design/icons";
 import { LuUsers } from "react-icons/lu";
 import { LiaFileInvoiceDollarSolid } from "react-icons/lia";
 import { MdPayment } from "react-icons/md";
@@ -20,6 +20,7 @@ const ic = (icon, color) => (<span style={{color, fontSize:15, display:"inline-f
 
 const navItems = [
   { key: "/home",              label: "Overview",   icon: ic(<TbLayoutDashboard />, "#60a5fa") },
+  { key: "/home/summary-updates", label: "Summary / Updates", icon: ic(<FileTextOutlined />, "#f59e0b") },
   { key: "/home/iso-summary",  label: "ISO Residual Summary",    icon: ic(<TableOutlined />, "#2dd4bf") },
   { key: "/home/iso-merchants",label: "ISO & Merchants", icon: ic(<BankOutlined />, "#818cf8") },
   // HIDDEN: { key: "/home/merchants",    label: "Merchants",      icon: ic(<DiffOutlined />, "#fb923c") },
