@@ -35,6 +35,8 @@ const SummaryUpdatesPage = () => {
   const [noteText, setNoteText] = useState("");
   const [noteStatus, setNoteStatus] = useState("Open");
   const [saving, setSaving] = useState(false);
+  const [inlineIso, setInlineIso] = useState(null);
+  const [inlineText, setInlineText] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -138,13 +140,42 @@ const SummaryUpdatesPage = () => {
     return <span style={{ color: "#d97706" }}><ClockCircleOutlined /> Pending</span>;
   };
 
-  const noteCell = (r) => r.latest ? (
-    <div>
-      <Tag color={STATUS_COLOR[r.latest.status] || "default"}>{r.latest.status}</Tag>
-      <Text>{r.latest.note}</Text>
-      <div><Text type="secondary" style={{ fontSize: 11 }}>{dayjs(r.latest.created_at).format("MMM D, YYYY")}{r.latest.author ? " - " + r.latest.author : ""}</Text></div>
-    </div>
-  ) : <Text type="secondary">--</Text>;
+  const saveInline = async (r) => {
+    const t = inlineText.trim();
+    if (!t) return message.warning("Please enter an update");
+    if (r.latest && t === (r.latest.note || "").trim()) { setInlineIso(null); return; }
+    setSaving(true);
+    // Saved as a new dated entry (same status) so the history keeps the earlier wording
+    const { error } = await supabase.from("iso_updates").insert({ iso_id: r.isoId, report_month: month, note: t, status: r.latest?.status || "Open", author: user?.name || user?.email || null });
+    setSaving(false);
+    if (error) return message.error("Could not save: " + error.message);
+    setInlineIso(null);
+    load();
+  };
+
+  const noteCell = (r) => {
+    if (canEdit && !setupNeeded && inlineIso === r.isoId) {
+      return (
+        <div>
+          <Input.TextArea autoFocus autoSize={{ minRows: 2, maxRows: 6 }} value={inlineText} onChange={e => setInlineText(e.target.value)} onKeyDown={e => { if (e.key === "Escape") setInlineIso(null); }} />
+          <Space size={6} style={{ marginTop: 6 }}>
+            <Button size="small" type="primary" loading={saving} onClick={() => saveInline(r)}>Save</Button>
+            <Button size="small" onClick={() => setInlineIso(null)}>Cancel</Button>
+          </Space>
+        </div>
+      );
+    }
+    const editable = canEdit && !setupNeeded;
+    const startEdit = () => { setInlineIso(r.isoId); setInlineText(r.latest?.note || ""); };
+    const body = r.latest ? (
+      <div>
+        <Tag color={STATUS_COLOR[r.latest.status] || "default"}>{r.latest.status}</Tag>
+        <Text>{r.latest.note}</Text>
+        <div><Text type="secondary" style={{ fontSize: 11 }}>{dayjs(r.latest.created_at).format("MMM D, YYYY")}{r.latest.author ? " - " + r.latest.author : ""}</Text></div>
+      </div>
+    ) : <Text type="secondary">{editable ? "Click to add an update" : "--"}</Text>;
+    return editable ? <div onClick={startEdit} style={{ cursor: "text", minHeight: 22 }} title="Click to edit">{body}</div> : body;
+  };
 
   const expandedRow = (r) => (
     <div style={{ padding: "4px 16px" }}>
