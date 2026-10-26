@@ -11,20 +11,6 @@ const STATUSES = ["Open", "In Progress", "Resolved"];
 const STATUS_COLOR = { "Open": "blue", "In Progress": "gold", "Resolved": "green" };
 const fmt = (n) => "$" + Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const SETUP_SQL = `create table if not exists public.iso_updates (
-  id uuid primary key default gen_random_uuid(),
-  iso_id uuid not null references public.isos(id) on delete cascade,
-  report_month date not null,
-  note text not null,
-  status text not null default 'Open',
-  author text,
-  created_at timestamptz not null default now()
-);
-create index if not exists iso_updates_month_idx on public.iso_updates (report_month, iso_id);
-alter table public.iso_updates enable row level security;
-create policy "iso_updates_all" on public.iso_updates for all to anon, authenticated using (true) with check (true);
-grant select, insert, update, delete on public.iso_updates to anon, authenticated;`;
-
 const monthOptions = () => {
   const out = [];
   let d = dayjs().startOf("month");
@@ -170,13 +156,6 @@ const SummaryUpdatesPage = () => {
         </div>
         <Select value={month} onChange={setMonth} style={{ width: 190 }} options={monthOptions()} />
       </div>
-
-      {setupNeeded && canEdit && (
-        <Card style={{ marginBottom: 16, borderColor: "#f59e0b" }}>
-          <b>Notes are not set up yet.</b> Run this SQL once in Supabase to enable status notes. The lists below work without it.
-          <pre style={{ marginTop: 8, fontSize: 11, whiteSpace: "pre-wrap" }}>{SETUP_SQL}</pre>
-        </Card>
-      )}
 
       <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
         <Card size="small" style={{ minWidth: 200 }}><Statistic title="Total commission pending" value={fmt(totalPending)} /></Card>
