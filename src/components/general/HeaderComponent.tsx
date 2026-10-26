@@ -20,7 +20,6 @@ const ic = (icon, color) => (<span style={{color, fontSize:15, display:"inline-f
 
 const navItems = [
   { key: "/home",              label: "Overview",   icon: ic(<TbLayoutDashboard />, "#60a5fa") },
-  { key: "/home/summary-updates", label: "Summary / Updates", icon: ic(<FileTextOutlined />, "#f59e0b") },
   { key: "/home/iso-summary",  label: "ISO Residual Summary",    icon: ic(<TableOutlined />, "#2dd4bf") },
   { key: "/home/iso-merchants",label: "ISO & Merchants", icon: ic(<BankOutlined />, "#818cf8") },
   // HIDDEN: { key: "/home/merchants",    label: "Merchants",      icon: ic(<DiffOutlined />, "#fb923c") },
@@ -29,6 +28,7 @@ const navItems = [
   { key: "/home/insights",     label: "Insights",       icon: ic(<BulbOutlined />, "#fcd34d") },
   { key: "/home/outreach",     label: "Outreach",       icon: ic(<MailOutlined />, "#f472b6") },
   { key: "/home/industry",     label: "Industry",       icon: ic(<AreaChartOutlined />, "#38bdf8") },
+  { key: "/home/summary-updates", label: "Summary / Updates", icon: ic(<FileTextOutlined />, "#f59e0b") },
   {
     key: "admin", label: "Administrator", icon: ic(<SettingOutlined />, "#a78bfa"),
     children: [
@@ -190,12 +190,15 @@ const HeaderComponent = () => {
         }
         header .ant-menu-item,
         header .ant-menu-submenu-title {
-          font-size: 16px !important;
+          font-size: 14px !important;
           font-weight: 700 !important;
+          padding-inline: 10px !important;
         }
+        header .ant-menu-item .anticon,
+        header .ant-menu-submenu-title .anticon { margin-inline-end: 6px !important; }
       `}</style>
 
-      <header style={{ backgroundColor: "#0f2040", borderBottom: "2px solid rgba(255,255,255,0.08)", boxShadow: "0 2px 16px rgba(0,0,0,0.25)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", height: 80, position: "sticky", top: 0, zIndex: 100 }}>
+      <header style={{ backgroundColor: "#0f2040", borderBottom: "2px solid rgba(255,255,255,0.08)", boxShadow: "0 2px 16px rgba(0,0,0,0.25)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", height: 80, position: "sticky", top: 0, zIndex: 100 }}>
 
         {/* Logo — white pill so white background looks intentional */}
         <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
@@ -211,7 +214,7 @@ const HeaderComponent = () => {
           onClick={({ key }) => { if (key !== "admin") navigate(key); }}
           items={visibleNavItems}
           theme="dark"
-          style={{ flex: 1, background: "transparent", border: "none", minWidth: 0, margin: "0 28px", fontSize: 16, fontWeight: 700 }}
+          style={{ flex: 1, background: "transparent", border: "none", minWidth: 0, margin: "0 16px", fontSize: 14, fontWeight: 700 }}
         />
 
         {/* Right: bell + user */}
