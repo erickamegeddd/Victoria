@@ -2,6 +2,7 @@ import { Button, Table, Tag, Tabs, DatePicker } from "antd";
 import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { useState, useEffect } from "react";
 import dayjs from "dayjs";
+import { useLatestMonth } from "../utils/latestMonth";
 import AgentsPayoutBarChart from "../components/charts/AgentsPayoutBarChart";
 import AgentsCardsComponent from "../components/cards/AgentsCardsComponent";
 import AgentsTrendTable from "../components/tables/AgentsTrendTable";
@@ -48,8 +49,9 @@ const adjColumns: any[] = [
 ];
 
 const AgentsPage = () => {
-  const LATEST_MONTH = "2026-08-01";
+  const LATEST_MONTH = useLatestMonth();
   const [date, setDate] = useState<string>(LATEST_MONTH);
+  useEffect(() => { setDate(LATEST_MONTH); }, [LATEST_MONTH]);
   const [adjData, setAdjData] = useState<any[]>([]);
   const [adjLoading, setAdjLoading] = useState(false);
 
