@@ -18,7 +18,7 @@ const PAYMENT_DUE_RULES = {
   "Cardworks":25,"Celero":25,"Celero (Finical)":25,"SignaPay":25,
   "Payliance":26,"Taluspay":28,"NMI":29,
   "Coastal Pay":30,"First Direct Financial":30,"Merchant Industry":30,"Netevia":30,"Payment Cloud":30,"Seamless Chex":30,
-  "RAC":35,"Card Insight":45,"E-Fitness Today":45,"Midmetrics":45,"MidMetrics":45,"Revitpay":40,"Seamless Chex Paynote":30,"Approvely":46,"USAG":49
+  "RAC":35,"Card Insight":45,"E-Fitness Today":45,"Midmetrics":16,"MidMetrics":16,"Revitpay":40,"Seamless Chex Paynote":30,"Approvely":46,"USAG":49
 };
 
 // Bank Sync window rule: ISOs pay the month after the residual month, so only
