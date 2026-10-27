@@ -107,14 +107,14 @@ const SummaryUpdatesPage = () => {
       // An ISO whose first note was logged before its report was uploaded stays in the "no reports yet" list (with a green check) until closed
       const oldest = history.length ? history[history.length - 1] : null;
       const fromNoReport = !!oldest && reportIn && (!resFirst[iso.id] || oldest.created_at < resFirst[iso.id]);
-      return { isoId: iso.id, rkey: iso.id + "|" + mon, month: mon, name: iso.name, expected, received, status, history, latest, reportIn, fromNoReport, closed: latest?.status === "Resolved" };
+      return { isoId: iso.id, rkey: iso.id + "|" + mon, month: mon, name: iso.name, expected, received, status, history, latest, reportIn, fromNoReport, noRes: !(iso.id in resMap), closed: latest?.status === "Resolved" };
     });
   };
   const rows = useMemo(() => computeRows(isos, residuals, payments, updates, month), [isos, residuals, payments, updates, month]);
 
   // Rows stay listed until closed; expected / received / status update by themselves as reports and payments arrive
   const deriveLists = (rows) => {
-    const noReport = rows.filter(r => !r.closed && (r.status === "no_report" || r.fromNoReport));
+    const noReport = rows.filter(r => !r.closed && (r.status === "no_report" || r.fromNoReport || (r.noRes && r.received != null)));
     const noReportIds = new Set(noReport.map(r => r.rkey));
     const pending = rows.filter(r => !r.closed && !noReportIds.has(r.rkey) && (((r.status === "pending" && r.expected > 0.005) || r.status === "short_paid") || (r.history.length && r.expected != null && r.received != null)))
       .map(r => ({ ...r, owed: r.status === "short_paid" ? r.expected - r.received : (r.status === "pending" ? r.expected : 0) }));
@@ -125,7 +125,7 @@ const SummaryUpdatesPage = () => {
   const { noReport, pending, resolved } = deriveLists(rows);
   const totalPending = pending.reduce((s, r) => s + r.owed, 0);
   const pendingCount = pending.filter(r => r.owed > 0.005).length;
-  const noReportCount = noReport.filter(r => !r.reportIn).length;
+  const noReportCount = noReport.filter(r => !r.reportIn || r.noRes).length;
 
   const openEdit = (r) => { setEditIso(r); setNoteText(""); setNoteStatus(r.latest?.status || "Open"); };
   const saveNote = async () => {
