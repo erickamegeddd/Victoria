@@ -4,10 +4,10 @@ import { Card, Table, Select, Typography, Space, Statistic, Row, Col, Tag, Input
 import { SearchOutlined, DollarOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { supabase } from "../utils/supabase";
 import dayjs from "dayjs";
+import { useLatestMonth } from "../utils/latestMonth";
 const { Title, Text } = Typography;
 const { Option } = Select;
 const GATEWAY_ISO_NAMES = new Set(["nmi","authorize.net","e-fitness today","efitness today","fraud deflect","midmetrics"]);
-const LATEST_MONTH = '2026-08-01';
 const fmt = (n) => n != null ? `$${Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}` : "--";
 
 const RevenuePerMidPage = () => {
@@ -15,7 +15,9 @@ const RevenuePerMidPage = () => {
   const [isos, setIsos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedIso, setSelectedIso] = useState(undefined);
+  const LATEST_MONTH = useLatestMonth();
   const [selectedMonth, setSelectedMonth] = useState(LATEST_MONTH);
+  useEffect(() => { setSelectedMonth(LATEST_MONTH); }, [LATEST_MONTH]);
   const [filteredData, setFilteredData] = useState([]);
   const searchInput = useRef(null);
 
