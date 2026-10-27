@@ -124,12 +124,14 @@ const ISOSummaryPage = () => {
         const expected = r.months[m] != null ? r.months[m] : (p && p.expected_amount != null ? Number(p.expected_amount) : null);
         const received = p && p.received_amount != null ? Math.round(Number(p.received_amount) * 100) / 100 : null;
         const pending = received == null && expected != null && expected > 0.005 ? expected : 0;
-        return { expected, received, pending };
+        const deficit = received != null && expected != null && received < expected - 0.01 ? Math.round((expected - received) * 100) / 100 : 0;
+        return { expected, received, pending, deficit };
       });
       const total = Math.round(cells.reduce((s, c) => s + (c.received || 0), 0) * 100) / 100;
       const pendingTotal = Math.round(cells.reduce((s, c) => s + c.pending, 0) * 100) / 100;
       const expectedTotal = Math.round(cells.reduce((s, c) => s + (c.expected || 0), 0) * 100) / 100;
-      return { key: r.key, name: r.name, cells, total, pendingTotal, expectedTotal };
+      const deficitTotal = Math.round(cells.reduce((s, c) => s + c.deficit, 0) * 100) / 100;
+      return { key: r.key, name: r.name, cells, total, pendingTotal, expectedTotal, deficitTotal };
     }).filter(r => r.cells.some(c => c.received != null || c.pending > 0));
   }, [rows, payments]);
   const payMonthTotals = MONTHS.map((_, m) => {
@@ -138,10 +140,11 @@ const ISOSummaryPage = () => {
   });
   const payMonthPending = MONTHS.map((_, m) => Math.round(payRows.reduce((s, r) => s + r.cells[m].pending, 0) * 100) / 100);
   const payGrand = Math.round(payRows.reduce((s, r) => s + r.total, 0) * 100) / 100;
+  const payDeficitGrand = Math.round(payRows.reduce((s, r) => s + r.deficitTotal, 0) * 100) / 100;
   const payPendingGrand = Math.round(payRows.reduce((s, r) => s + r.pendingTotal, 0) * 100) / 100;
   const payMonthExpected = MONTHS.map((_, m) => Math.round(payRows.reduce((s, r) => s + (r.cells[m].expected || 0), 0) * 100) / 100);
   const payExpectedGrand = Math.round(payRows.reduce((s, r) => s + r.expectedTotal, 0) * 100) / 100;
-  const payDataRows = [{ key: "__0_expected", name: "TOTAL EXPECTED", isTotal: true, cells: payMonthExpected.map(v => ({ expected: v })), total: null, pendingTotal: 0, expectedTotal: payExpectedGrand }, { key: "__a_total", name: "TOTAL RECEIVED", isTotal: true, cells: payMonthTotals.map(v => ({ received: v })), total: payGrand, pendingTotal: payPendingGrand, expectedTotal: payExpectedGrand }, { key: "__b_pending", name: "STILL PENDING", isTotal: true, cells: payMonthPending.map(v => ({ pending: v })), total: null, pendingTotal: payPendingGrand, expectedTotal: null }, ...payRows];
+  const payDataRows = [{ key: "__0_expected", name: "TOTAL EXPECTED", isTotal: true, cells: payMonthExpected.map(v => ({ expected: v })), total: null, pendingTotal: 0, expectedTotal: payExpectedGrand }, { key: "__a_total", name: "TOTAL RECEIVED", isTotal: true, cells: payMonthTotals.map(v => ({ received: v })), total: payGrand, pendingTotal: payPendingGrand, deficitTotal: payDeficitGrand, expectedTotal: payExpectedGrand }, { key: "__b_pending", name: "STILL PENDING", isTotal: true, cells: payMonthPending.map(v => ({ pending: v })), total: null, pendingTotal: payPendingGrand, expectedTotal: null }, ...payRows];
   const payCell = (c) => {
     if (c.received != null) {
       const diff = c.expected != null ? c.received - c.expected : 0;
@@ -167,6 +170,8 @@ const ISOSummaryPage = () => {
       render: (_, r) => r.total == null ? <span style={{ color: "#c0c4cc" }}>--</span> : <span style={{ fontWeight: 700 }}>{money(r.total)}</span> },
     { title: `${year} Pending`, key: "pendingTotal", align: "right", width: 130, fixed: "right", sorter: sortBy(r => r.pendingTotal), sortDirections: ["descend", "ascend"],
       render: (_, r) => <span style={{ fontWeight: 700, color: r.pendingTotal > 0 ? "#d97706" : "#c0c4cc" }}>{r.pendingTotal > 0 ? money(r.pendingTotal) : "--"}</span> },
+    { title: `${year} Deficit`, key: "deficitTotal", align: "right", width: 130, fixed: "right", sorter: sortBy(r => r.deficitTotal || 0), sortDirections: ["descend", "ascend"],
+      render: (_, r) => <Tooltip title="Short-paid: expected minus received, for months paid below expected"><span style={{ fontWeight: 700, color: r.deficitTotal > 0 ? "#dc2626" : "#c0c4cc" }}>{r.deficitTotal > 0 ? money(r.deficitTotal) : "--"}</span></Tooltip> },
   ];
 
   return (
@@ -211,7 +216,7 @@ const ISOSummaryPage = () => {
             size="middle"
             sticky
             rowClassName={(r) => (r.isTotal ? "iso-total-row" + (r.key === "__0_expected" ? " iso-row-expected" : r.key === "__a_total" ? " iso-row-received" : r.key === "__b_pending" ? " iso-row-pending" : "") : "")}
-            scroll={{ x: 1500 }}
+            scroll={{ x: 1780 }}
           />
         </Spin>
         )}
