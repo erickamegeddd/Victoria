@@ -9,7 +9,7 @@ const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
 const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ1cWZsb2Z1emh5YnV0a2t6cm9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwNDE3NTYsImV4cCI6MjEwMTYxNzc1Nn0.46kKCy_3cY7oKuONb9e2e18yKVNui3oSOzySK33fMFE";
 
 const PAYMENT_DUE_RULES = {
-  "Group ISO":0,"AltoPay":30,"Authorize.Net":5,"Expitrans":31,
+  "Group ISO":0,"AltoPay":30,"Aurora":25,"Authorize.Net":5,"Expitrans":31,
   "Pepper Pay":13,"Total-Apps":13,"Finns":16,
   "CC Bill":15,"Maverick":15,"Simply Payment Group":17,
   "PayArc":17,"Mitigator":18,"Quantum":19,
