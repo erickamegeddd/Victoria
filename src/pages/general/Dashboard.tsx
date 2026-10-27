@@ -5,6 +5,7 @@ import { FileExcelOutlined, SearchOutlined, LeftOutlined, RightOutlined } from "
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { supabase } from "../../utils/supabase";
 import dayjs from "dayjs";
+import { useLatestMonth } from "../../utils/latestMonth";
 import { useNavigate } from "react-router-dom";
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -42,8 +43,9 @@ const Dashboard = () => {
   const [residuals, setResiduals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedIso, setSelectedIso] = useState(undefined);
-  const LATEST_MONTH = '2026-08-01';
+  const LATEST_MONTH = useLatestMonth();
   const [selectedMonth, setSelectedMonth] = useState(LATEST_MONTH);
+  useEffect(()=>{setSelectedMonth(LATEST_MONTH);},[LATEST_MONTH]);
   const [activeTab, setActiveTab] = useState('residuals');
   const [outerTab, setOuterTab] = useState('monthly');
   const [allTimeRevenue, setAllTimeRevenue] = useState(0);
