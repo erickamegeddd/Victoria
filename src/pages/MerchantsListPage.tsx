@@ -4,9 +4,9 @@ import { Card, Table, Tag, Typography, Space, Input, Button, DatePicker } from "
 import { SearchOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { supabase } from "../utils/supabase";
 import dayjs from "dayjs";
+import { useLatestMonth } from "../utils/latestMonth";
 const { Title, Text } = Typography;
 
-const LATEST_MONTH = '2026-08-01';
 const GATEWAY_ISO_NAMES = new Set(["nmi","authorize.net","e-fitness today","efitness today","fraud deflect","midmetrics"]);
 const AGGREGATE_PREFIXES = ["PC_COMBINED_","RAC_COMBINED_","NMI_COMBINED_","ALTO_COMBINED_"];
 const isAggregateMid = (mid) => AGGREGATE_PREFIXES.some(p => String(mid||"").toUpperCase().startsWith(p));
@@ -25,7 +25,9 @@ const MerchantsListPage = () => {
   const [residualsOnly, setResidualsOnly] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState(null);
+  const LATEST_MONTH = useLatestMonth();
   const [selectedMonth, setSelectedMonth] = useState(LATEST_MONTH);
+  useEffect(() => { setSelectedMonth(LATEST_MONTH); }, [LATEST_MONTH]);
   const [monthMids, setMonthMids] = useState(null);
   const [monthLoading, setMonthLoading] = useState(false);
   const searchInput = useRef(null);
