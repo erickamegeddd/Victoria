@@ -9,16 +9,16 @@ const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
 const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ1cWZsb2Z1emh5YnV0a2t6cm9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwNDE3NTYsImV4cCI6MjEwMTYxNzc1Nn0.46kKCy_3cY7oKuONb9e2e18yKVNui3oSOzySK33fMFE";
 
 const PAYMENT_DUE_RULES = {
-  "Group ISO":0,"Authorize.Net":5,"Expitrans":35,
-  "Pepper Pay":13,"Total-Apps":13,"Finns":13,
-  "CC Bill":15,"Maverick":15,"Simply Payment Group":15,
+  "Group ISO":0,"AltoPay":30,"Authorize.Net":5,"Expitrans":31,
+  "Pepper Pay":13,"Total-Apps":13,"Finns":16,
+  "CC Bill":15,"Maverick":15,"Simply Payment Group":17,
   "PayArc":17,"Mitigator":18,"Quantum":19,
-  "GET":20,"MerchantE Fresno":20,"MerchantE Synovous":20,"Nexio":20,"Nuvei":20,"Vendara":20,"Worldpay":20,"Worldpay (Vantiv)":20,
-  "Fraud Deflect":22,"The HiRisk Processor":24,"HiRisk":24,
+  "GET":20,"MerchantE Fresno":22,"MerchantE Synovous":20,"Nexio":21,"Nuvei":20,"Vendara":20,"Worldpay":20,"Worldpay (Vantiv)":20,
+  "Fraud Deflect":24,"The HiRisk Processor":27,"HiRisk":27,
   "Cardworks":25,"Celero":25,"Celero (Finical)":25,"SignaPay":25,
-  "Payliance":26,"Taluspay":28,"NMI":29,
+  "Payliance":29,"Taluspay":28,"NMI":29,
   "Coastal Pay":30,"First Direct Financial":30,"Merchant Industry":30,"Netevia":30,"Payment Cloud":30,"Seamless Chex":30,
-  "RAC":35,"Card Insight":45,"E-Fitness Today":45,"Midmetrics":16,"MidMetrics":16,"Revitpay":40,"Seamless Chex Paynote":30,"Approvely":46,"USAG":49
+  "RAC":35,"Card Insight":35,"E-Fitness Today":45,"Midmetrics":16,"MidMetrics":16,"Revitpay":40,"Seamless Chex Paynote":30,"Approvely":46,"USAG":45
 };
 
 // Bank Sync window rule: ISOs pay the month after the residual month, so only
