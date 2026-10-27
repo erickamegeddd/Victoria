@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Card, Select, DatePicker, Table, Tag, Typography, Button, Modal, Input, Space, Empty, Statistic, Tabs, Popconfirm, Tooltip, message } from "antd";
 import { LeftOutlined, RightOutlined, FileTextOutlined, EditOutlined, CheckOutlined, CheckCircleFilled, ClockCircleOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { useLatestMonth } from "../utils/latestMonth";
 import { supabase } from "../utils/supabase";
 import { getUserFromLocalStorage } from "../utils/getUser";
 const { Title, Text } = Typography;
@@ -22,8 +23,9 @@ const monthOptions = () => {
 const SummaryUpdatesPage = () => {
   const user = getUserFromLocalStorage();
   const canEdit = user?.role === "admin";
-  const LATEST_MONTH = dayjs().subtract(2, "month").format("YYYY-MM-01");
+  const LATEST_MONTH = useLatestMonth();
   const [month, setMonth] = useState(LATEST_MONTH);
+  useEffect(() => { setMonth(LATEST_MONTH); }, [LATEST_MONTH]);
   const [isos, setIsos] = useState([]);
   const [residuals, setResiduals] = useState([]);
   const [payments, setPayments] = useState([]);
