@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { Card, Row, Col, Tabs, Button, DatePicker, Typography, Space, Statistic, Tag, Alert, Spin, Radio, Tooltip } from "antd";
 import { ArrowUpOutlined, ArrowDownOutlined, MinusOutlined, WarningOutlined, UserDeleteOutlined, UserAddOutlined, BulbOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { useLatestMonth } from "../../utils/latestMonth";
 import quarterOfYear from "dayjs/plugin/quarterOfYear";
 dayjs.extend(quarterOfYear);
 const { Title, Text } = Typography;
@@ -208,8 +209,8 @@ const ISOCard=({iso,labelA,labelB})=>{
   );
 };
 
-const getPeriodDates=(period)=>{
-  const now=dayjs("2026-08-01");
+const getPeriodDates=(period,latest)=>{
+  const now=dayjs(latest||"2026-08-01");
   if(period==="30")return{labelA:now.subtract(1,"month").format("MMM YYYY"),labelB:now.format("MMM YYYY"),dateA:now.subtract(1,"month").startOf("month").format("YYYY-MM-DD"),dateB:now.startOf("month").format("YYYY-MM-DD"),type:"month"};
   if(period==="60")return{labelA:now.subtract(2,"month").format("MMM YYYY"),labelB:now.format("MMM YYYY"),dateA:now.subtract(2,"month").startOf("month").format("YYYY-MM-DD"),dateB:now.startOf("month").format("YYYY-MM-DD"),type:"month"};
   if(period==="90")return{labelA:now.subtract(3,"month").format("MMM YYYY"),labelB:now.format("MMM YYYY"),dateA:now.subtract(3,"month").startOf("month").format("YYYY-MM-DD"),dateB:now.startOf("month").format("YYYY-MM-DD"),type:"month"};
@@ -241,7 +242,8 @@ const InsightsPage=()=>{
       .then(r=>r.json())
       .then(data=>{if(Array.isArray(data))setGatewayMids(new Set(data.map(r=>String(r.mid||"").trim())));});
   },[]);
-  useEffect(()=>{loadOverview();loadTrend();setActiveFilter(null);},[overviewPeriod]);
+  const latestMonth=useLatestMonth();
+  useEffect(()=>{loadOverview();loadTrend();setActiveFilter(null);},[overviewPeriod,latestMonth]);
 
   const fetchByMonths=async(months)=>{if(!months||!months.length)return[];const r=await fetch(`/api/agent-adjustments?action=insights_month&months=${months.join(",")}`);return r.json();};
   const fetchByYear=async(year)=>{const r=await fetch(`/api/agent-adjustments?action=insights_year&year=${year}`);return r.json();};
@@ -308,7 +310,7 @@ const _mid=String(r.mid||"").trim();if(!r.mid?.includes("-summary")&&!gatewayMid
     const gen=++overviewGenRef.current;
     setLoadingOverview(true);
     setOverviewData(null);
-    const pd=getPeriodDates(overviewPeriod);if(!pd){setLoadingOverview(false);return;}
+    const pd=getPeriodDates(overviewPeriod,latestMonth);if(!pd){setLoadingOverview(false);return;}
     let rowsA=[],rowsB=[],histMids=null;
     const beforeB=pd.type==="month"?pd.dateB:pd.type==="quarter"?pd.monthsB[0]:String(pd.yearB)+"-01-01";
     if(pd.type==="month"){[rowsA,rowsB,histMids]=await Promise.all([fetchByMonths([pd.dateA]),fetchByMonths([pd.dateB]),fetchMidsBefore(beforeB)]);}
