@@ -4,6 +4,7 @@ import { Card, Row, Col, Table, Button, Typography, Space, Statistic, Tag, Alert
 import { DollarOutlined, LeftOutlined, RightOutlined, SyncOutlined, CheckCircleOutlined, LoadingOutlined, DownloadOutlined } from "@ant-design/icons";
 import { supabase } from "../utils/supabase";
 import dayjs from "dayjs";
+import { useLatestMonth } from "../utils/latestMonth";
 const { Title, Text } = Typography;
 const { Option } = Select;
 const fmt = (n) => n != null ? `$${Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}` : '--';
@@ -20,8 +21,9 @@ const PaymentsPage = () => {
   const [allIsos, setIsos] = useState([]);
   const [residuals, setResiduals] = useState([]);
   const [payments, setPayments] = useState([]);
-  const LATEST_MONTH = '2026-08-01';
+  const LATEST_MONTH = useLatestMonth();
   const [selectedMonth, setSelectedMonth] = useState(LATEST_MONTH);
+  useEffect(() => { setSelectedMonth(LATEST_MONTH); }, [LATEST_MONTH]);
   const [paymentModal, setPaymentModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
   const [paymentForm, setPaymentForm] = useState({received_amount:'',payment_date:'',expected_date:'',payment_method:'',notes:''});
