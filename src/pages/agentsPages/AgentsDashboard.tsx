@@ -85,7 +85,6 @@ const AgentsDashboard = () => {
   if (agentError) message.error("Error Fetching data");
   return (
     <>
-      <h2>Total Payout Per Month</h2>
       <Row align="middle" justify="end">
         <Col
           xs={24}
