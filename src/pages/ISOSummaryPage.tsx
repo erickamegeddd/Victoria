@@ -83,7 +83,7 @@ const ISOSummaryPage = () => {
           // collapsible detail: what each MerchantE ISO contributes
           row.children = [[merge.to, "MerchantE Synovous"], [merge.from, "MerchantE Fresno"]].map(([id, nm]) => {
             const ms = (byRaw[id] || Array(12).fill(null)).map(v => (v == null ? null : Math.round(v * 100) / 100));
-            return { key: id + "_part", name: nm, months: ms, total: Math.round(ms.reduce((a, v) => a + (v || 0), 0) * 100) / 100, isChild: true };
+            return { key: id + "_part", id, name: nm, months: ms, total: Math.round(ms.reduce((a, v) => a + (v || 0), 0) * 100) / 100, isChild: true };
           });
         }
         return row;
@@ -166,7 +166,20 @@ const ISOSummaryPage = () => {
       const pendingTotal = Math.round(cells.reduce((s, c) => s + c.pending, 0) * 100) / 100;
       const expectedTotal = Math.round(cells.reduce((s, c) => s + (c.expected || 0), 0) * 100) / 100;
       const deficitTotal = Math.round(cells.reduce((s, c) => s + c.deficit, 0) * 100) / 100;
-      return { key: r.key, name: r.name, cells, total, pendingTotal, expectedTotal, deficitTotal };
+      const out = { key: r.key, name: r.name, cells, total, pendingTotal, expectedTotal, deficitTotal };
+      if (r.children) {
+        // per-ISO detail: what each MerchantE ISO is due and which record the deposit sits on (pending/deficit only make sense combined)
+        out.children = r.children.map(ch => {
+          const cc = MONTHS.map((_, m) => {
+            const rp = payments.find(p => p.iso_id === ch.id && parseInt(String(p.report_month).slice(5, 7), 10) - 1 === m);
+            const expected = ch.months[m] != null ? ch.months[m] : null;
+            const received = rp && rp.received_amount != null ? Math.round(Number(rp.received_amount) * 100) / 100 : null;
+            return { expected, received };
+          });
+          return { key: ch.key, name: ch.name, isChild: true, cells: cc, total: Math.round(cc.reduce((a, c) => a + (c.received || 0), 0) * 100) / 100, pendingTotal: 0, deficitTotal: 0, expectedTotal: Math.round(cc.reduce((a, c) => a + (c.expected || 0), 0) * 100) / 100 };
+        });
+      }
+      return out;
     }).filter(r => r.cells.some(c => c.received != null || c.pending > 0));
   }, [rows, payments, merge]);
   const payMonthTotals = MONTHS.map((_, m) => {
@@ -192,13 +205,19 @@ const ISOSummaryPage = () => {
     return <span style={{ color: "#c0c4cc" }}>--</span>;
   };
   const payColumns = [
-    { title: "ISO", dataIndex: "name", key: "name", sorter: sortBy(r => r.name), sortDirections: ["ascend", "descend"], fixed: "left", width: 190, render: (v, r) => <span style={{ fontWeight: r.isTotal ? 700 : 600 }}>{v}</span> },
+    { title: "ISO", dataIndex: "name", key: "name", sorter: sortBy(r => r.name), sortDirections: ["ascend", "descend"], fixed: "left", width: 190, render: (v, r) => <span style={{ fontWeight: r.isTotal ? 700 : r.isChild ? 400 : 600, color: r.isChild ? "#6b7280" : "inherit" }}>{v}</span> },
     ...MONTHS.map((label, m) => ({
       title: label, key: label, align: "right", width: 100,
       render: (_, r) => {
         if (r.key === "__0_expected") return <span style={{ fontWeight: 700 }}>{money(r.cells[m].expected)}</span>;
         if (r.key === "__a_total") return <span style={{ fontWeight: 700 }}>{r.cells[m].received == null ? "--" : money(r.cells[m].received)}</span>;
         if (r.key === "__b_pending") return <span style={{ fontWeight: 700, color: r.cells[m].pending > 0 ? "#d97706" : "#c0c4cc" }}>{r.cells[m].pending > 0 ? money(r.cells[m].pending) : "--"}</span>;
+        if (r.isChild) {
+          const c = r.cells[m];
+          if (c.received != null) return <Tooltip title={c.expected != null ? `Due ${money(c.expected)} - deposit recorded here ${money(c.received)}` : `Deposit recorded here ${money(c.received)}`}><span style={{ color: "#6b7280" }}>{money(c.received)}</span></Tooltip>;
+          if (c.expected != null && Math.abs(c.expected) > 0.005) return <Tooltip title="Due for this ISO (the combined deposit may be recorded on the other ISO)"><span style={{ color: "#9ca3af" }}>due {money(c.expected)}</span></Tooltip>;
+          return <span style={{ color: "#c0c4cc" }}>--</span>;
+        }
         return payCell(r.cells[m]);
       }
     })),
@@ -252,7 +271,8 @@ const ISOSummaryPage = () => {
             pagination={false}
             size="middle"
             sticky
-            rowClassName={(r) => (r.isTotal ? "iso-total-row" + (r.key === "__0_expected" ? " iso-row-expected" : r.key === "__a_total" ? " iso-row-received" : r.key === "__b_pending" ? " iso-row-pending" : "") : "")}
+            rowClassName={(r) => (r.isTotal ? "iso-total-row" + (r.key === "__0_expected" ? " iso-row-expected" : r.key === "__a_total" ? " iso-row-received" : r.key === "__b_pending" ? " iso-row-pending" : "") : r.isChild ? "iso-child-row" : "")}
+            expandable={{ defaultExpandAllRows: false }}
             scroll={{ x: 1780 }}
           />
         </Spin>
