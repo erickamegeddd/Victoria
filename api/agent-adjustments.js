@@ -128,6 +128,21 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "POST") {
+      if (req.body?.action === "update_user_email") {
+        const svcKey = process.env.SUPABASE_SERVICE_KEY;
+        if (!svcKey) return res.status(500).json({ error: "Service key not configured" });
+        const { user_id, email } = req.body;
+        const clean = String(email || "").trim().toLowerCase();
+        if (!user_id || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) return res.status(400).json({ error: "A valid user and email are required" });
+        const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${encodeURIComponent(user_id)}`, {
+          method: "PUT",
+          headers: { apikey: svcKey, Authorization: `Bearer ${svcKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ email: clean, email_confirm: true }),
+        });
+        const out = await r.json().catch(() => ({}));
+        if (!r.ok) return res.status(r.status).json({ error: out.msg || out.message || out.error_description || "Could not update email" });
+        return res.json({ id: out.id, email: out.email });
+      }
       const { agent_name, report_month, mid, field_name, original_value, adjusted_value, notes } = req.body;
       if (!agent_name || !report_month || !field_name || adjusted_value === undefined) {
         return res.status(400).json({ error: "Missing required fields" });
