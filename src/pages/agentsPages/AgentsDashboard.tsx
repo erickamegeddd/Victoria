@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import agentClient from "../../utils/agentAxios";
-import { message, Table, Input, Row, Col, Button } from "antd";
-import { LeftOutlined, RightOutlined, DollarOutlined } from "@ant-design/icons";
+import { message, Table, Input, Row, Col, Button, Tabs } from "antd";
+import { LeftOutlined, RightOutlined, DollarOutlined, ShopOutlined } from "@ant-design/icons";
 import type { TablePaginationConfig } from "antd";
 import { DownloadOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
@@ -70,6 +70,7 @@ const AgentsDashboard = () => {
         ].map(esc).join(",")
       )
     );
+    lines.push("", ["Total MIDs", (agentData || []).length].map(esc).join(","));
     const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -83,7 +84,7 @@ const AgentsDashboard = () => {
   };
 
   if (agentError) message.error("Error Fetching data");
-  return (
+  const monthlyView = (
     <>
       <Row align="middle" justify="end">
         <Col
@@ -104,7 +105,7 @@ const AgentsDashboard = () => {
         </Col>
       </Row>
       <style>{`.ant-layout-content > div.agent-payout-card, div.agent-payout-card { background: linear-gradient(135deg, #047857 0%, #10b981 100%) !important; }`}</style>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginTop: 20 }}>
+      <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", flexWrap: "wrap", gap: 16, marginTop: 20 }}>
       <div className="agent-payout-card" style={{ margin: 0, display: "inline-flex", alignItems: "center", gap: 16, minWidth: 320, padding: "18px 26px", borderRadius: 14, background: "linear-gradient(135deg, #059669 0%, #10b981 100%)", boxShadow: "0 6px 18px rgba(5,150,105,0.28)", color: "#fff" }}>
         <div style={{ width: 52, height: 52, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>
           <DollarOutlined />
@@ -116,7 +117,16 @@ const AgentsDashboard = () => {
           <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1.15 }}>{formatCurrency(calculateTotalPayout())}</div>
         </div>
       </div>
-      <Button type="primary" size="large" icon={<DownloadOutlined />} onClick={handleDownload} disabled={!agentData || agentData.length === 0}>
+      <div style={{ margin: 0, display: "inline-flex", alignItems: "center", gap: 16, minWidth: 220, padding: "18px 26px", borderRadius: 14, background: "#ffffff", border: "1px solid #e2e8f0", boxShadow: "0 4px 14px rgba(15,32,64,0.08)" }}>
+        <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#dbeafe", color: "#1d4ed8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>
+          <ShopOutlined />
+        </div>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "#64748b" }}>Total MIDs</div>
+          <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1.15, color: "#0f172a" }}>{(agentData || []).length}</div>
+        </div>
+      </div>
+      <Button style={{ marginLeft: "auto" }} type="primary" size="large" icon={<DownloadOutlined />} onClick={handleDownload} disabled={!agentData || agentData.length === 0}>
         Download as CSV
       </Button>
       </div>
@@ -139,9 +149,16 @@ const AgentsDashboard = () => {
         rowKey={(r: any) => `${r.iso}|${r.mid}`}
         scroll={{ x: 768 }}
       />
-      <div style={{ fontSize: 16, fontWeight: 700, margin: "28px 0 12px" }}>Monthly Trend</div>
-      <AgentsTrendTable hideTotal />
     </>
+  );
+  return (
+    <Tabs
+      defaultActiveKey="monthly"
+      items={[
+        { key: "monthly", label: "Monthly View", children: monthlyView },
+        { key: "trend", label: "Monthly Trend", children: <AgentsTrendTable hideTotal /> },
+      ]}
+    />
   );
 };
 
