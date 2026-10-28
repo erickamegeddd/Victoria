@@ -125,7 +125,6 @@ const AgentsDashboard = () => {
             Your Payout - {dayjs(date as string).format("MMMM YYYY")}
           </div>
           <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1.15 }}>{formatCurrency(calculateTotalPayout())}</div>
-          <div style={{ fontSize: 12, opacity: 0.85 }}>{agentData?.length || 0} merchant account{(agentData?.length || 0) === 1 ? "" : "s"}</div>
         </div>
       </div>
       <Table
