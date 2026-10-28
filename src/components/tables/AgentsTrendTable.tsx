@@ -10,7 +10,7 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 const FIRST_YEAR = 2026;
 const money = (n) => `$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const AgentsTrendTable = () => {
+const AgentsTrendTable = ({ hideTotal = false }: { hideTotal?: boolean }) => {
   const currentYear = dayjs().year();
   const [year, setYear] = useState(Math.max(currentYear, FIRST_YEAR));
   const [byMonth, setByMonth] = useState(MONTHS.map(() => []));
@@ -63,7 +63,7 @@ const AgentsTrendTable = () => {
   };
 
   const totalRow = { key: "__total", name: "TOTAL", months: monthTotals, total: grandTotal, isTotal: true };
-  const dataRows = [...rows, totalRow];
+  const dataRows = hideTotal ? rows : [...rows, totalRow];
 
   // TOTAL row always stays last regardless of sort direction
   const sortBy = (get) => (a, b, order) => {
@@ -90,7 +90,7 @@ const AgentsTrendTable = () => {
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
         <Text style={{ color: "var(--muted-color)", fontSize: 13 }}>
-          Monthly agent payout per agent (same numbers as Revenue Per Agent). Click any column header to sort.
+          {hideTotal ? "Your monthly payout by month." : "Monthly agent payout per agent (same numbers as Revenue Per Agent). Click any column header to sort."}
         </Text>
         <Space>
           <Text style={{ fontWeight: 600 }}>Year</Text>
