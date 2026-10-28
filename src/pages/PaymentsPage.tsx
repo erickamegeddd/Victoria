@@ -158,8 +158,15 @@ const PaymentsPage = () => {
     }
   };
 
-  const getExpectedByISO=()=>{const residualMap={};residuals.forEach(r=>{const k=r.iso_id;if(!residualMap[k])residualMap[k]=0;residualMap[k]+=(r.paydiversenet||0);});const paymentMap={};payments.forEach(p=>{paymentMap[p.iso_id]=p;});return isos.map(iso=>({isoId:iso.id,isoName:iso.name,expected:iso.id in residualMap?residualMap[iso.id]:(paymentMap[iso.id]?.expected_amount??null)})).sort((a,b)=>a.isoName.localeCompare(b.isoName));};
-  const getPaymentForISO=(isoId)=>payments.find(p=>p.iso_id===isoId);
+  const MERGE_LABEL='MerchantE (Synovous + Fresno)';
+  const mFresno=allIsos.find(i=>i.name==='MerchantE Fresno'),mSyn=allIsos.find(i=>i.name==='MerchantE Synovous');
+  const mergeOn=!!(mFresno&&mSyn);
+  const isMerged=(isoId)=>mergeOn&&isoId===mSyn.id;
+  const getExpectedByISO=()=>{const residualMap={};residuals.forEach(r=>{const k=r.iso_id;if(!residualMap[k])residualMap[k]=0;residualMap[k]+=(r.paydiversenet||0);});const paymentMap={};payments.forEach(p=>{paymentMap[p.iso_id]=p;});const rowsOut=isos.map(iso=>({isoId:iso.id,isoName:iso.name,expected:iso.id in residualMap?residualMap[iso.id]:(paymentMap[iso.id]?.expected_amount??null)}));if(mergeOn){const f=rowsOut.find(r=>r.isoId===mFresno.id),s=rowsOut.find(r=>r.isoId===mSyn.id);if(!s){if(f)f.isoName=MERGE_LABEL;return rowsOut.sort((a,b)=>a.isoName.localeCompare(b.isoName));}s.isoName=MERGE_LABEL;s.expected=((f?.expected)==null&&s.expected==null)?null:((f?.expected)||0)+(s.expected||0);return rowsOut.filter(r=>r.isoId!==mFresno.id).sort((a,b)=>a.isoName.localeCompare(b.isoName));}return rowsOut.sort((a,b)=>a.isoName.localeCompare(b.isoName));};
+  // For the merged MerchantE row: host = the real payment row that carries the deposit (falls back to the one with a due date)
+  const mergedRows=()=>payments.filter(p=>p.iso_id===mFresno.id||p.iso_id===mSyn.id);
+  const hostPayment=(isoId)=>{if(!isMerged(isoId))return payments.find(p=>p.iso_id===isoId);const rs=mergedRows();return rs.find(p=>p.received_amount!=null)||rs.find(p=>parseExpDate(p.notes))||rs.find(p=>p.iso_id===mSyn.id)||rs[0];};
+  const getPaymentForISO=(isoId)=>{if(!isMerged(isoId))return payments.find(p=>p.iso_id===isoId);const rs=mergedRows();const host=hostPayment(isoId);if(!host)return undefined;const got=rs.filter(p=>p.received_amount!=null);return{...host,received_amount:got.length?got.reduce((s,p)=>s+p.received_amount,0):null,parts:got.map(p=>({name:p.iso_id===mFresno.id?'Fresno':'Synovous',amount:p.received_amount}))};};
   const getStatus=(expected,received)=>{if(received==null)return expected==null?'no_report':'pending';if(expected==null)return'received';const d=received-expected;if(Math.abs(d)<0.01)return'paid';if(d<0)return'short_paid';return'overpaid';};
   const statusMatches=(status,key)=>status===key||(key==='no_report'&&status==='received')||(key==='paid_full'&&(status==='paid'||status==='overpaid'));
   const STATUS_FILTER_OPTIONS={
@@ -177,7 +184,7 @@ const PaymentsPage = () => {
     const val=parseFloat(String(newAmount).replace(/[^0-9.-]/g,''));
     if(isNaN(val))return;
     setSavingExpected(prev=>({...prev,[isoId]:true}));
-    const ex=payments.find(p=>p.iso_id===isoId);
+    const ex=hostPayment(isoId);
     if(ex){
       await supabase.from('iso_payments').update({expected_amount:val}).eq('id',ex.id);
     } else {
@@ -189,7 +196,7 @@ const PaymentsPage = () => {
   };
   const openPaymentModal=(isoId,isoName,expected)=>{
     setSelectedIsoForPayment({isoId,isoName,expected});
-    const ex=payments.find(p=>p.iso_id===isoId);
+    const ex=getPaymentForISO(isoId);
     if(ex){
       setEditingPayment(ex);
       setPaymentForm({received_amount:ex.received_amount!=null?String(ex.received_amount):'',payment_date:ex.payment_date||'',expected_date:parseExpDate(ex.notes)||'',payment_method:ex.payment_method||'',notes:parseActualNotes(ex.notes)});
@@ -262,7 +269,7 @@ const PaymentsPage = () => {
         </Space>
       );
       return<Text strong style={{color:'var(--primary-color)',cursor:'pointer'}} onClick={()=>setEditingExpected(prev=>({...prev,[r.isoId]:displayVal!=null?String(displayVal):''}))} title="Click to edit">{fmt(displayVal)}</Text>;}},
-    {title:'Received',key:'rec',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return(pa?.received_amount||0)-(pb?.received_amount||0);},render:(_,r)=>{const p=getPaymentForISO(r.isoId);return p?.received_amount!=null?<Text strong style={{color:'#059669'}}>{fmt(p.received_amount)}</Text>:<Text style={{color:'var(--muted-color)'}}>--</Text>;}},
+    {title:'Received',key:'rec',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return(pa?.received_amount||0)-(pb?.received_amount||0);},render:(_,r)=>{const p=getPaymentForISO(r.isoId);return p?.received_amount!=null?<Text strong style={{color:'#059669'}} title={p.parts&&p.parts.length?p.parts.map(x=>`${x.name} ${fmt(x.amount)}`).join(' + '):undefined}>{fmt(p.received_amount)}</Text>:<Text style={{color:'var(--muted-color)'}}>--</Text>;}},
     {title:'Difference',key:'diff',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return((pa?.received_amount||0)-(a.expected??0))-((pb?.received_amount||0)-(b.expected??0));},render:(_,r)=>{const p=getPaymentForISO(r.isoId);if(p?.received_amount==null||r.expected==null)return<Text style={{color:'var(--muted-color)'}}>--</Text>;const diff=(p?.received_amount||0)-r.expected;return<Text strong style={{color:Math.abs(diff)<0.01?'#059669':diff<0?'#dc2626':'#2563eb'}}>{diff>=0?'+':''}{fmt(diff)}</Text>;}},
     {title:'Status',key:'status',
       sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return STATUS_ORDER[getStatus(a.expected,pa?.received_amount)]-STATUS_ORDER[getStatus(b.expected,pb?.received_amount)];},
