@@ -258,6 +258,42 @@ async function handleTicketCleanup(req, res) {
   return res.status(200).json({ ok: true, removed: names.length });
 }
 
+// Password reset email — POST ?action=password-reset {email}. Public; always answers success so it never reveals which emails exist.
+// Uses a Supabase recovery token (single use, expires) emailed as a link to /reset-password; the page verifies it when the user submits.
+async function handlePasswordReset(req, res) {
+  if (req.method !== "POST") return res.status(405).end();
+  const SVC = process.env.SUPABASE_SERVICE_KEY;
+  const SB = "https://vuqflofuzhybutkkzroa.supabase.co";
+  const GMAIL_USER = process.env.GMAIL_USER, GMAIL_PASS = process.env.GMAIL_APP_PASSWORD;
+  const email = String((req.body && req.body.email) || "").trim().toLowerCase();
+  if (!SVC || !GMAIL_USER || !GMAIL_PASS) return res.status(500).json({ success: false, message: "Password reset is not configured" });
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ success: false, message: "Enter a valid email" });
+  const ok = () => res.status(200).json({ success: true, message: "If that email is registered, a reset link is on its way." });
+  try {
+    const h = { apikey: SVC, Authorization: `Bearer ${SVC}`, "Content-Type": "application/json" };
+    // only generate a link for existing users (generate_link can create users)
+    const ur = await fetch(`${SB}/auth/v1/admin/users?per_page=200`, { headers: h });
+    const users = ((await ur.json()).users) || [];
+    if (!users.some(u => (u.email || "").toLowerCase() === email)) return ok();
+    const gr = await fetch(`${SB}/auth/v1/admin/generate_link`, { method: "POST", headers: h, body: JSON.stringify({ type: "recovery", email }) });
+    const gl = await gr.json();
+    const token = gl.hashed_token || (gl.properties && gl.properties.hashed_token);
+    if (!token) return ok();
+    const origin = ["https://victoria-ericka3.vercel.app", "https://victoria.vercel.app"].includes(req.headers.origin) ? req.headers.origin : "https://victoria-ericka3.vercel.app";
+    const link = `${origin}/reset-password?token_hash=${encodeURIComponent(token)}`;
+    const transporter = nodemailer.createTransport({ service: "gmail", auth: { user: GMAIL_USER, pass: GMAIL_PASS } });
+    await transporter.sendMail({
+      from: `Victoria <${GMAIL_USER}>`,
+      to: email,
+      subject: "Reset your Victoria password",
+      html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;color:#0f172a"><h2 style="margin-bottom:8px">Reset your password</h2><p>Click the button below to choose a new password for Victoria. This link works once and expires soon.</p><p style="margin:24px 0"><a href="${link}" style="background:#1d4ed8;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:bold">Choose a new password</a></p><p style="font-size:12px;color:#64748b">If you didn't ask for this, you can ignore this email.</p></div>`,
+    });
+    return ok();
+  } catch (e) {
+    return res.status(500).json({ success: false, message: "Could not send the reset email. Please try again." });
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -273,6 +309,7 @@ export default async function handler(req, res) {
     return res.status(405).end();
   }
 
+  if (action === "password-reset") return handlePasswordReset(req, res);
   if (action === "ticket") return handleTicketNotify(req, res);
   if (action === "ticket-cleanup") return handleTicketCleanup(req, res);
 
