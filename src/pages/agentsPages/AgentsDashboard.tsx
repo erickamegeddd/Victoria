@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import agentClient from "../../utils/agentAxios";
 import { message, Table, Input, Row, Col, Button } from "antd";
-import { LeftOutlined, RightOutlined } from "@ant-design/icons";
+import { LeftOutlined, RightOutlined, DollarOutlined } from "@ant-design/icons";
 import type { TablePaginationConfig } from "antd";
 import { DownloadOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
@@ -115,7 +115,18 @@ const AgentsDashboard = () => {
           </Button>
         </Col>
       </Row>
-      <h2>Total Payout: {formatCurrency(calculateTotalPayout())}</h2>
+      <div style={{ margin: "16px 0", display: "inline-flex", alignItems: "center", gap: 16, minWidth: 320, padding: "18px 26px", borderRadius: 14, background: "linear-gradient(135deg, #059669 0%, #10b981 100%)", boxShadow: "0 6px 18px rgba(5,150,105,0.28)", color: "#fff" }}>
+        <div style={{ width: 52, height: 52, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>
+          <DollarOutlined />
+        </div>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", opacity: 0.9 }}>
+            Your Payout - {dayjs(date as string).format("MMMM YYYY")}
+          </div>
+          <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1.15 }}>{formatCurrency(calculateTotalPayout())}</div>
+          <div style={{ fontSize: 12, opacity: 0.85 }}>{agentData?.length || 0} merchant account{(agentData?.length || 0) === 1 ? "" : "s"}</div>
+        </div>
+      </div>
       <Table
         columns={agentColumns.filter((c: any) => ["iso", "dba", "mid", "agent_percentage", "agent_payout"].includes(c.dataIndex))}
         loading={agentLoading}
