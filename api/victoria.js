@@ -1,3 +1,4 @@
+import { requireCaller } from "./_auth.js";
 // Victoria AI — Groq backend (v8 — selective loading, comprehensive coverage)
 // Loads targeted data per question type to stay within model token limits.
 // Each branch loads exactly what's needed to answer that category of question.
@@ -131,9 +132,10 @@ function calcAgentPayouts(midMonth, months) {
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).end();
+  if (!(await requireCaller(req, res))) return; // admins only: Ask Victoria reads all-ISO data, so agent logins are blocked
 
   const { question, history = [], category } = req.body || {};
   if (!question) return res.status(400).json({ error: "No question provided" });
