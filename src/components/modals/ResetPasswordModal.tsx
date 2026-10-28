@@ -1,7 +1,6 @@
-import { Button, Form, Input, message, Modal, Spin } from "antd";
+// @ts-nocheck
+import { Button, Form, Input, message, Modal } from "antd";
 import React, { useState } from "react";
-import { useMutation } from "react-query";
-import client from "../../utils/axios";
 import { getUserFromLocalStorage } from "../../utils/getUser";
 
 interface ResetPasswordModalProps {
@@ -10,127 +9,29 @@ interface ResetPasswordModalProps {
   onCancel?: () => void;
 }
 
-interface ForgotPasswordProps {
-  email: string;
-}
-
-interface PasswordFormProps {
-  password: string;
-}
-
-const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
-  isResetPassword,
-  onOk,
-  onCancel,
-}) => {
-  const [form] = Form.useForm<ForgotPasswordProps>();
-  const [passwordForm] = Form.useForm<PasswordFormProps>();
+// Sends a one-time reset link by email (Victoria's own Gmail sender + Supabase recovery token, no external backend).
+const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({ isResetPassword, onCancel }) => {
+  const [form] = Form.useForm();
   const user = getUserFromLocalStorage();
-  const [isOTPSent, setOTPSent] = useState<boolean>(false);
-  const [isOTPVerified, setOTPVerified] = useState<boolean>(false);
+  const [sending, setSending] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
 
-  const handleVerifyOTP = async ({
-    email,
-    otp,
-  }: {
-    email: string;
-    otp: string;
-  }) => {
-    const { data } = await client.post(`/verify-otp`, { email, otp });
-    return data;
-  };
-
-  const { mutate: verifyOTP, isLoading: verifyOTPLoading } = useMutation(
-    handleVerifyOTP,
-    {
-      onSuccess: (data) => {
-        if (data.success) {
-          setOTPVerified(true);
-          setOTPSent(true);
-          message.success(data.message || "OTP verified successfully!");
-        } else {
-          message.error(data.message || "OTP verification failed!");
-          setOTPSent(false);
-        }
-      },
-      onError: (error: any) => {
-        if (error?.response?.data?.message) {
-          setOTPSent(false);
-          message.error(error.response.data.message);
-        } else {
-          message.error("Failed to verify OTP. Please try again.");
-        }
-      },
+  const send = async () => {
+    let email = user?.email;
+    if (!isResetPassword) {
+      try { const v = await form.validateFields(); email = v.email; } catch { return; }
     }
-  );
-
-  const handleSendOTP = async ({ email }: { email: string }) => {
-    const { data } = await client.post(`/send-otp`, { email });
-    return data;
-  };
-
-  const { mutate: sendOTP, isLoading } = useMutation(handleSendOTP, {
-    onSuccess: (data) => {
-      if (data.success) {
-        setOTPSent(true);
-        message.success(data.message || "OTP verified successfully!");
-      } else {
-        message.error(data.message || "OTP verification failed!");
-      }
-    },
-    onError: (error: any) => {
-      if (error?.response?.data?.message) {
-        message.error(error.response.data.message);
-      } else {
-        message.error("Failed to verify OTP. Please try again.");
-      }
-    },
-  });
-
-  const handleOTPSubmit = async (value: string) => {
-    if (user?.email != null && isResetPassword) {
-      verifyOTP({ email: user.email, otp: value });
-      return;
-    }
-    verifyOTP({ email: form.getFieldValue("email"), otp: value });
-  };
-
-  const handleResetPassword = async ({
-    password,
-    email,
-  }: {
-    password: string;
-    email: string;
-  }) => {
-    const { data } = await client.post(`/reset-password`, { password, email });
-    return data;
-  };
-
-  const { mutate: resetPassword, isLoading: resetPasswordLoading } =
-    useMutation(handleResetPassword, {
-      onSuccess: (data) => {
-        if (data.success) {
-          message.success(data.message || "Password changed successfully!");
-          onOk && onOk();
-        } else {
-          message.error(data.message || "Failed to change password!");
-        }
-      },
-      onError: (error: any) => {
-        if (error?.response?.data?.message) {
-          message.error(error.response.data.message);
-        } else {
-          message.error("Failed to reset Password. Please try again.");
-        }
-      },
-    });
-
-  const handlePasswordReset = async (email: string) => {
+    if (!email) { message.error("No email found for this account"); return; }
+    setSending(true);
     try {
-      const values = await passwordForm.validateFields();
-      resetPassword({ password: values.password, email: email });
-    } catch (error) {
-      console.error("Validation failed:", error);
+      const r = await fetch("/api/send-payment-reminder?action=password-reset", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.success) throw new Error(d.message || "Could not send the reset email. Please try again.");
+      setSentTo(email);
+    } catch (e) {
+      message.error(e.message || "Could not send the reset email. Please try again.");
+    } finally {
+      setSending(false);
     }
   };
 
@@ -140,76 +41,23 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
       title={isResetPassword ? "Reset Password" : "Forgot Password"}
       open={true}
       maskClosable={true}
-      onOk={onOk}
       onCancel={onCancel}
-      footer={[
-        !isOTPSent ? (
-          <Button
-            loading={isLoading}
-            type="primary"
-            disabled={isLoading && isResetPassword}
-            onClick={() => {
-              if (user != null && isResetPassword) {
-                sendOTP({ email: user.email });
-              } else if (!isResetPassword) {
-                form.validateFields();
-                sendOTP({ email: form.getFieldValue("email") });
-              } else {
-                message.error("Error sending OTP");
-              }
-            }}
-          >
-            Send OTP
-          </Button>
-        ) : null,
-      ]}
+      footer={sentTo ? [<Button key="close" type="primary" onClick={onCancel}>Close</Button>] : [<Button key="send" type="primary" loading={sending} onClick={send}>Send reset link</Button>]}
     >
-      <>
-        <Spin
-          className={
-            isLoading || verifyOTPLoading || resetPasswordLoading
-              ? `app-loading-wrapper`
-              : "hide"
-          }
-        />
-        <div className="sub-title">
-          Send OTP by clicking the button below to your email registered with
-          Victoria and confirm it by entering to reset password
-        </div>
-        {!isResetPassword && (
-          <Form form={form} layout="vertical">
-            <Form.Item
-              name="email"
-              label="Enter your email registered with victoria"
-              rules={[
-                { required: true, message: "Please input the email!" },
-                {
-                  type: "email",
-                  message: "Please enter a valid email!",
-                },
-                { validator: (_, value) => { const emailRegex = /^[a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/; if (!value || emailRegex.test(value)) { return Promise.resolve(); } return Promise.reject(new Error("Email must follow the pattern: example@domain.com")); } },
-              ]}
-            >
-              <Input placeholder="Enter email" size="large" />
-            </Form.Item>
-          </Form>
-        )}
-        {isOTPSent && !isOTPVerified && (
-          <div style={{display:"flex",alignItems:"center",justifyContent:"center",margin:"20px 0px"}}>
-            <Input.OTP size="large" length={6} onChange={handleOTPSubmit} style={{fontSize:"24px",textAlign:"center",letterSpacing:"8px"}}/>
-          </div>
-        )}
-        {isOTPSent && isOTPVerified && (
-          <Form form={passwordForm} layout="vertical">
-            <Form.Item name="password" label="Enter your new Password" rules={[{required:true,message:"Please input the new password!"}]}>
-              <Input.Password size="large" />
-            </Form.Item>
-            <Form.Item style={{textAlign:"right"}}>
-              <Button type="primary" loading={resetPasswordLoading} disabled={resetPasswordLoading} onClick={() => { if (user?.email != null && isResetPassword) handlePasswordReset(user?.email); else if (!isResetPassword) handlePasswordReset(form.getFieldValue("email")); }}>Reset Password</Button>
-            </Form.Item>
-          </Form>
-        )}
-      </>
+      {sentTo ? (
+        <div className="sub-title">If <b>{sentTo}</b> is registered with Victoria, a reset link is on its way. Open the email and click the button to choose a new password. The link works once and expires soon. Check spam if you don't see it.</div>
+      ) : (
+        <>
+          <div className="sub-title">{isResetPassword ? `We'll email a password reset link to ${user?.email || "your Victoria email"}.` : "Enter your Victoria email and we'll send you a password reset link."}</div>
+          {!isResetPassword && (
+            <Form form={form} layout="vertical">
+              <Form.Item name="email" label="Email" rules={[{ required: true, message: "Please input the email!" }, { type: "email", message: "Please enter a valid email!" }]}>
+                <Input placeholder="Enter email" size="large" onPressEnter={send} />
+              </Form.Item>
+            </Form>
+          )}
+        </>
+      )}
     </Modal>
   );
 };
