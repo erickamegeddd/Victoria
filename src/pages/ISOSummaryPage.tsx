@@ -10,10 +10,15 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 const FIRST_YEAR = 2026;
 const money = (n) => `$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+// MerchantE pays Synovous + Fresno as one combined deposit, so they are shown as a single row
+const MERGE_LABEL = "MerchantE (Synovous + Fresno)";
+
 const ISOSummaryPage = () => {
   const currentYear = dayjs().year();
   const [year, setYear] = useState(Math.max(currentYear, FIRST_YEAR));
   const [isos, setIsos] = useState([]);
+  const [merge, setMerge] = useState(null); // { from: Fresno id, to: Synovous id }
+  const canon = (id) => (merge && id === merge.from ? merge.to : id);
   const [residuals, setResiduals] = useState([]);
   const [loading, setLoading] = useState(false);
   const [payments, setPayments] = useState([]);
@@ -23,7 +28,14 @@ const ISOSummaryPage = () => {
   for (let y = FIRST_YEAR; y <= Math.max(currentYear, FIRST_YEAR) + 3; y++) yearOptions.push({ value: y, label: String(y) });
 
   useEffect(() => {
-    supabase.from("isos").select("id,name").order("name").then(({ data }) => { if (data) setIsos(data); });
+    supabase.from("isos").select("id,name").order("name").then(({ data }) => {
+      if (!data) return;
+      const f = data.find(i => i.name === "MerchantE Fresno"), s = data.find(i => i.name === "MerchantE Synovous");
+      if (f && s) {
+        setMerge({ from: f.id, to: s.id });
+        setIsos(data.filter(i => i.id !== f.id).map(i => (i.id === s.id ? { ...i, name: MERGE_LABEL } : i)));
+      } else setIsos(data);
+    });
   }, []);
 
   useEffect(() => {
@@ -54,8 +66,9 @@ const ISOSummaryPage = () => {
     const byIso = {};
     residuals.forEach(r => {
       const m = parseInt(String(r.report_month).slice(5, 7), 10) - 1;
-      if (!byIso[r.iso_id]) byIso[r.iso_id] = Array(12).fill(null);
-      byIso[r.iso_id][m] = (byIso[r.iso_id][m] || 0) + (Number(r.paydiversenet) || 0);
+      const k = canon(r.iso_id);
+      if (!byIso[k]) byIso[k] = Array(12).fill(null);
+      byIso[k][m] = (byIso[k][m] || 0) + (Number(r.paydiversenet) || 0);
     });
     return isos
       .map(i => {
@@ -65,7 +78,7 @@ const ISOSummaryPage = () => {
         return { key: i.id, name: i.name, months, total };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [isos, residuals]);
+  }, [isos, residuals, merge]);
 
   const monthTotals = MONTHS.map((_, m) => {
     const vals = rows.map(r => r.months[m]).filter(v => v != null);
@@ -117,7 +130,17 @@ const ISOSummaryPage = () => {
   // Payments tab: received per month vs expected (expected = residual total for that month, like the Payments page)
   const payRows = useMemo(() => {
     const payBy = {};
-    payments.forEach(p => { const m = parseInt(String(p.report_month).slice(5, 7), 10) - 1; (payBy[p.iso_id] = payBy[p.iso_id] || {})[m] = p; });
+    payments.forEach(p => {
+      const m = parseInt(String(p.report_month).slice(5, 7), 10) - 1;
+      const k = canon(p.iso_id);
+      const cur = (payBy[k] = payBy[k] || {})[m];
+      if (!cur) { payBy[k][m] = { ...p, parts: p.iso_id !== k || (merge && k === merge.to) ? [{ fresno: p.iso_id === (merge && merge.from), received: p.received_amount }] : null }; return; }
+      // second row of the merged ISO in the same month: add it to the first
+      const add = (a, b) => (a == null && b == null ? null : (Number(a) || 0) + (Number(b) || 0));
+      cur.expected_amount = add(cur.expected_amount, p.expected_amount);
+      cur.received_amount = add(cur.received_amount, p.received_amount);
+      cur.parts = (cur.parts || []).concat([{ fresno: p.iso_id === (merge && merge.from), received: p.received_amount }]);
+    });
     return rows.map(r => {
       const cells = MONTHS.map((_, m) => {
         const p = (payBy[r.key] || {})[m];
@@ -125,7 +148,8 @@ const ISOSummaryPage = () => {
         const received = p && p.received_amount != null ? Math.round(Number(p.received_amount) * 100) / 100 : null;
         const pending = received == null && expected != null && expected > 0.005 ? expected : 0;
         const deficit = received != null && expected != null && received < expected - 0.01 ? Math.round((expected - received) * 100) / 100 : 0;
-        return { expected, received, pending, deficit };
+        const parts = p && p.parts && p.parts.some(x => x.received != null) ? p.parts : null;
+        return { expected, received, pending, deficit, parts };
       });
       const total = Math.round(cells.reduce((s, c) => s + (c.received || 0), 0) * 100) / 100;
       const pendingTotal = Math.round(cells.reduce((s, c) => s + c.pending, 0) * 100) / 100;
@@ -133,7 +157,7 @@ const ISOSummaryPage = () => {
       const deficitTotal = Math.round(cells.reduce((s, c) => s + c.deficit, 0) * 100) / 100;
       return { key: r.key, name: r.name, cells, total, pendingTotal, expectedTotal, deficitTotal };
     }).filter(r => r.cells.some(c => c.received != null || c.pending > 0));
-  }, [rows, payments]);
+  }, [rows, payments, merge]);
   const payMonthTotals = MONTHS.map((_, m) => {
     const vals = payRows.map(r => r.cells[m].received).filter(v => v != null);
     return vals.length ? Math.round(vals.reduce((s, v) => s + v, 0) * 100) / 100 : null;
@@ -149,7 +173,8 @@ const ISOSummaryPage = () => {
     if (c.received != null) {
       const diff = c.expected != null ? c.received - c.expected : 0;
       const color = diff < -0.01 ? "#dc2626" : diff > 0.01 ? "#2563eb" : "#059669";
-      const tip = c.expected != null ? `Expected ${money(c.expected)} - Received ${money(c.received)}` : `Received ${money(c.received)}`;
+      let tip = c.expected != null ? `Expected ${money(c.expected)} - Received ${money(c.received)}` : `Received ${money(c.received)}`;
+      if (c.parts) tip += " (" + c.parts.filter(x => x.received != null).map(x => `${x.fresno ? "Fresno" : "Synovous"} ${money(x.received)}`).join(" + ") + ")";
       return <Tooltip title={tip}><span style={{ color, fontWeight: 500 }}>{money(c.received)}</span></Tooltip>;
     }
     if (c.pending > 0) return <Tooltip title={`Expected ${money(c.expected)} - not received yet`}><span style={{ color: "#d97706", fontWeight: 500 }}>Pending</span></Tooltip>;
