@@ -115,7 +115,8 @@ const AgentsDashboard = () => {
           </Button>
         </Col>
       </Row>
-      <div style={{ margin: "16px 0", display: "inline-flex", alignItems: "center", gap: 16, minWidth: 320, padding: "18px 26px", borderRadius: 14, background: "linear-gradient(135deg, #059669 0%, #10b981 100%)", boxShadow: "0 6px 18px rgba(5,150,105,0.28)", color: "#fff" }}>
+      <style>{`.ant-layout-content > div.agent-payout-card, div.agent-payout-card { background: linear-gradient(135deg, #047857 0%, #10b981 100%) !important; }`}</style>
+      <div className="agent-payout-card" style={{ margin: "16px 0", display: "inline-flex", alignItems: "center", gap: 16, minWidth: 320, padding: "18px 26px", borderRadius: 14, background: "linear-gradient(135deg, #059669 0%, #10b981 100%)", boxShadow: "0 6px 18px rgba(5,150,105,0.28)", color: "#fff" }}>
         <div style={{ width: 52, height: 52, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>
           <DollarOutlined />
         </div>
