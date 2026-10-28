@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import agentClient from "../../utils/agentAxios";
 import { message, Table, Input, Row, Col, Button } from "antd";
 import { LeftOutlined, RightOutlined } from "@ant-design/icons";
@@ -10,6 +10,7 @@ import { FilterValue, SorterResult } from "antd/es/table/interface";
 import * as XLSX from "xlsx";
 import { getUserFromLocalStorage } from "../../utils/getUser";
 import formatCurrency from "../../utils/formatCurrency";
+import { useLatestMonth } from "../../utils/latestMonth";
 import { agentColumns } from "../../components/modals/ModalComponentColumns";
 
 const { Search } = Input;
@@ -18,9 +19,9 @@ const AgentsDashboard = () => {
   const user = getUserFromLocalStorage();
   const [currentTableData, setCurrentTableData] = useState<AgentsData[]>([]);
   const [searchText, setSearchText] = useState<string>("");
-  const [date, setDate] = useState<string | string[]>(
-    '2026-07-01'
-  );
+  const LATEST_MONTH = useLatestMonth();
+  const [date, setDate] = useState<string | string[]>(LATEST_MONTH);
+  useEffect(() => { setDate(LATEST_MONTH); }, [LATEST_MONTH]);
 
 
   const fetchAgentData = async (
@@ -126,7 +127,7 @@ const AgentsDashboard = () => {
               {dayjs(date as string).format("MMMM YYYY")}
             </span>
             <Button icon={<RightOutlined />} onClick={() => setDate(dayjs(date as string).add(1, "month").format("YYYY-MM-01"))} />
-            <Button onClick={() => setDate('2026-07-01')} size="middle">Current Month</Button>
+            <Button onClick={() => setDate(LATEST_MONTH)} size="middle">Current Month</Button>
           </div>
         </Col>
       </Row>
