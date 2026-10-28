@@ -1,3 +1,4 @@
+import { requireCaller } from "./_auth.js";
 import { AGENT_MAP, getPct, isReseller, midScopedOut } from "./_agentMap.js";
 
 const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
@@ -15,6 +16,7 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "GET") return res.status(405).end();
+  if (!(await requireCaller(req, res, { agentScoped: true }))) return;
 
   const { start_date, end_date, agent_name } = req.query;
   if (!start_date || !end_date || !agent_name) {
