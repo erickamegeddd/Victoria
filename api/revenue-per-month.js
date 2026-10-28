@@ -1,3 +1,4 @@
+import { requireCaller } from "./_auth.js";
 const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
 
 async function sbGetAll(path) {
@@ -22,6 +23,7 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "GET") return res.status(405).end();
+  if (!(await requireCaller(req, res))) return;
 
   const { date } = req.query;
   if (!date) return res.status(400).json({ error: "date is required" });
