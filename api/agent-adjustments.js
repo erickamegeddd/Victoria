@@ -1,3 +1,4 @@
+import { requireCaller } from "./_auth.js";
 // Admin endpoint: agent adjustments CRUD + user listing + insights data (service_role bypass)
 const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
 
@@ -42,8 +43,11 @@ async function fetchAllSvc(baseUrl, serviceKey) {
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") return res.status(200).end();
+  // Agents may only read their own adjustments; everything else (insights, users, writes) is admin-only
+  const readsOwn = req.method === "GET" && !req.query.action && !!req.query.agent_name;
+  if (!(await requireCaller(req, res, { agentScoped: readsOwn }))) return;
 
   try {
     if (req.method === "GET") {
