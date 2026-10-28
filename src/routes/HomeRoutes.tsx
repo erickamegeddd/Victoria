@@ -38,7 +38,7 @@ const HomeRoutes = () => {
     return (
       <Routes>
         <Route index element={<Navigate to="/home/agents" replace />}/>
-        <Route path="/agents" element={<SP><AgentsPage/></SP>}/>
+        <Route path="/agents" element={<SP><AgentsDashboard/></SP>}/>
         <Route path="/*" element={<Navigate to="/home/agents" replace />}/>
       </Routes>
     );
