@@ -107,8 +107,8 @@ const HeaderComponent = () => {
   };
 
   const userMenuItems = [
-    { key: "1", label: (<span style={{ display: "flex", alignItems: "center" }} onClick={() => setModalVisible(true)}><ResetPassWordIcon />Reset Password</span>) },
-    { key: "2", label: (<span onClick={() => handleLogout(navigate)} style={{ color: "#f87171", width: "100%" }}><LogoutOutlined style={{ marginRight: "10px" }} />Logout</span>) },
+    { key: "reset", label: (<span style={{ display: "flex", alignItems: "center" }}><ResetPassWordIcon />Reset Password</span>) },
+    { key: "logout", label: (<span style={{ color: "#f87171" }}><LogoutOutlined style={{ marginRight: "10px" }} />Logout</span>) },
   ];
 
   const visible = overduePayments.filter(p => !dismissed.has(p.id));
@@ -241,7 +241,7 @@ const HeaderComponent = () => {
             <span style={{ fontSize: "14px", fontWeight: "600", color: "#fff" }}>{user?.name || "PayDiverse"}</span>
             <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{user?.role === "admin" ? "Admin" : user?.role === "agent" ? "Agent" : "Dashboard"}</span>
           </div>
-          <Dropdown placement="bottomLeft" trigger={["hover", "click"]} menu={{ items: userMenuItems }}>
+          <Dropdown placement="bottomLeft" trigger={["hover", "click"]} menu={{ items: userMenuItems, onClick: ({ key }) => { if (key === "logout") handleLogout(navigate); else if (key === "reset") setModalVisible(true); } }}>
             <Avatar size="large" style={{ backgroundColor: "rgba(255,255,255,0.2)", cursor: "pointer", border: "2px solid rgba(255,255,255,0.2)" }} icon={<UserOutlined />} />
           </Dropdown>
         </div>
