@@ -11,6 +11,7 @@ import { getUserFromLocalStorage } from "../../utils/getUser";
 import formatCurrency from "../../utils/formatCurrency";
 import { useLatestMonth } from "../../utils/latestMonth";
 import { agentColumns } from "../../components/modals/ModalComponentColumns";
+import AgentsTrendTable from "../../components/tables/AgentsTrendTable";
 
 
 const AgentsDashboard = () => {
@@ -138,6 +139,8 @@ const AgentsDashboard = () => {
         rowKey={(r: any) => `${r.iso}|${r.mid}`}
         scroll={{ x: 768 }}
       />
+      <div style={{ fontSize: 16, fontWeight: 700, margin: "28px 0 12px" }}>Monthly Trend</div>
+      <AgentsTrendTable hideTotal />
     </>
   );
 };
