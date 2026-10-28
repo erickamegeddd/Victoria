@@ -63,8 +63,11 @@ const ISOSummaryPage = () => {
   }, [year]);
 
   const rows = useMemo(() => {
-    const byIso = {};
+    const byIso = {}, byRaw = {};
     residuals.forEach(r => {
+      const mm = parseInt(String(r.report_month).slice(5, 7), 10) - 1;
+      if (!byRaw[r.iso_id]) byRaw[r.iso_id] = Array(12).fill(null);
+      byRaw[r.iso_id][mm] = (byRaw[r.iso_id][mm] || 0) + (Number(r.paydiversenet) || 0);
       const m = parseInt(String(r.report_month).slice(5, 7), 10) - 1;
       const k = canon(r.iso_id);
       if (!byIso[k]) byIso[k] = Array(12).fill(null);
@@ -75,7 +78,15 @@ const ISOSummaryPage = () => {
         const months = (byIso[i.id] || Array(12).fill(null)).map(v => (v == null ? null : Math.round(v * 100) / 100));
         const have = months.filter(v => v != null);
         const total = Math.round(have.reduce((s, v) => s + v, 0) * 100) / 100;
-        return { key: i.id, name: i.name, months, total };
+        const row = { key: i.id, name: i.name, months, total };
+        if (merge && i.id === merge.to) {
+          // collapsible detail: what each MerchantE ISO contributes
+          row.children = [[merge.to, "MerchantE Synovous"], [merge.from, "MerchantE Fresno"]].map(([id, nm]) => {
+            const ms = (byRaw[id] || Array(12).fill(null)).map(v => (v == null ? null : Math.round(v * 100) / 100));
+            return { key: id + "_part", name: nm, months: ms, total: Math.round(ms.reduce((a, v) => a + (v || 0), 0) * 100) / 100, isChild: true };
+          });
+        }
+        return row;
       })
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [isos, residuals, merge]);
@@ -114,7 +125,7 @@ const ISOSummaryPage = () => {
   };
 
   const columns = [
-    { title: "ISO", dataIndex: "name", key: "name", sorter: sortBy(r => r.name), sortDirections: ["ascend", "descend"], fixed: "left", width: 190, render: (v, r) => <span style={{ fontWeight: r.isTotal ? 700 : 600 }}>{v}</span> },
+    { title: "ISO", dataIndex: "name", key: "name", sorter: sortBy(r => r.name), sortDirections: ["ascend", "descend"], fixed: "left", width: 190, render: (v, r) => <span style={{ fontWeight: r.isTotal ? 700 : r.isChild ? 400 : 600, color: r.isChild ? "#6b7280" : "inherit" }}>{v}</span> },
     ...MONTHS.map((label, m) => ({
       title: label, key: label, align: "right", width: 100, sorter: sortBy(r => r.months[m]), sortDirections: ["descend", "ascend"],
       render: (_, r) => {
@@ -174,7 +185,7 @@ const ISOSummaryPage = () => {
       const diff = c.expected != null ? c.received - c.expected : 0;
       const color = diff < -0.01 ? "#dc2626" : diff > 0.01 ? "#2563eb" : "#059669";
       let tip = c.expected != null ? `Expected ${money(c.expected)} - Received ${money(c.received)}` : `Received ${money(c.received)}`;
-      if (c.parts) tip += " (" + c.parts.filter(x => x.received != null).map(x => `${x.fresno ? "Fresno" : "Synovous"} ${money(x.received)}`).join(" + ") + ")";
+      if (c.parts) tip += ". Deposit recorded under: " + c.parts.filter(x => x.received != null).map(x => `${x.fresno ? "MerchantE Fresno" : "MerchantE Synovous"} ${money(x.received)}`).join(" + ");
       return <Tooltip title={tip}><span style={{ color, fontWeight: 500 }}>{money(c.received)}</span></Tooltip>;
     }
     if (c.pending > 0) return <Tooltip title={`Expected ${money(c.expected)} - not received yet`}><span style={{ color: "#d97706", fontWeight: 500 }}>Pending</span></Tooltip>;
@@ -227,7 +238,8 @@ const ISOSummaryPage = () => {
             pagination={false}
             size="middle"
             sticky
-            rowClassName={(r) => (r.isTotal ? "iso-total-row" : "")}
+            rowClassName={(r) => (r.isTotal ? "iso-total-row" : r.isChild ? "iso-child-row" : "")}
+            expandable={{ defaultExpandAllRows: false }}
             scroll={{ x: 1500 }}
           />
         </Spin>
