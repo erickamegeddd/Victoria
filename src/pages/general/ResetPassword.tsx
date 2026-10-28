@@ -21,7 +21,7 @@ const ResetPassword = () => {
       if (vErr) throw new Error("This reset link is invalid or has expired. Please request a new one.");
       const { error: uErr } = await supabase.auth.updateUser({ password });
       if (uErr) throw new Error(uErr.message);
-      await supabase.auth.signOut({ scope: "local" });
+      await supabase.auth.signOut({ scope: "global" }); // revoke every other signed-in session for this account
       localStorage.removeItem("token"); localStorage.removeItem("user");
       setDone(true);
       message.success("Password updated. Please sign in.");
