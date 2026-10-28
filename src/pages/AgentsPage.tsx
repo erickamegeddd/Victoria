@@ -94,7 +94,7 @@ const AgentsPage = () => {
           style={{ width: 170 }}
         />
         <Button icon={<RightOutlined />} onClick={() => go(1)} />
-        <Button onClick={() => setDate(dayjs().format("YYYY-MM-01"))} size="middle">Current Month</Button>
+        <Button onClick={() => setDate(LATEST_MONTH)} size="middle">Current Month</Button>
       </div>
 
       <AgentsCardsComponent date={date} />
