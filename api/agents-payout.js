@@ -55,7 +55,8 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "GET") return res.status(405).end();
-  if (!(await requireCaller(req, res))) return;
+  const caller = await requireCaller(req, res, { agentScoped: true });
+  if (!caller) return;
 
   const { date } = req.query;
   if (!date) return res.status(400).json({ error: "date is required" });
@@ -63,7 +64,7 @@ export default async function handler(req, res) {
   // Run per-agent queries in parallel so each agent uses only its own MIDs.
   try {
     const results = await Promise.all(
-      Object.entries(AGENT_MAP).map(async ([agent_name, merchants]) => {
+      Object.entries(AGENT_MAP).filter(([name]) => caller.role !== "agent" || name === caller.name).map(async ([agent_name, merchants]) => {
         try {
           const { payout, midCount } = await computeAgentPayout(agent_name, merchants, date);
           return { agent_name, total_payout: Math.round(payout * 100) / 100, mid_count: midCount };
