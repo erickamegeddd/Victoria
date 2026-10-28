@@ -7,7 +7,6 @@ import { DownloadOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useQuery } from "react-query";
 import { FilterValue, SorterResult } from "antd/es/table/interface";
-import * as XLSX from "xlsx";
 import { getUserFromLocalStorage } from "../../utils/getUser";
 import formatCurrency from "../../utils/formatCurrency";
 import { useLatestMonth } from "../../utils/latestMonth";
@@ -53,32 +52,32 @@ const AgentsDashboard = () => {
   };
 
   const handleDownload = () => {
-    // Use the currentTableData for download
-    const formattedData = (
-      currentTableData.length ? currentTableData : agentData
-    )?.map((item: AgentsData) => ({
-      ISO: item?.iso || "Not Provided",
-      DBA: item?.dba || "Not Provided",
-      MID: item?.mid || "Not Provided",
-      "Agent Percentage": item?.agent_percentage || "0.00%",
-      "Agent Payout": item?.agent_payout ? Number(item.agent_payout) : 0.0,
-    }));
-
-    // Create worksheet with the formatted data
-    const worksheet = XLSX.utils.json_to_sheet(formattedData || [], {
-      header: ["ISO", "DBA", "MID", "Agent Percentage", "Agent Payout"],
-    });
-
-    // Set column widths
-    const columnWidths = [{ wch: 30 }, { wch: 30 }, { wch: 24 }, { wch: 18 }, { wch: 18 }];
-    worksheet["!cols"] = columnWidths;
-
-    // Create workbook and append worksheet
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, `${user?.name}`);
-
-    // Download the file
-    XLSX.writeFile(workbook, `${user?.name}-${date}.xlsx`);
+    const src = (currentTableData.length ? currentTableData : agentData) || [];
+    const esc = (v: any) => {
+      const s = String(v ?? "");
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const header = ["ISO", "DBA", "MID", "Agent Percentage", "Agent Payout"];
+    const lines = [header.join(",")].concat(
+      src.map((item: AgentsData) =>
+        [
+          item?.iso || "Not Provided",
+          item?.dba || "Not Provided",
+          item?.mid || "Not Provided",
+          item?.agent_percentage || "0.00%",
+          (Number(item?.agent_payout) || 0).toFixed(2),
+        ].map(esc).join(",")
+      )
+    );
+    const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${user?.name}-${date}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
     message.success("File downloaded successfully");
   };
 
@@ -103,20 +102,9 @@ const AgentsDashboard = () => {
           </div>
         </Col>
       </Row>
-      <Row gutter={[16, 16]} align="middle" justify="space-between">
-        <Col span={24} style={{ display: "flex", justifyContent: "flex-end" }}>
-          <Button
-            className="download-btn"
-            type="primary"
-            onClick={handleDownload}
-            disabled={!agentData || agentData.length === 0}
-          >
-            Download as XLSX <DownloadOutlined />
-          </Button>
-        </Col>
-      </Row>
       <style>{`.ant-layout-content > div.agent-payout-card, div.agent-payout-card { background: linear-gradient(135deg, #047857 0%, #10b981 100%) !important; }`}</style>
-      <div className="agent-payout-card" style={{ margin: "16px 0", display: "inline-flex", alignItems: "center", gap: 16, minWidth: 320, padding: "18px 26px", borderRadius: 14, background: "linear-gradient(135deg, #059669 0%, #10b981 100%)", boxShadow: "0 6px 18px rgba(5,150,105,0.28)", color: "#fff" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginTop: 20 }}>
+      <div className="agent-payout-card" style={{ margin: 0, display: "inline-flex", alignItems: "center", gap: 16, minWidth: 320, padding: "18px 26px", borderRadius: 14, background: "linear-gradient(135deg, #059669 0%, #10b981 100%)", boxShadow: "0 6px 18px rgba(5,150,105,0.28)", color: "#fff" }}>
         <div style={{ width: 52, height: 52, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>
           <DollarOutlined />
         </div>
@@ -127,6 +115,11 @@ const AgentsDashboard = () => {
           <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1.15 }}>{formatCurrency(calculateTotalPayout())}</div>
         </div>
       </div>
+      <Button type="primary" size="large" icon={<DownloadOutlined />} onClick={handleDownload} disabled={!agentData || agentData.length === 0}>
+        Download as CSV
+      </Button>
+      </div>
+      <div style={{ height: 16 }} />
       <Table
         columns={agentColumns.filter((c: any) => ["iso", "dba", "mid", "agent_percentage", "agent_payout"].includes(c.dataIndex))}
         loading={agentLoading}
