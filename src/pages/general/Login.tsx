@@ -4,6 +4,7 @@ import { Button, Form, Input, Typography, message } from "antd";
 import { LockOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../utils/supabase";
+import ResetPasswordModal from "../../components/modals/ResetPasswordModal";
 
 message.config({ duration: 2, maxCount: 1 });
 
@@ -11,6 +12,7 @@ export default function Login() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
 
   useEffect(() => { if (localStorage.getItem("token")) navigate("/home"); }, []);
 
@@ -204,7 +206,7 @@ export default function Login() {
             </Form.Item>
 
             <div style={{ textAlign: "center", marginBottom: 32 }}>
-              <Button type="link" style={{ padding: 0, fontSize: 13, color: "#1d4ed8" }}>
+              <Button type="link" onClick={() => setForgotOpen(true)} style={{ padding: 0, fontSize: 13, color: "#1d4ed8" }}>
                 Forgot password?
               </Button>
             </div>
@@ -223,6 +225,7 @@ export default function Login() {
         </div>
 
       </div>
+      {forgotOpen && <ResetPasswordModal isResetPassword={false} onCancel={() => setForgotOpen(false)} />}
     </div>
   );
 }
