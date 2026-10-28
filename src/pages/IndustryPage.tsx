@@ -3,9 +3,11 @@ import { Button } from "antd";
 import { LeftOutlined, RightOutlined, BarChartOutlined } from "@ant-design/icons";
 import { useState } from "react";
 import dayjs from "dayjs";
+import { useLatestMonth } from "../utils/latestMonth";
 
 const IndustryPage = () => {
-  const [date, setDate] = useState(dayjs().format("YYYY-MM-01"));
+  const DEFAULT_MONTH = useLatestMonth();
+  const [date, setDate] = useState(DEFAULT_MONTH);
   const go = (months) => setDate(dayjs(date).add(months, "month").format("YYYY-MM-01"));
 
   return (
@@ -16,7 +18,7 @@ const IndustryPage = () => {
           {dayjs(date).format("MMMM YYYY")}
         </span>
         <Button icon={<RightOutlined />} onClick={() => go(1)} />
-        <Button onClick={() => setDate(dayjs().format("YYYY-MM-01"))} size="middle">Current Month</Button>
+        <Button onClick={() => setDate(DEFAULT_MONTH)} size="middle">Current Month</Button>
       </div>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 320, background: "rgba(255,255,255,0.06)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)" }}>
         <BarChartOutlined style={{ fontSize: 48, color: "#38bdf8", marginBottom: 16 }} />
