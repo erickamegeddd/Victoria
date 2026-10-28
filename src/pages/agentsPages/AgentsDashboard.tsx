@@ -13,12 +13,10 @@ import formatCurrency from "../../utils/formatCurrency";
 import { useLatestMonth } from "../../utils/latestMonth";
 import { agentColumns } from "../../components/modals/ModalComponentColumns";
 
-const { Search } = Input;
 
 const AgentsDashboard = () => {
   const user = getUserFromLocalStorage();
   const [currentTableData, setCurrentTableData] = useState<AgentsData[]>([]);
-  const [searchText, setSearchText] = useState<string>("");
   const LATEST_MONTH = useLatestMonth();
   const [date, setDate] = useState<string | string[]>(LATEST_MONTH);
   useEffect(() => { setDate(LATEST_MONTH); }, [LATEST_MONTH]);
@@ -61,43 +59,18 @@ const AgentsDashboard = () => {
     )?.map((item: AgentsData) => ({
       ISO: item?.iso || "Not Provided",
       DBA: item?.dba || "Not Provided",
-      Corporation: item?.corporation || "Not Provided",
       MID: item?.mid || "Not Provided",
       "Agent Percentage": item?.agent_percentage || "0.00%",
       "Agent Payout": item?.agent_payout ? Number(item.agent_payout) : 0.0,
-      "Total Residual": item?.total_residual
-        ? Number(item.total_residual)
-        : 0.0,
-      "PayDiverse Residual": item?.paydiverse_residual
-        ? Number(item.paydiverse_residual)
-        : 0.0,
     }));
 
     // Create worksheet with the formatted data
     const worksheet = XLSX.utils.json_to_sheet(formattedData || [], {
-      header: [
-        "ISO",
-        "DBA",
-        "Corporation",
-        "MID",
-        "Agent Percentage",
-        "Agent Payout",
-        "Total Residual",
-        "PayDiverse Residual",
-      ],
+      header: ["ISO", "DBA", "MID", "Agent Percentage", "Agent Payout"],
     });
 
     // Set column widths
-    const columnWidths = [
-      { wch: 30 }, // ISO column
-      { wch: 30 }, // ISO column
-      { wch: 30 }, // ISO column
-      { wch: 30 }, // ISO column
-      { wch: 20 }, // Total Residual column
-      { wch: 20 }, // Paydiverse Residual column
-      { wch: 20 }, // Paydiverse Residual column
-      { wch: 20 }, // Paydiverse Residual column
-    ];
+    const columnWidths = [{ wch: 30 }, { wch: 30 }, { wch: 24 }, { wch: 18 }, { wch: 18 }];
     worksheet["!cols"] = columnWidths;
 
     // Create workbook and append worksheet
@@ -132,17 +105,7 @@ const AgentsDashboard = () => {
         </Col>
       </Row>
       <Row gutter={[16, 16]} align="middle" justify="space-between">
-        <Col span={8}>
-          <Search
-            size="large"
-            placeholder="Search"
-            allowClear
-            enterButton
-            onSearch={(value) => setSearchText(value)}
-            onChange={(e) => setSearchText(e.target.value)}
-          />
-        </Col>
-        <Col span={8} style={{ display: "flex", justifyContent: "flex-end" }}>
+        <Col span={24} style={{ display: "flex", justifyContent: "flex-end" }}>
           <Button
             className="download-btn"
             type="primary"
@@ -155,7 +118,7 @@ const AgentsDashboard = () => {
       </Row>
       <h2>Total Payout: {formatCurrency(calculateTotalPayout())}</h2>
       <Table
-        columns={agentColumns}
+        columns={agentColumns.filter((c: any) => ["iso", "dba", "mid", "agent_percentage", "agent_payout"].includes(c.dataIndex))}
         loading={agentLoading}
         rowHoverable={false}
         onChange={(
@@ -168,15 +131,8 @@ const AgentsDashboard = () => {
             extra.currentDataSource || (agentData as AgentsData[])
           ); // Handle optional chaining
         }}
-        dataSource={agentData?.filter(
-          (item: AgentsData) =>
-            (item.iso || "").toLowerCase().includes(searchText.toLowerCase()) ||
-            (item.dba || "").toLowerCase().includes(searchText.toLowerCase()) ||
-            (item.mid || "").toLowerCase().includes(searchText.toLowerCase()) ||
-            (item.corporation || "")
-              .toLowerCase()
-              .includes(searchText.toLowerCase())
-        )}
+        dataSource={agentData}
+        rowKey={(r: any) => `${r.iso}|${r.mid}`}
         scroll={{ x: 768 }}
       />
     </>
