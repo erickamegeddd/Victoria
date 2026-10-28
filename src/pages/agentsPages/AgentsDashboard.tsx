@@ -52,6 +52,9 @@ const AgentsDashboard = () => {
     );
   };
 
+  // unique MID numbers (the same MID can appear under more than one row)
+  const uniqueMidCount = () => new Set((agentData || []).map((i: any) => String(i?.mid || "").trim()).filter(Boolean)).size;
+
   const handleDownload = () => {
     const src = (currentTableData.length ? currentTableData : agentData) || [];
     const esc = (v: any) => {
@@ -59,7 +62,15 @@ const AgentsDashboard = () => {
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
     const header = ["ISO", "DBA", "MID", "Agent Percentage", "Agent Payout"];
-    const lines = [header.join(",")].concat(
+    const monthLabel = dayjs(date as string).format("MMMM YYYY");
+    const lines = [
+      ["Agent", user?.name || ""].map(esc).join(","),
+      ["Month", monthLabel].map(esc).join(","),
+      ["Your Payout", calculateTotalPayout().toFixed(2)].map(esc).join(","),
+      ["Total MIDs", uniqueMidCount()].map(esc).join(","),
+      "",
+      header.join(","),
+    ].concat(
       src.map((item: AgentsData) =>
         [
           item?.iso || "Not Provided",
@@ -70,7 +81,6 @@ const AgentsDashboard = () => {
         ].map(esc).join(",")
       )
     );
-    lines.push("", ["Total MIDs", (agentData || []).length].map(esc).join(","));
     const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -123,7 +133,7 @@ const AgentsDashboard = () => {
         </div>
         <div>
           <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "#64748b" }}>Total MIDs</div>
-          <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1.15, color: "#0f172a" }}>{(agentData || []).length}</div>
+          <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1.15, color: "#0f172a" }}>{uniqueMidCount()}</div>
         </div>
       </div>
       <Button style={{ marginLeft: "auto" }} type="primary" size="large" icon={<DownloadOutlined />} onClick={handleDownload} disabled={!agentData || agentData.length === 0}>
