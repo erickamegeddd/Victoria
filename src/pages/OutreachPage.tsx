@@ -40,6 +40,21 @@ const OutreachPage = () => {
   // Key by record.id (payment ID) — each row is independent
   const [editingEmail, setEditingEmail] = useState({});
   const [pickedEmail, setPickedEmail] = useState({});
+  const [dismissed, setDismissed] = useState([]);
+  const [showDismissed, setShowDismissed] = useState(false);
+  const setDismissal = async (record, on) => {
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/iso_payments?id=eq.${record.id}`, {
+        method: "PATCH",
+        headers: { ...sbHeaders, "Content-Type": "application/json", Prefer: "return=minimal" },
+        body: JSON.stringify({ status: on ? "dismissed" : "pending" })
+      });
+      if (!r.ok) throw new Error("save failed");
+      if (on) { setRecords(prev => prev.filter(x => x.id !== record.id)); setDismissed(prev => [...prev, record]); }
+      else { setDismissed(prev => prev.filter(x => x.id !== record.id)); setRecords(prev => [...prev, record].sort((a, b) => (a.due_date || "").localeCompare(b.due_date || ""))); }
+      message.success(on ? "Dismissed - won't be chased" : "Restored to Outreach");
+    } catch (e) { message.error("Could not update"); }
+  };
   const chosenEmail = (r) => { const l = emailList(r.iso_email); return pickedEmail[r.id] && l.includes(pickedEmail[r.id]) ? pickedEmail[r.id] : (l[0] || ""); };
   const [savingEmail, setSavingEmail] = useState(null);
   const [previewRecord, setPreviewRecord] = useState(null);
@@ -105,7 +120,7 @@ const OutreachPage = () => {
     setLoading(true);
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/iso_payments?select=id,iso_id,report_month,expected_amount,received_amount,notes,email_sent,email_sent_at,isos!inner(id,name,email,notes)&isos.status=eq.active&received_amount=is.null&order=report_month.asc&limit=300`,
+        `${SUPABASE_URL}/rest/v1/iso_payments?select=id,iso_id,report_month,expected_amount,received_amount,notes,status,email_sent,email_sent_at,isos!inner(id,name,email,notes)&isos.status=eq.active&received_amount=is.null&order=report_month.asc&limit=300`,
         { headers: sbHeaders }
       );
       const data = await res.json();
@@ -156,7 +171,9 @@ const OutreachPage = () => {
         });
       }
       // Zero / negative amounts owe nothing, so they never appear on Outreach
-      setRecords(enriched.filter(p => (p.computed_amount || 0) > 0.005));
+      const owed = enriched.filter(p => (p.computed_amount || 0) > 0.005);
+      setRecords(owed.filter(p => p.status !== "dismissed"));
+      setDismissed(owed.filter(p => p.status === "dismissed"));
     } catch (e) {
       message.error("Failed to load overdue payments");
     } finally {
@@ -345,6 +362,15 @@ const OutreachPage = () => {
         ? <Tag icon={<CheckCircleOutlined />} color="success">Sent {record.email_sent_at ? dayjs(record.email_sent_at).format("MMM D") : ""}</Tag>
         : <Tag icon={<ClockCircleOutlined />} color="warning">Pending</Tag>
     },
+    {
+      title: "",
+      width: 100,
+      render: (_, record) => (
+        <Popconfirm title="Dismiss this outreach?" description="It will stop showing here and auto-send will skip it. You can restore it later." okText="Dismiss" onConfirm={() => setDismissal(record, true)}>
+          <Button size="small">Dismiss</Button>
+        </Popconfirm>
+      )
+    },
   ];
 
   return (
@@ -354,6 +380,7 @@ const OutreachPage = () => {
           <h2 style={{ margin: 0 }}>Payment Outreach</h2>
           <p style={{ color: "#6f7280", margin: "4px 0 0", fontSize: 13 }}>
             {records.length} overdue by 2+ days — add emails and send reminders
+            {dismissed.length > 0 && <> · <a onClick={() => setShowDismissed(true)}>{dismissed.length} dismissed</a></>}
           </p>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 6, background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 6, padding: "2px 10px", fontSize: 12, color: "#15803d", fontWeight: 600 }}>
             <MailOutlined style={{ fontSize: 11 }} /> Sending from: residuals@elmpayments.com
@@ -453,6 +480,14 @@ const OutreachPage = () => {
             {previewRecord?.body}
           </pre>
         )}
+      </Modal>
+      <Modal open={showDismissed} title="Dismissed outreach" footer={null} onCancel={() => setShowDismissed(false)}>
+        {dismissed.length === 0 ? "Nothing dismissed." : dismissed.map(r => (
+          <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid #eee" }}>
+            <span>{r.iso_name} - {dayjs(r.report_month).format("MMM YYYY")} - ${(r.computed_amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+            <Button size="small" onClick={() => setDismissal(r, false)}>Restore</Button>
+          </div>
+        ))}
       </Modal>
       <Drawer
         open={!!historyRecord}
