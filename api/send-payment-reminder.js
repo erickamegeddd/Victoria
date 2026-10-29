@@ -109,7 +109,7 @@ async function handleCron(req, res) {
 
   // Fetch Sep 2026+ payments with no received amount
   const pr = await fetch(
-    `${SUPABASE_URL}/rest/v1/iso_payments?select=id,iso_id,report_month,notes,email_sent,isos(id,name,email)&received_amount=is.null&report_month=gte.2026-01-01&limit=300`,
+    `${SUPABASE_URL}/rest/v1/iso_payments?select=id,iso_id,report_month,notes,email_sent,status,isos(id,name,email)&received_amount=is.null&report_month=gte.2026-01-01&limit=300`,
     { headers: sbH }
   );
   if (!pr.ok) return res.status(500).json({ ok: false, error: "Failed to fetch payments" });
@@ -129,7 +129,7 @@ async function handleCron(req, res) {
   const eligible = payments.filter((p) => {
     if (p.iso_id === ME_FRESNO) return false;
     if (p.iso_id === ME_SYN && mePaid.has(p.report_month)) return false;
-    if (p.email_sent) return false;
+    if (p.email_sent || p.status === "dismissed") return false;
     if (!p.isos?.email) return false;
     const m = p.notes?.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/);
     return m && m[1] <= cutoff;
