@@ -100,7 +100,7 @@ const OutreachPage = () => {
     setLoading(true);
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/iso_payments?select=id,iso_id,report_month,expected_amount,received_amount,notes,email_sent,email_sent_at,isos(id,name,email)&received_amount=is.null&order=report_month.asc&limit=300`,
+        `${SUPABASE_URL}/rest/v1/iso_payments?select=id,iso_id,report_month,expected_amount,received_amount,notes,email_sent,email_sent_at,isos!inner(id,name,email)&isos.status=eq.active&received_amount=is.null&order=report_month.asc&limit=300`,
         { headers: sbHeaders }
       );
       const data = await res.json();
