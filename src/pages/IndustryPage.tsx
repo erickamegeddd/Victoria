@@ -18,7 +18,7 @@ const IndustryPage = () => {
           {dayjs(date).format("MMMM YYYY")}
         </span>
         <Button icon={<RightOutlined />} onClick={() => go(1)} />
-        <Button onClick={() => setDate(DEFAULT_MONTH)} size="middle">Current Month</Button>
+        <Button onClick={() => setDate(dayjs().startOf("month").format("YYYY-MM-01"))} size="middle">Current Month</Button>
       </div>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 320, background: "rgba(255,255,255,0.06)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)" }}>
         <BarChartOutlined style={{ fontSize: 48, color: "#38bdf8", marginBottom: 16 }} />
