@@ -43,7 +43,7 @@ const RevenuePerMidPage = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    let base = supabase.from("residuals").select("*,isos(id,name)").eq("report_month", selectedMonth).order("report_month", { ascending: true });
+    let base = supabase.from("residuals").select("*,isos!inner(id,name)").eq("isos.status","active").eq("report_month", selectedMonth).order("report_month", { ascending: true });
     if (selectedIso) base = base.eq("iso_id", selectedIso);
     const rows = await fetchAllRows(base);
 
