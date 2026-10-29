@@ -116,8 +116,19 @@ async function handleCron(req, res) {
   const payments = await pr.json();
   if (!Array.isArray(payments)) return res.status(500).json({ ok: false, error: "Unexpected response" });
 
+  // MerchantE Fresno + Synovous are one account: Fresno rows never send; Synovous rows skip months where either side was paid
+  const ME_FRESNO = "ebabea6f-2ab6-460d-a47e-362fb9e7d15a", ME_SYN = "c97162d5-d5c2-4c02-8068-d33cd6958567";
+  const mePaid = new Set();
+  try {
+    const mr = await fetch(`${SUPABASE_URL}/rest/v1/iso_payments?select=report_month&received_amount=not.is.null&iso_id=in.(${ME_FRESNO},${ME_SYN})&limit=500`, { headers: sbH });
+    const mj = await mr.json();
+    if (Array.isArray(mj)) mj.forEach((x) => mePaid.add(x.report_month));
+  } catch (_) { /* unmerged fallback */ }
+
   // Filter: overdue 2+ days, not already sent, has ISO email
   const eligible = payments.filter((p) => {
+    if (p.iso_id === ME_FRESNO) return false;
+    if (p.iso_id === ME_SYN && mePaid.has(p.report_month)) return false;
     if (p.email_sent) return false;
     if (!p.isos?.email) return false;
     const m = p.notes?.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/);
@@ -129,7 +140,7 @@ async function handleCron(req, res) {
   }
 
   // Fetch residuals in batch
-  const isoIds = [...new Set(eligible.map((p) => p.iso_id))].join(",");
+  const isoIds = [...new Set([...eligible.map((p) => p.iso_id), ...(eligible.some((p) => p.iso_id === ME_SYN) ? [ME_FRESNO] : [])])].join(",");
   const months = [...new Set(eligible.map((p) => p.report_month))].join(",");
   const rr = await fetch(
     `${SUPABASE_URL}/rest/v1/residuals?select=iso_id,report_month,paydiversenet&iso_id=in.(${isoIds})&report_month=in.(${months})&limit=5000`,
@@ -155,11 +166,12 @@ async function handleCron(req, res) {
   for (const p of eligible) {
     try {
       const dueDate = p.notes.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/)[1];
-      const amount = Math.round((resMap[`${p.iso_id}|${p.report_month}`] || 0) * 100) / 100;
+      const amount = Math.round(((resMap[`${p.iso_id}|${p.report_month}`] || 0) + (p.iso_id === ME_SYN ? (resMap[`${ME_FRESNO}|${p.report_month}`] || 0) : 0)) * 100) / 100;
       if (amount <= 0) continue;
 
       const isoName = p.isos.name;
-      const isoEmail = p.isos.email;
+      const isoEmail = String(p.isos.email).split(/[,;\s]+/).filter((x) => x.includes("@"))[0]; // first = primary; others are backups
+      if (!isoEmail) continue;
       const body = buildAutoBody(isoName, amount, p.report_month, dueDate);
       const monthLabel = new Date(p.report_month.slice(0, 7) + "-01T12:00:00Z")
         .toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
