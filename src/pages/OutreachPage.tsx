@@ -42,16 +42,20 @@ const OutreachPage = () => {
   const [pickedEmail, setPickedEmail] = useState({});
   const [dismissed, setDismissed] = useState([]);
   const [showDismissed, setShowDismissed] = useState(false);
+  const DTAG = "[DISMISSED]";
+  const removeTag = (n) => String(n || "").replace(DTAG, "");
+  const addTag = (n) => { const m = /^(EXP:\d{4}-\d{2}-\d{2}\|)?(.*)$/s.exec(removeTag(n)); return (m[1] || "") + DTAG + m[2]; };
   const setDismissal = async (record, on) => {
     try {
       const r = await fetch(`${SUPABASE_URL}/rest/v1/iso_payments?id=eq.${record.id}`, {
         method: "PATCH",
         headers: { ...sbHeaders, "Content-Type": "application/json", Prefer: "return=minimal" },
-        body: JSON.stringify({ status: on ? "dismissed" : "pending" })
+        body: JSON.stringify({ notes: on ? addTag(record.notes) : removeTag(record.notes) })
       });
       if (!r.ok) throw new Error("save failed");
-      if (on) { setRecords(prev => prev.filter(x => x.id !== record.id)); setDismissed(prev => [...prev, record]); }
-      else { setDismissed(prev => prev.filter(x => x.id !== record.id)); setRecords(prev => [...prev, record].sort((a, b) => (a.due_date || "").localeCompare(b.due_date || ""))); }
+      const nr = { ...record, notes: on ? addTag(record.notes) : removeTag(record.notes) };
+      if (on) { setRecords(prev => prev.filter(x => x.id !== record.id)); setDismissed(prev => [...prev, nr]); }
+      else { setDismissed(prev => prev.filter(x => x.id !== record.id)); setRecords(prev => [...prev, nr].sort((a, b) => (a.due_date || "").localeCompare(b.due_date || ""))); }
       message.success(on ? "Dismissed - won't be chased" : "Restored to Outreach");
     } catch (e) { message.error("Could not update"); }
   };
@@ -172,8 +176,8 @@ const OutreachPage = () => {
       }
       // Zero / negative amounts owe nothing, so they never appear on Outreach
       const owed = enriched.filter(p => (p.computed_amount || 0) > 0.005);
-      setRecords(owed.filter(p => p.status !== "dismissed"));
-      setDismissed(owed.filter(p => p.status === "dismissed"));
+      setRecords(owed.filter(p => !String(p.notes || "").includes("[DISMISSED]")));
+      setDismissed(owed.filter(p => String(p.notes || "").includes("[DISMISSED]")));
     } catch (e) {
       message.error("Failed to load overdue payments");
     } finally {
