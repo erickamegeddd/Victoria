@@ -65,7 +65,7 @@ const ISOsMerchantsPage = () => {
   useEffect(() => {
     (async () => {
       const [isoData, mData] = await Promise.all([
-        supabase.from("isos").select("id,name").order("name").then(r => r.data || []),
+        supabase.from("isos").select("id,name").eq("status","active").order("name").then(r => r.data || []),
         fetchAllPaginated(() => supabase.from("merchants").select("id,mid,current_iso_id")),
       ]);
       const byIso = {};
