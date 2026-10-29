@@ -262,7 +262,7 @@ const PaymentsPage = () => {
       onFilter:(val,r)=>r.isoId===val,
       filterSearch:true,
       render:(_,r)=><Text strong>{r.isoName}</Text>},
-    {title:'Source',key:'source',width:120,sorter:(a,b)=>srcOf(a).source.localeCompare(srcOf(b).source),render:(_,r)=>{const {source,url}=srcOf(r);const edit=<a onClick={()=>{setSrcForm({source,url});setSrcModal({isoId:r.isoId,isoName:r.isoName});}} title="Edit source / link" style={{marginLeft:6,fontSize:12}}>&#9998;</a>;let body;if(!source)body=<Text style={{color:'var(--muted-color)'}}>--</Text>;else if(source==='Portal'&&url)body=<a href={url} target="_blank" rel="noopener noreferrer">Portal</a>;else body=<Text title={source==='Portal'?'Portal link not added yet':undefined}>{source}</Text>;return<span>{body}{edit}</span>;}},
+    {title:'Source',key:'source',width:120,sorter:(a,b)=>srcOf(a).source.localeCompare(srcOf(b).source),render:(_,r)=>{const {source,url}=srcOf(r);const edit=<a onClick={()=>{setSrcForm({source,url});setSrcModal({isoId:r.isoId,isoName:r.isoName});}} title="Edit source / link" style={{marginLeft:6,fontSize:12}}>&#9998;</a>;let body;if(!source)body=<Text style={{color:'var(--muted-color)'}}>--</Text>;else if((source==='Portal'||source==='Sheet')&&url)body=<a href={url} target="_blank" rel="noopener noreferrer">{source}</a>;else body=<Text title={source==='Portal'?'Portal link not added yet':undefined}>{source}</Text>;return<span>{body}{edit}</span>;}},
     {title:'Expected',key:'exp',align:'right',width:150,sorter:(a,b)=>(a.expected??-1)-(b.expected??-1),render:(_,r)=>{
       const p=getPaymentForISO(r.isoId);
       const displayVal=r.expected;
