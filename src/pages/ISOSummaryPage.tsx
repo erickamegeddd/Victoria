@@ -37,7 +37,7 @@ const ISOSummaryPage = () => {
   for (let y = FIRST_YEAR; y <= Math.max(currentYear, FIRST_YEAR) + 3; y++) yearOptions.push({ value: y, label: String(y) });
 
   useEffect(() => {
-    supabase.from("isos").select("id,name").order("name").then(({ data }) => {
+    supabase.from("isos").select("id,name").eq("status","active").order("name").then(({ data }) => {
       if (!data) return;
       const f = data.find(i => i.name === "MerchantE Fresno"), s = data.find(i => i.name === "MerchantE Synovous");
       if (f && s) {
@@ -55,7 +55,8 @@ const ISOSummaryPage = () => {
       while (true) {
         const { data: batch, error } = await supabase
           .from("residuals")
-          .select("iso_id,report_month,paydiversenet")
+          .select("iso_id,report_month,paydiversenet,isos!inner(status)")
+          .eq("isos.status","active")
           .gte("report_month", startDate)
           .lte("report_month", endDate)
           .range(from, from + 999);
