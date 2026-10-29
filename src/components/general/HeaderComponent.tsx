@@ -62,7 +62,7 @@ const HeaderComponent = () => {
   useEffect(() => { fetchOverdue(); }, []);
 
   const fetchOverdue = async () => {
-    const { data } = await supabase.from("iso_payments").select("*, isos(name)").is("received_amount", null);
+    const { data } = await supabase.from("iso_payments").select("*, isos!inner(name)").eq("isos.status","active").is("received_amount", null);
     if (!data) return;
     const today = dayjs().format("YYYY-MM-DD");
     const overdue = data
