@@ -16,6 +16,7 @@ const SOURCES = {
 
 // Portal links, keyed by normalized ISO name.
 export const PORTAL_URLS = {
+  cardinsight: "https://docs.google.com/spreadsheets/d/1vCAxKLklJXD2yIqA4Kqm7T-SuXhffiN0eo1OzgvCPEU/edit?gid=1614338599#gid=1614338599",
   authorizenet: "http://authorize.net/",
   cardworks: "https://partner.paymentshub.com/dashboard",
   celerofinical: "https://finical-core.artefactscloud.com/",
