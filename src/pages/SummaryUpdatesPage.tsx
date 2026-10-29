@@ -263,7 +263,7 @@ const SummaryUpdatesPage = () => {
           <Button icon={<LeftOutlined />} size="small" onClick={() => setMonth(dayjs(month).subtract(1, "month").startOf("month").format("YYYY-MM-DD"))} />
           <DatePicker picker="month" value={dayjs(month)} onChange={d => d && setMonth(d.startOf("month").format("YYYY-MM-DD"))} format="MMMM YYYY" allowClear={false} style={{ width: 160 }} />
           <Button icon={<RightOutlined />} size="small" onClick={() => setMonth(dayjs(month).add(1, "month").startOf("month").format("YYYY-MM-DD"))} />
-          <Button size="small" onClick={() => setMonth(LATEST_MONTH)} style={{ color: "var(--primary-color)", fontSize: 12, fontWeight: 600 }}>Current Month</Button>
+          <Button size="small" onClick={() => setMonth(dayjs().startOf("month").format("YYYY-MM-01"))} style={{ color: "var(--primary-color)", fontSize: 12, fontWeight: 600 }}>Current Month</Button>
         </Space>
       </div>
 
