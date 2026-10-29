@@ -79,8 +79,8 @@ const Dashboard = () => {
   const activeGatewayMids = new Set(residuals.filter(r=>isGatewayRow(r)&&!isAggregateMid(r.mid)&&r.mid).map(r=>r.mid)).size;
   // A MID counts as "added" only in the month it first appears in our records (never again if it returns later).
   const priorNorm = new Set([...allPriorMids].map(normMid));
-  const addedRows = []; const seenAdded = new Set();
-  residuals.forEach(r=>{ if(!isAddedEligibleMid(r.mid)||isAggregateMid(r.mid)) return; const k=normMid(r.mid); if(priorNorm.has(k)||seenAdded.has(k)) return; seenAdded.add(k); addedRows.push({mid:k,business_name:r.business_name||'',iso:r.isos?.name||'',gateway:isGatewayRow(r)}); });
+  const addedRows = []; const seenAdded = new Set(); const seenAddedName = new Set(); const nameKey = (n)=>String(n||'').toLowerCase().replace(/&/g,'and').replace(/\b(inc|llc|corp|corporation|co|ltd|lp|llp)\b/g,'').replace(/[^a-z0-9]/g,'');
+  residuals.forEach(r=>{ if(!isAddedEligibleMid(r.mid)||isAggregateMid(r.mid)) return; const k=normMid(r.mid); if(priorNorm.has(k)||seenAdded.has(k)) return; seenAdded.add(k); const nk=(isGatewayRow(r)?'g:':'m:')+(nameKey(r.business_name)||k); if(seenAddedName.has(nk)) return; seenAddedName.add(nk); addedRows.push({mid:k,business_name:r.business_name||'',iso:r.isos?.name||'',gateway:isGatewayRow(r)}); });
   const isFirstMonth = !!firstMonth && (selectedMonth||LATEST_MONTH)===firstMonth;
   const addedMerchantRows = addedRows.filter(r=>!r.gateway);
   const addedGatewayRows = addedRows.filter(r=>r.gateway);
@@ -166,7 +166,7 @@ const Dashboard = () => {
         <Button icon={<LeftOutlined/>} size="small" onClick={()=>{const prev=dayjs(selectedMonth||dayjs().startOf('month')).subtract(1,'month').startOf('month').format('YYYY-MM-DD');setSelectedMonth(prev);}}/>
         <DatePicker picker="month" value={selectedMonth?dayjs(selectedMonth):null} onChange={d=>setSelectedMonth(d?d.startOf('month').format('YYYY-MM-DD'):undefined)} format="MMMM YYYY" allowClear={false} style={{width:160}}/>
         <Button icon={<RightOutlined/>} size="small" onClick={()=>{const next=dayjs(selectedMonth||dayjs().startOf('month')).add(1,'month').startOf('month').format('YYYY-MM-DD');setSelectedMonth(next);}}/>
-        <Button size="small" onClick={()=>setSelectedMonth(LATEST_MONTH)} style={{color:'var(--primary-color)',fontSize:12,fontWeight:600}}>Current Month</Button>
+        <Button size="small" onClick={()=>setSelectedMonth(dayjs().startOf('month').format('YYYY-MM-01'))} style={{color:'var(--primary-color)',fontSize:12,fontWeight:600}}>Current Month</Button>
         {selectedMonth&&<Text style={{color:'var(--muted-color)',fontSize:12}}>Showing data for <strong>{dayjs(selectedMonth).format('MMMM YYYY')}</strong></Text>}
       </div>
       <Row justify="center" style={{marginBottom:12}}>
