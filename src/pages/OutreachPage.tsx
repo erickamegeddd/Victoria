@@ -105,7 +105,7 @@ const OutreachPage = () => {
     setLoading(true);
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/iso_payments?select=id,iso_id,report_month,expected_amount,received_amount,notes,email_sent,email_sent_at,isos!inner(id,name,email)&isos.status=eq.active&received_amount=is.null&order=report_month.asc&limit=300`,
+        `${SUPABASE_URL}/rest/v1/iso_payments?select=id,iso_id,report_month,expected_amount,received_amount,notes,email_sent,email_sent_at,isos!inner(id,name,email,notes)&isos.status=eq.active&received_amount=is.null&order=report_month.asc&limit=300`,
         { headers: sbHeaders }
       );
       const data = await res.json();
@@ -117,7 +117,7 @@ const OutreachPage = () => {
         const due = p.notes?.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/)?.[1];
         return { p, due, days_past_due: due ? todayD.diff(dayjs(due), "day") : null };
       }).filter(x => x.due && x.days_past_due >= 2).map(({ p, due, days_past_due }) => {
-        return { ...p, due_date: due, days_past_due, iso_name: p.isos?.name, iso_email: p.isos?.email || "", payment_status: "overdue" };
+        return { ...p, due_date: due, days_past_due, iso_name: p.isos?.name, iso_email: p.isos?.email || "", iso_phone: (/PHONE:([^|]*)/.exec(p.isos?.notes || "") || [])[1]?.trim() || "", payment_status: "overdue" };
       }).sort((a, b) => (a.due_date || "").localeCompare(b.due_date || ""));
 
       // MerchantE Fresno + Synovous are one account: paid if either side was paid, otherwise one merged row under Synovous
@@ -318,6 +318,12 @@ const OutreachPage = () => {
           </div>
         );
       }
+    },
+    {
+      title: "Phone",
+      dataIndex: "iso_phone",
+      width: 160,
+      render: (v) => v ? <a href={`tel:${v.replace(/[^+\d]/g, "")}`} style={{ fontSize: 12, whiteSpace: "nowrap" }}>{v}</a> : <span style={{ color: "var(--muted-color)" }}>--</span>
     },
     {
       title: "Email Body",
