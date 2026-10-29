@@ -31,8 +31,8 @@ const CATEGORIES = [
 async function fetchData(category, customQ, messages = []) {
   if (category === "iso") {
     const [residuals, isos] = await Promise.all([
-      sbGet("residuals?select=iso_id,report_month,paydiversenet,isos(name)&order=report_month.desc&limit=500"),
-      sbGet("isos?select=id,name&eq.status=active&limit=100")
+      sbGet("residuals?select=iso_id,report_month,paydiversenet,isos!inner(name)&isos.status=eq.active&order=report_month.desc&limit=500"),
+      sbGet("isos?select=id,name&status=eq.active&limit=100")
     ]);
     const byISO = {};
     residuals.forEach(r => {
@@ -48,7 +48,7 @@ async function fetchData(category, customQ, messages = []) {
   }
 
   if (category === "payments") {
-    const payments = await sbGet("iso_payments?select=iso_id,report_month,expected_amount,received_amount,notes,status,isos(name)&order=report_month.desc&limit=200");
+    const payments = await sbGet("iso_payments?select=iso_id,report_month,expected_amount,received_amount,notes,status,isos!inner(name)&isos.status=eq.active&order=report_month.desc&limit=200");
     const today = dayjs().format("YYYY-MM-DD");
     let pending = 0, paid = 0, overdue = 0, shortPaid = 0;
     let totalExpected = 0, totalReceived = 0;
@@ -71,7 +71,7 @@ async function fetchData(category, customQ, messages = []) {
   }
 
   if (category === "merchants") {
-    const merchants = await sbGet("merchants?select=status,current_iso_id,isos(name)&limit=1000");
+    const merchants = await sbGet("merchants?select=status,current_iso_id,isos!inner(name)&isos.status=eq.active&limit=1000");
     const active = merchants.filter(m => m.status === "active").length;
     const inactive = merchants.filter(m => m.status !== "active").length;
     const byISO = {};
@@ -86,7 +86,7 @@ async function fetchData(category, customQ, messages = []) {
   }
 
   if (category === "revenue") {
-    const residuals = await sbGet("residuals?select=report_month,paydiversenet,gross_revenue&order=report_month.asc&limit=2000");
+    const residuals = await sbGet("residuals?select=report_month,paydiversenet,gross_revenue,isos!inner(status)&isos.status=eq.active&order=report_month.asc&limit=2000");
     const byMonth = {};
     residuals.forEach(r => {
       const m = r.report_month;
@@ -102,7 +102,7 @@ async function fetchData(category, customQ, messages = []) {
   }
 
   if (category === "overdue") {
-    const payments = await sbGet("iso_payments?select=iso_id,report_month,expected_amount,received_amount,notes,isos(name)&is.received_amount=null&limit=200");
+    const payments = await sbGet("iso_payments?select=iso_id,report_month,expected_amount,received_amount,notes,isos!inner(name)&isos.status=eq.active&is.received_amount=null&limit=200");
     const today = dayjs().format("YYYY-MM-DD");
     const overdue = payments.filter(p => {
       const exp = p.notes?.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/)?.[1];
