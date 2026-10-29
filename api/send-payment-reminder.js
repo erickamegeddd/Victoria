@@ -129,7 +129,7 @@ async function handleCron(req, res) {
   const eligible = payments.filter((p) => {
     if (p.iso_id === ME_FRESNO) return false;
     if (p.iso_id === ME_SYN && mePaid.has(p.report_month)) return false;
-    if (p.email_sent || p.status === "dismissed") return false;
+    if (p.email_sent || String(p.notes || "").includes("[DISMISSED]")) return false;
     if (!p.isos?.email) return false;
     const m = p.notes?.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/);
     return m && m[1] <= cutoff;
