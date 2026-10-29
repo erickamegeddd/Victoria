@@ -31,6 +31,11 @@ const PaymentsPage = () => {
   const [selectedIsoForPayment, setSelectedIsoForPayment] = useState({isoId:null,isoName:'',expected:0});
   const [savingPayment, setSavingPayment] = useState(false);
   const [activeStatusFilter, setActiveStatusFilter] = useState(null);
+  const [srcModal, setSrcModal] = useState(null);
+  const [srcForm, setSrcForm] = useState({source:'',url:''});
+  const [savingSrc, setSavingSrc] = useState(false);
+  const srcOf=(r)=>{const d=getIsoSource(r.isoName);const iso=isos.find(i=>i.id===r.isoId);const m=/SOURCE:([^|]*)/.exec(iso?.notes||'');const dbSrc=m?m[1].trim():'';return{source:dbSrc||d.source,url:(iso?.login_url||'').trim()||d.url};};
+  const saveSrc=async()=>{setSavingSrc(true);const iso=isos.find(i=>i.id===srcModal.isoId);const rest=String(iso?.notes||'').replace(/SOURCE:[^|]*\|?/,'').trim();const notes=srcForm.source?('SOURCE:'+srcForm.source+'|'+rest):rest;const{error}=await supabase.from('isos').update({login_url:srcForm.url.trim()||null,notes:notes||null}).eq('id',srcModal.isoId);setSavingSrc(false);if(error){message.error('Could not save: '+error.message);return;}message.success('Source updated');setSrcModal(null);fetchIsos();};
   const [editingExpected, setEditingExpected] = useState({}); // isoId → string value being edited
   const [savingExpected, setSavingExpected] = useState({});
 
@@ -257,7 +262,7 @@ const PaymentsPage = () => {
       onFilter:(val,r)=>r.isoId===val,
       filterSearch:true,
       render:(_,r)=><Text strong>{r.isoName}</Text>},
-    {title:'Source',key:'source',width:120,sorter:(a,b)=>getIsoSource(a.isoName).source.localeCompare(getIsoSource(b.isoName).source),render:(_,r)=>{const {source,url}=getIsoSource(r.isoName);if(!source)return<Text style={{color:'var(--muted-color)'}}>--</Text>;if(source==='Portal'&&url)return<a href={url} target="_blank" rel="noopener noreferrer">Portal</a>;return<Text title={source==='Portal'?'Portal link not added yet':undefined}>{source}</Text>;}},
+    {title:'Source',key:'source',width:120,sorter:(a,b)=>srcOf(a).source.localeCompare(srcOf(b).source),render:(_,r)=>{const {source,url}=srcOf(r);const edit=<a onClick={()=>{setSrcForm({source,url});setSrcModal({isoId:r.isoId,isoName:r.isoName});}} title="Edit source / link" style={{marginLeft:6,fontSize:12}}>&#9998;</a>;let body;if(!source)body=<Text style={{color:'var(--muted-color)'}}>--</Text>;else if(source==='Portal'&&url)body=<a href={url} target="_blank" rel="noopener noreferrer">Portal</a>;else body=<Text title={source==='Portal'?'Portal link not added yet':undefined}>{source}</Text>;return<span>{body}{edit}</span>;}},
     {title:'Expected',key:'exp',align:'right',width:150,sorter:(a,b)=>(a.expected??-1)-(b.expected??-1),render:(_,r)=>{
       const p=getPaymentForISO(r.isoId);
       const displayVal=r.expected;
@@ -306,7 +311,7 @@ const PaymentsPage = () => {
       const status = getStatus(r.expected, p?.received_amount);
       const expDate = parseExpDate(p?.notes);
       const notes = parseActualNotes(p?.notes);
-      return [r.isoName, getIsoSource(r.isoName).source, dayjs(selectedMonth).format('MMMM YYYY'), exp ?? '', rec ?? '', diff, status, expDate || '', p?.payment_date || '', notes || ''];
+      return [r.isoName, srcOf(r).source, dayjs(selectedMonth).format('MMMM YYYY'), exp ?? '', rec ?? '', diff, status, expDate || '', p?.payment_date || '', notes || ''];
     });
     const csv = [headers,...rows].map(row=>row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
     const blob = new Blob([csv],{type:'text/csv'});
@@ -596,6 +601,12 @@ const PaymentsPage = () => {
       </Modal>
 
       {/* Record Payment Modal */}
+      <Modal open={!!srcModal} title={'Source & link - '+(srcModal?.isoName||'')} onCancel={()=>setSrcModal(null)} onOk={saveSrc} confirmLoading={savingSrc} okText="Save">
+        <div style={{marginBottom:12}}><div style={{marginBottom:4}}>Source</div>
+          <Select style={{width:'100%'}} value={srcForm.source||undefined} onChange={v=>setSrcForm(f=>({...f,source:v}))} allowClear placeholder="Choose source" options={['Portal','Email','Sheet','Unknown/New'].map(v=>({value:v,label:v}))}/></div>
+        <div><div style={{marginBottom:4}}>Portal link</div>
+          <Input value={srcForm.url} onChange={e=>setSrcForm(f=>({...f,url:e.target.value}))} placeholder="https://..."/></div>
+      </Modal>
       <Modal open={paymentModal} onCancel={()=>{setPaymentModal(false);setEditingPayment(null);}} footer={null}
         title={<Space><DollarOutlined style={{color:'var(--primary-color)'}}/><span>Record Payment - {selectedIsoForPayment.isoName}</span></Space>}>
         <Space direction="vertical" style={{width:'100%',marginTop:8}} size="middle">
