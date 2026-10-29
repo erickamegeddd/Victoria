@@ -43,14 +43,14 @@ const SummaryUpdatesPage = () => {
   const load = async () => {
     setLoading(true);
     const [i, p, u] = await Promise.all([
-      supabase.from("isos").select("id,name,status").order("name"),
+      supabase.from("isos").select("id,name,status").eq("status","active").order("name"),
       supabase.from("iso_payments").select("iso_id,expected_amount,received_amount,updated_at").eq("report_month", month),
       supabase.from("iso_updates").select("*").eq("report_month", month).order("created_at", { ascending: false }),
     ]);
     // residuals can exceed the 1000-row API cap, so page through them
     let res = [], from = 0;
     while (true) {
-      const { data } = await supabase.from("residuals").select("iso_id,paydiversenet,created_at").eq("report_month", month).range(from, from + 999);
+      const { data } = await supabase.from("residuals").select("iso_id,paydiversenet,created_at,isos!inner(status)").eq("isos.status","active").eq("report_month", month).range(from, from + 999);
       if (!data) break;
       res = res.concat(data);
       if (data.length < 1000) break;
@@ -74,7 +74,7 @@ const SummaryUpdatesPage = () => {
   const loadAll = async () => {
     const page = async (q) => { let out = [], from = 0; while (true) { const { data } = await q().range(from, from + 999); if (!data) break; out = out.concat(data); if (data.length < 1000) break; from += 1000; } return out; };
     const [res, pays, ups] = await Promise.all([
-      page(() => supabase.from("residuals").select("iso_id,paydiversenet,created_at,report_month").order("id")),
+      page(() => supabase.from("residuals").select("iso_id,paydiversenet,created_at,report_month,isos!inner(status)").eq("isos.status","active").order("id")),
       page(() => supabase.from("iso_payments").select("iso_id,expected_amount,received_amount,report_month").order("id")),
       page(() => supabase.from("iso_updates").select("*").order("created_at", { ascending: false })),
     ]);
