@@ -1,9 +1,12 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import { Table, Button, Popconfirm, Tag, Input, message, Modal, Drawer, Spin, Switch } from "antd";
+import { Table, Button, Popconfirm, Tag, Input, message, Modal, Drawer, Spin, Switch, Select } from "antd";
 import { MailOutlined, EditOutlined, CheckCircleOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 
+const ME_FRESNO = "ebabea6f-2ab6-460d-a47e-362fb9e7d15a";
+const ME_SYN = "c97162d5-d5c2-4c02-8068-d33cd6958567";
+const emailList = (v) => String(v || "").split(/[,;\s]+/).filter(x => x.includes("@"));
 const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
 const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ1cWZsb2Z1emh5YnV0a2t6cm9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwNDE3NTYsImV4cCI6MjEwMTYxNzc1Nn0.46kKCy_3cY7oKuONb9e2e18yKVNui3oSOzySK33fMFE";
 const sbHeaders = { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` };
@@ -36,6 +39,8 @@ const OutreachPage = () => {
   const [sending, setSending] = useState({});
   // Key by record.id (payment ID) — each row is independent
   const [editingEmail, setEditingEmail] = useState({});
+  const [pickedEmail, setPickedEmail] = useState({});
+  const chosenEmail = (r) => { const l = emailList(r.iso_email); return pickedEmail[r.id] && l.includes(pickedEmail[r.id]) ? pickedEmail[r.id] : (l[0] || ""); };
   const [savingEmail, setSavingEmail] = useState(null);
   const [previewRecord, setPreviewRecord] = useState(null);
   const [editingBody, setEditingBody] = useState(null);
@@ -108,17 +113,31 @@ const OutreachPage = () => {
 
       // Only ISOs that are 2+ days past their due date (same rule as auto-send)
       const todayD = dayjs().startOf("day");
-      const overdue = data.map(p => {
+      let overdue = data.map(p => {
         const due = p.notes?.match(/^EXP:(\d{4}-\d{2}-\d{2})\|/)?.[1];
         return { p, due, days_past_due: due ? todayD.diff(dayjs(due), "day") : null };
       }).filter(x => x.due && x.days_past_due >= 2).map(({ p, due, days_past_due }) => {
         return { ...p, due_date: due, days_past_due, iso_name: p.isos?.name, iso_email: p.isos?.email || "", payment_status: "overdue" };
       }).sort((a, b) => (a.due_date || "").localeCompare(b.due_date || ""));
 
+      // MerchantE Fresno + Synovous are one account: paid if either side was paid, otherwise one merged row under Synovous
+      let merged = overdue;
+      const mePaid = new Set();
+      if (overdue.some(p => p.iso_id === ME_FRESNO || p.iso_id === ME_SYN)) {
+        try {
+          const pr = await fetch(`${SUPABASE_URL}/rest/v1/iso_payments?select=report_month&received_amount=not.is.null&iso_id=in.(${ME_FRESNO},${ME_SYN})&limit=500`, { headers: sbHeaders });
+          const pj = await pr.json();
+          if (Array.isArray(pj)) pj.forEach(x => mePaid.add(x.report_month));
+        } catch (_) { /* fall through, unmerged */ }
+        merged = overdue.filter(p => !((p.iso_id === ME_FRESNO || p.iso_id === ME_SYN) && (mePaid.has(p.report_month) || p.iso_id === ME_FRESNO)))
+          .map(p => p.iso_id === ME_SYN ? { ...p, iso_name: "MerchantE (Synovous + Fresno)" } : p);
+      }
+      const overdueAll = overdue;
+      overdue = merged;
       // Fetch residuals to compute correct expected amounts (expected_amount is now null)
       let enriched = overdue;
       if (overdue.length > 0) {
-        const isoIds = [...new Set(overdue.map(p => p.iso_id))].join(",");
+        const isoIds = [...new Set([...overdue.map(p => p.iso_id), ...(overdue.some(p => p.iso_id === ME_SYN) ? [ME_FRESNO] : [])])].join(",");
         const resResp = await fetch(
           `${SUPABASE_URL}/rest/v1/residuals?select=iso_id,report_month,paydiversenet&iso_id=in.(${isoIds})&limit=10000`,
           { headers: sbHeaders }
@@ -132,7 +151,7 @@ const OutreachPage = () => {
           });
         }
         enriched = overdue.map(p => {
-          const computedAmount = Math.round((resMap[`${p.iso_id}|${p.report_month}`] || 0) * 100) / 100;
+          const computedAmount = Math.round(((resMap[`${p.iso_id}|${p.report_month}`] || 0) + (p.iso_id === ME_SYN ? (resMap[`${ME_FRESNO}|${p.report_month}`] || 0) : 0)) * 100) / 100;
           return { ...p, computed_amount: computedAmount, body: buildEmailBody(p.iso_name, computedAmount, p.report_month, p.due_date) };
         });
       }
@@ -178,7 +197,7 @@ const OutreachPage = () => {
   };
 
   const sendEmail = async (record) => {
-    const emailToUse = editingEmail[record.id] ?? record.iso_email;
+    const emailToUse = editingEmail[record.id] !== undefined ? emailList(editingEmail[record.id])[0] : chosenEmail(record);
     if (!emailToUse) { message.error("Please add an email address first"); return; }
     setSending(prev => ({ ...prev, [record.id]: true }));
     try {
@@ -270,13 +289,21 @@ const OutreachPage = () => {
         const val = isEditing ? editingEmail[record.id] : (record.iso_email || "");
         return (
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <Input
+            {!isEditing && emailList(record.iso_email).length > 0 && (
+              <Select size="small" style={{ flex: 1, fontSize: 12, minWidth: 0 }} value={chosenEmail(record)}
+                onChange={v => setPickedEmail(prev => ({ ...prev, [record.id]: v }))}
+                options={emailList(record.iso_email).map((e, i) => ({ value: e, label: i === 0 ? e : `${e} (backup)` }))} />
+            )}
+            {!isEditing && emailList(record.iso_email).length > 0 && (
+              <Button size="small" title="Edit emails (separate with commas, first is primary)" onClick={() => setEditingEmail(prev => ({ ...prev, [record.id]: record.iso_email || "" }))}>&#9998;</Button>
+            )}
+            {(isEditing || emailList(record.iso_email).length === 0) && <Input
               size="small"
-              placeholder="Add email..."
+              placeholder="Add email(s), comma separated..."
               value={val}
               onChange={e => setEditingEmail(prev => ({ ...prev, [record.id]: e.target.value }))}
               style={{ flex: 1, fontSize: 12 }}
-            />
+            />}
             {isEditing && (
               <>
                 <Button size="small" type="primary" loading={savingEmail === record.id}
@@ -390,7 +417,7 @@ const OutreachPage = () => {
           <Popconfirm
             key="send"
             title="Send this reminder?"
-            description={`Send to ${previewRecord?.iso_email || "this ISO"}?`}
+            description={`Send to ${(previewRecord ? chosenEmail(previewRecord) : "") || "this ISO"}?`}
             onConfirm={() => {
               const toSend = editingBody !== null ? { ...previewRecord, body: editingBody } : previewRecord;
               sendEmail(toSend);
@@ -398,10 +425,10 @@ const OutreachPage = () => {
               setEditingBody(null);
             }}
             okText="Yes, Send Now"
-            disabled={!previewRecord?.iso_email}
+            disabled={!(previewRecord ? chosenEmail(previewRecord) : "")}
           >
             <Button type="primary" icon={<MailOutlined />} style={{ background: "#0f2040" }}
-             disabled={!previewRecord?.iso_email}>
+             disabled={!(previewRecord ? chosenEmail(previewRecord) : "")}>
               Send Now
             </Button>
           </Popconfirm>
