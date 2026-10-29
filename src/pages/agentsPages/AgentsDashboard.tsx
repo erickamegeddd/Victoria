@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import agentClient from "../../utils/agentAxios";
-import { message, Table, Input, Row, Col, Button, Tabs } from "antd";
+import { message, Table, Input, Row, Col, Button } from "antd";
 import { LeftOutlined, RightOutlined, DollarOutlined, ShopOutlined } from "@ant-design/icons";
 import type { TablePaginationConfig } from "antd";
 import { DownloadOutlined } from "@ant-design/icons";
@@ -11,7 +11,7 @@ import { getUserFromLocalStorage } from "../../utils/getUser";
 import formatCurrency from "../../utils/formatCurrency";
 import { useLatestMonth } from "../../utils/latestMonth";
 import { agentColumns } from "../../components/modals/ModalComponentColumns";
-import AgentsTrendTable from "../../components/tables/AgentsTrendTable";
+import { AgentsTrendRibbons } from "../../components/tables/AgentsTrendTable";
 
 
 const AgentsDashboard = () => {
@@ -94,7 +94,7 @@ const AgentsDashboard = () => {
   };
 
   if (agentError) message.error("Error Fetching data");
-  const monthlyView = (
+  return (
     <>
       <Row align="middle" justify="end">
         <Col
@@ -159,16 +159,9 @@ const AgentsDashboard = () => {
         rowKey={(r: any) => `${r.iso}|${r.mid}`}
         scroll={{ x: 768 }}
       />
+      <div style={{ fontSize: 16, fontWeight: 700, margin: "28px 0 12px" }}>Monthly Trend</div>
+      <AgentsTrendRibbons hideTotal endMonth={date as string} />
     </>
-  );
-  return (
-    <Tabs
-      defaultActiveKey="monthly"
-      items={[
-        { key: "monthly", label: "Monthly View", children: monthlyView },
-        { key: "trend", label: "Monthly Trend", children: <AgentsTrendTable hideTotal /> },
-      ]}
-    />
   );
 };
 
