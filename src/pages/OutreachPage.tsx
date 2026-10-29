@@ -382,7 +382,7 @@ const OutreachPage = () => {
         locale={{ emptyText: "No past-due payments — great!" }}
         onChange={(_,__,___,{currentDataSource})=>setFilteredOutreach(currentDataSource)}
         onRow={(record)=>({
-          onClick:(e)=>{if(e.target.closest('button')||e.target.closest('input'))return;setHistoryRecord(record);fetchEmailLogs(record.id);},
+          onClick:(e)=>{if(e.target.closest('button')||e.target.closest('input')||e.target.closest('.ant-select')||e.target.closest('.ant-select-dropdown'))return;setHistoryRecord(record);fetchEmailLogs(record.id);},
           style:{cursor:'pointer'}
         })}
         summary={()=>{
