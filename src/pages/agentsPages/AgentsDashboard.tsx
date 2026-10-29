@@ -110,7 +110,7 @@ const AgentsDashboard = () => {
               {dayjs(date as string).format("MMMM YYYY")}
             </span>
             <Button icon={<RightOutlined />} onClick={() => setDate(dayjs(date as string).add(1, "month").format("YYYY-MM-01"))} />
-            <Button onClick={() => setDate(LATEST_MONTH)} size="middle">Current Month</Button>
+            <Button onClick={() => setDate(dayjs().startOf("month").format("YYYY-MM-01"))} size="middle">Current Month</Button>
           </div>
         </Col>
       </Row>
