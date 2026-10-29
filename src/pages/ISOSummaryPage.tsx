@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
-import { Card, Table, Typography, Select, Space, Tooltip, Spin, Tabs } from "antd";
+import { Card, Table, Typography, Select, Space, Tooltip, Spin, Tabs, Segmented, DatePicker } from "antd";
 import dayjs from "dayjs";
 import { supabase } from "../utils/supabase";
 
@@ -16,6 +16,15 @@ const MERGE_LABEL = "MerchantE (Synovous + Fresno)";
 const ISOSummaryPage = () => {
   const currentYear = dayjs().year();
   const [year, setYear] = useState(Math.max(currentYear, FIRST_YEAR));
+  // "calendar" = Jan-Dec of the chosen year; "trailing" = the 12 months ending at endMonth (default: two months back)
+  const [view, setView] = useState("calendar");
+  const [endMonth, setEndMonth] = useState(dayjs().subtract(2, "month").startOf("month").format("YYYY-MM-01"));
+  const trailing = view === "trailing";
+  const windowKeys = MONTHS.map((_, i) => trailing ? dayjs(endMonth).subtract(11 - i, "month").format("YYYY-MM") : `${year}-${String(i + 1).padStart(2, "0")}`);
+  const labels = trailing ? windowKeys.map(k => dayjs(k + "-01").format("MMM YY")) : MONTHS;
+  const startDate = `${windowKeys[0]}-01`, endDate = dayjs(`${windowKeys[11]}-01`).endOf("month").format("YYYY-MM-DD");
+  const posOf = (rm) => windowKeys.indexOf(String(rm).slice(0, 7));
+  const totalLabel = trailing ? "12-Mo" : String(year);
   const [isos, setIsos] = useState([]);
   const [merge, setMerge] = useState(null); // { from: Fresno id, to: Synovous id }
   const canon = (id) => (merge && id === merge.from ? merge.to : id);
@@ -47,28 +56,28 @@ const ISOSummaryPage = () => {
         const { data: batch, error } = await supabase
           .from("residuals")
           .select("iso_id,report_month,paydiversenet")
-          .gte("report_month", `${year}-01-01`)
-          .lte("report_month", `${year}-12-31`)
+          .gte("report_month", startDate)
+          .lte("report_month", endDate)
           .range(from, from + 999);
         if (error || !batch || batch.length === 0) break;
         all = all.concat(batch);
         if (batch.length < 1000) break;
         from += 1000;
       }
-      const { data: pay } = await supabase.from("iso_payments").select("iso_id,report_month,expected_amount,received_amount").gte("report_month", `${year}-01-01`).lte("report_month", `${year}-12-31`);
+      const { data: pay } = await supabase.from("iso_payments").select("iso_id,report_month,expected_amount,received_amount").gte("report_month", startDate).lte("report_month", endDate);
       if (!cancelled) { setResiduals(all); setPayments(pay || []); setLoading(false); }
     };
     load();
     return () => { cancelled = true; };
-  }, [year]);
+  }, [year, view, endMonth]);
 
   const rows = useMemo(() => {
     const byIso = {}, byRaw = {};
     residuals.forEach(r => {
-      const mm = parseInt(String(r.report_month).slice(5, 7), 10) - 1;
+      const mm = posOf(r.report_month); if (mm < 0) return;
       if (!byRaw[r.iso_id]) byRaw[r.iso_id] = Array(12).fill(null);
       byRaw[r.iso_id][mm] = (byRaw[r.iso_id][mm] || 0) + (Number(r.paydiversenet) || 0);
-      const m = parseInt(String(r.report_month).slice(5, 7), 10) - 1;
+      const m = posOf(r.report_month);
       const k = canon(r.iso_id);
       if (!byIso[k]) byIso[k] = Array(12).fill(null);
       byIso[k][m] = (byIso[k][m] || 0) + (Number(r.paydiversenet) || 0);
@@ -89,7 +98,7 @@ const ISOSummaryPage = () => {
         return row;
       })
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [isos, residuals, merge]);
+  }, [isos, residuals, merge, windowKeys.join()]);
 
   const monthTotals = MONTHS.map((_, m) => {
     const vals = rows.map(r => r.months[m]).filter(v => v != null);
@@ -126,7 +135,7 @@ const ISOSummaryPage = () => {
 
   const columns = [
     { title: "ISO", dataIndex: "name", key: "name", sorter: sortBy(r => r.name), sortDirections: ["ascend", "descend"], fixed: "left", width: 190, render: (v, r) => <span style={{ fontWeight: r.isTotal ? 700 : r.isChild ? 400 : 600, color: r.isChild ? "#6b7280" : "inherit" }}>{v}</span> },
-    ...MONTHS.map((label, m) => ({
+    ...labels.map((label, m) => ({
       title: label, key: label, align: "right", width: 100, sorter: sortBy(r => r.months[m]), sortDirections: ["descend", "ascend"],
       render: (_, r) => {
         if (r.isTotal) return <span style={{ fontWeight: 700 }}>{r.months[m] == null ? "--" : money(r.months[m])}</span>;
@@ -135,14 +144,14 @@ const ISOSummaryPage = () => {
         return monthCell(r.months[m], prev);
       }
     })),
-    { title: `${year} Total`, key: "total", align: "right", width: 120, sorter: sortBy(r => r.total), sortDirections: ["descend", "ascend"], fixed: "right", render: (_, r) => <span style={{ fontWeight: 700, color: r.isTotal ? "inherit" : r.total < 0 ? "#dc2626" : "inherit" }}>{money(r.total)}</span> },
+    { title: `${totalLabel} Total`, key: "total", align: "right", width: 120, sorter: sortBy(r => r.total), sortDirections: ["descend", "ascend"], fixed: "right", render: (_, r) => <span style={{ fontWeight: 700, color: r.isTotal ? "inherit" : r.total < 0 ? "#dc2626" : "inherit" }}>{money(r.total)}</span> },
   ];
 
   // Payments tab: received per month vs expected (expected = residual total for that month, like the Payments page)
   const payRows = useMemo(() => {
     const payBy = {};
     payments.forEach(p => {
-      const m = parseInt(String(p.report_month).slice(5, 7), 10) - 1;
+      const m = posOf(p.report_month); if (m < 0) return;
       const k = canon(p.iso_id);
       const cur = (payBy[k] = payBy[k] || {})[m];
       if (!cur) { payBy[k][m] = { ...p, parts: p.iso_id !== k || (merge && k === merge.to) ? [{ fresno: p.iso_id === (merge && merge.from), received: p.received_amount }] : null }; return; }
@@ -171,7 +180,7 @@ const ISOSummaryPage = () => {
         // per-ISO detail: what each MerchantE ISO is due and which record the deposit sits on (pending/deficit only make sense combined)
         out.children = r.children.map(ch => {
           const cc = MONTHS.map((_, m) => {
-            const rp = payments.find(p => p.iso_id === ch.id && parseInt(String(p.report_month).slice(5, 7), 10) - 1 === m);
+            const rp = payments.find(p => p.iso_id === ch.id && posOf(p.report_month) === m);
             const expected = ch.months[m] != null ? ch.months[m] : null;
             const received = rp && rp.received_amount != null ? Math.round(Number(rp.received_amount) * 100) / 100 : null;
             return { expected, received };
@@ -181,7 +190,7 @@ const ISOSummaryPage = () => {
       }
       return out;
     }).filter(r => r.cells.some(c => c.received != null || c.pending > 0));
-  }, [rows, payments, merge]);
+  }, [rows, payments, merge, windowKeys.join()]);
   const payMonthTotals = MONTHS.map((_, m) => {
     const vals = payRows.map(r => r.cells[m].received).filter(v => v != null);
     return vals.length ? Math.round(vals.reduce((s, v) => s + v, 0) * 100) / 100 : null;
@@ -206,7 +215,7 @@ const ISOSummaryPage = () => {
   };
   const payColumns = [
     { title: "ISO", dataIndex: "name", key: "name", sorter: sortBy(r => r.name), sortDirections: ["ascend", "descend"], fixed: "left", width: 190, render: (v, r) => <span style={{ fontWeight: r.isTotal ? 700 : r.isChild ? 400 : 600, color: r.isChild ? "#6b7280" : "inherit" }}>{v}</span> },
-    ...MONTHS.map((label, m) => ({
+    ...labels.map((label, m) => ({
       title: label, key: label, align: "right", width: 100,
       render: (_, r) => {
         if (r.key === "__0_expected") return <span style={{ fontWeight: 700 }}>{money(r.cells[m].expected)}</span>;
@@ -221,11 +230,11 @@ const ISOSummaryPage = () => {
         return payCell(r.cells[m]);
       }
     })),
-    { title: `${year} Received`, key: "total", align: "right", width: 130, fixed: "right", sorter: sortBy(r => r.total), sortDirections: ["descend", "ascend"],
+    { title: `${totalLabel} Received`, key: "total", align: "right", width: 130, fixed: "right", sorter: sortBy(r => r.total), sortDirections: ["descend", "ascend"],
       render: (_, r) => r.total == null ? <span style={{ color: "#c0c4cc" }}>--</span> : <span style={{ fontWeight: 700 }}>{money(r.total)}</span> },
-    { title: `${year} Pending`, key: "pendingTotal", align: "right", width: 130, fixed: "right", sorter: sortBy(r => r.pendingTotal), sortDirections: ["descend", "ascend"],
+    { title: `${totalLabel} Pending`, key: "pendingTotal", align: "right", width: 130, fixed: "right", sorter: sortBy(r => r.pendingTotal), sortDirections: ["descend", "ascend"],
       render: (_, r) => <span style={{ fontWeight: 700, color: r.pendingTotal > 0 ? "#d97706" : "#c0c4cc" }}>{r.pendingTotal > 0 ? money(r.pendingTotal) : "--"}</span> },
-    { title: `${year} Deficit`, key: "deficitTotal", align: "right", width: 130, fixed: "right", sorter: sortBy(r => r.deficitTotal || 0), sortDirections: ["descend", "ascend"],
+    { title: `${totalLabel} Deficit`, key: "deficitTotal", align: "right", width: 130, fixed: "right", sorter: sortBy(r => r.deficitTotal || 0), sortDirections: ["descend", "ascend"],
       render: (_, r) => <Tooltip title="Short-paid: expected minus received, for months paid below expected"><span style={{ fontWeight: 700, color: r.deficitTotal > 0 ? "#dc2626" : "#c0c4cc" }}>{r.deficitTotal > 0 ? money(r.deficitTotal) : "--"}</span></Tooltip> },
   ];
 
@@ -240,9 +249,19 @@ const ISOSummaryPage = () => {
               : "Payments received per ISO by residual month. Green = paid in full, red = short paid, blue = overpaid, amber = pending. Hover a cell for expected vs received."}
           </Text>
         </div>
-        <Space>
-          <Text style={{ fontWeight: 600 }}>Year</Text>
-          <Select value={year} onChange={setYear} options={yearOptions} style={{ width: 110 }} />
+        <Space wrap>
+          <Segmented value={view} onChange={setView} options={[{ label: "Calendar Year", value: "calendar" }, { label: "Trailing 12 Months", value: "trailing" }]} />
+          {trailing ? (
+            <>
+              <Text style={{ fontWeight: 600 }}>Ending</Text>
+              <DatePicker picker="month" allowClear={false} value={dayjs(endMonth)} onChange={d => d && setEndMonth(d.startOf("month").format("YYYY-MM-01"))} format="MMM YYYY" style={{ width: 130 }} />
+            </>
+          ) : (
+            <>
+              <Text style={{ fontWeight: 600 }}>Year</Text>
+              <Select value={year} onChange={setYear} options={yearOptions} style={{ width: 110 }} />
+            </>
+          )}
         </Space>
       </div>
       <style>{`.iso-sum-table .ant-table-column-sorters { justify-content: center; gap: 6px; } .iso-sum-table .ant-table-column-sorter { color: #fff !important; font-size: 12px; } .iso-sum-table .ant-table-column-sorter-up.active, .iso-sum-table .ant-table-column-sorter-down.active { color: #fbbf24 !important; } .ant-table-wrapper .ant-table-tbody > tr.iso-total-row > td, .ant-table-wrapper .ant-table-tbody > tr.iso-total-row:hover > td { background: #0f2040 !important; color: #fff !important; font-weight: 700; } .ant-table-wrapper .ant-table-tbody > tr.iso-row-expected > td, .ant-table-wrapper .ant-table-tbody > tr.iso-row-expected:hover > td { background: #3b5f99 !important; } .ant-table-wrapper .ant-table-tbody > tr.iso-row-received > td, .ant-table-wrapper .ant-table-tbody > tr.iso-row-received:hover > td { background: #1e3a66 !important; } .ant-table-wrapper .ant-table-tbody > tr.iso-row-pending > td, .ant-table-wrapper .ant-table-tbody > tr.iso-row-pending:hover > td { background: #0b162b !important; } .ant-table-wrapper .ant-table-tbody > tr.iso-row-pending > td span { color: #fbbf24 !important; }`}</style>
