@@ -26,7 +26,7 @@ const AgentMidsSummaryTable = () => {
     (async () => {
       let all = [], from = 0;
       while (true) {
-        const { data } = await supabase.from("merchants").select("mid,business_name,status,merchant_type,isos(name)").range(from, from + 999);
+        const { data } = await supabase.from("merchants").select("mid,business_name,status,merchant_type,isos!inner(name)").eq("isos.status","active").range(from, from + 999);
         if (!data || data.length === 0) break;
         all = all.concat(data);
         if (data.length < 1000) break;
