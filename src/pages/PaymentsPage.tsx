@@ -5,6 +5,7 @@ import { DollarOutlined, LeftOutlined, RightOutlined, SyncOutlined, CheckCircleO
 import { supabase } from "../utils/supabase";
 import dayjs from "dayjs";
 import { useLatestMonth } from "../utils/latestMonth";
+import { getIsoSource } from "../utils/isoSources";
 const { Title, Text } = Typography;
 const { Option } = Select;
 const fmt = (n) => n != null ? `$${Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}` : '--';
@@ -256,6 +257,7 @@ const PaymentsPage = () => {
       onFilter:(val,r)=>r.isoId===val,
       filterSearch:true,
       render:(_,r)=><Text strong>{r.isoName}</Text>},
+    {title:'Source',key:'source',width:120,sorter:(a,b)=>getIsoSource(a.isoName).source.localeCompare(getIsoSource(b.isoName).source),render:(_,r)=>{const {source,url}=getIsoSource(r.isoName);if(!source)return<Text style={{color:'var(--muted-color)'}}>--</Text>;if(source==='Portal'&&url)return<a href={url} target="_blank" rel="noopener noreferrer">Portal</a>;return<Text title={source==='Portal'?'Portal link not added yet':undefined}>{source}</Text>;}},
     {title:'Expected',key:'exp',align:'right',width:150,sorter:(a,b)=>(a.expected??-1)-(b.expected??-1),render:(_,r)=>{
       const p=getPaymentForISO(r.isoId);
       const displayVal=r.expected;
@@ -295,7 +297,7 @@ const PaymentsPage = () => {
   ];
 
   const exportCSV = () => {
-    const headers = ['ISO Name','Month','Expected','Received','Difference','Status','Expected By','Payment Date','Notes'];
+    const headers = ['ISO Name','Source','Month','Expected','Received','Difference','Status','Expected By','Payment Date','Notes'];
     const rows = filteredISOs.map(r => {
       const p = getPaymentForISO(r.isoId);
       const exp = r.expected;
@@ -304,7 +306,7 @@ const PaymentsPage = () => {
       const status = getStatus(r.expected, p?.received_amount);
       const expDate = parseExpDate(p?.notes);
       const notes = parseActualNotes(p?.notes);
-      return [r.isoName, dayjs(selectedMonth).format('MMMM YYYY'), exp ?? '', rec ?? '', diff, status, expDate || '', p?.payment_date || '', notes || ''];
+      return [r.isoName, getIsoSource(r.isoName).source, dayjs(selectedMonth).format('MMMM YYYY'), exp ?? '', rec ?? '', diff, status, expDate || '', p?.payment_date || '', notes || ''];
     });
     const csv = [headers,...rows].map(row=>row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
     const blob = new Blob([csv],{type:'text/csv'});
