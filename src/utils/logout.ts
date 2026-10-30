@@ -3,9 +3,10 @@ import { supabase } from "./supabase";
 
 let loggingOut = false;
 
-export const handleLogout = async (_navigate?: ReturnType<typeof useNavigate>) => {
+export const handleLogout = async (_navigate?: ReturnType<typeof useNavigate>, reason?: string) => {
   if (loggingOut) return;
   loggingOut = true;
+  if (reason) { try { localStorage.setItem("logoutReason", new Date().toISOString() + " " + reason); } catch { /* ignore */ } }
   localStorage.removeItem("token");
   localStorage.removeItem("user");
   try {
