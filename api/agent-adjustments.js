@@ -47,7 +47,8 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   // Agents may only read their own adjustments; everything else (insights, users, writes) is admin-only
   const readsOwn = req.method === "GET" && !req.query.action && !!req.query.agent_name;
-  if (!(await requireCaller(req, res, { agentScoped: readsOwn }))) return;
+  const caller = await requireCaller(req, res, { agentScoped: readsOwn });
+  if (!caller) return;
 
   try {
     if (req.method === "GET") {
@@ -142,6 +143,23 @@ export default async function handler(req, res) {
         const out = await r.json().catch(() => ({}));
         if (!r.ok) return res.status(r.status).json({ error: out.msg || out.message || out.error_description || "Could not update email" });
         return res.json({ id: out.id, email: out.email });
+      }
+      if (req.body?.action === "delete_user") {
+        const svcKey = process.env.SUPABASE_SERVICE_KEY;
+        if (!svcKey) return res.status(500).json({ error: "Service key not configured" });
+        const { user_id, confirm } = req.body;
+        if (!user_id) return res.status(400).json({ error: "A user is required" });
+        if (confirm !== true) return res.status(400).json({ error: "Deletion must be confirmed" });
+        if (user_id === caller.id) return res.status(400).json({ error: "You cannot remove your own account" });
+        const lr = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?per_page=200`, { headers: { apikey: svcKey, Authorization: `Bearer ${svcKey}` } });
+        const list = (await lr.json().catch(() => ({}))).users || [];
+        const target = list.find(u => u.id === user_id);
+        if (!target) return res.status(404).json({ error: "User not found" });
+        const isAdmin = u => ["admin", "super_admin"].includes((u.app_metadata || {}).role);
+        if (isAdmin(target) && list.filter(isAdmin).length <= 1) return res.status(400).json({ error: "This is the last admin and cannot be removed" });
+        const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${encodeURIComponent(user_id)}`, { method: "DELETE", headers: { apikey: svcKey, Authorization: `Bearer ${svcKey}` } });
+        if (!r.ok) { const out = await r.json().catch(() => ({})); return res.status(r.status).json({ error: out.msg || out.message || "Could not remove user" }); }
+        return res.json({ success: true, email: target.email });
       }
       const { agent_name, report_month, mid, field_name, original_value, adjusted_value, notes } = req.body;
       if (!agent_name || !report_month || !field_name || adjusted_value === undefined) {
