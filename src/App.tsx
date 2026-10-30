@@ -24,7 +24,7 @@ const RequireAuth = ({ children }) => {
         // The 1h access token may simply have expired (e.g. tab asleep) - try to renew it before signing out
         const { data: r, error: rErr } = await supabase.auth.refreshSession();
         if (r?.session?.access_token) { localStorage.setItem("token", r.session.access_token); return; }
-        if (rErr && (rErr.status === 400 || rErr.status === 401 || rErr.status === 403 || /refresh|session|jwt/i.test(rErr.message || ""))) handleLogout(navigate);
+        if (rErr && (rErr.status === 400 || rErr.status === 401 || rErr.status === 403 || /refresh|session|jwt/i.test(rErr.message || ""))) handleLogout(navigate, `renewal failed (${rErr.status || "?"} ${rErr.message || ""}); check was ${error.status || "?"} ${error.message || ""}`);
       }
     };
     // Keep the stored API token in step with Supabase's silent refreshes so the session never lapses while the 12h idle rule is the only limit
@@ -34,7 +34,7 @@ const RequireAuth = ({ children }) => {
     let lastWrite = 0;
     const idleCheck = () => {
       const last = parseInt(localStorage.getItem("lastActivity") || "0", 10);
-      if (localStorage.getItem("token") && last && Date.now() - last > IDLE_MS) { localStorage.removeItem("lastActivity"); handleLogout(navigate); }
+      if (localStorage.getItem("token") && last && Date.now() - last > IDLE_MS) { localStorage.removeItem("lastActivity"); handleLogout(navigate, "12 hours without activity"); }
     };
     const touch = () => { const n = Date.now(); if (n - lastWrite > 30000) { lastWrite = n; localStorage.setItem("lastActivity", String(n)); } };
     idleCheck();
@@ -42,7 +42,7 @@ const RequireAuth = ({ children }) => {
     const acts = ["mousedown", "keydown", "scroll", "touchstart", "click"];
     acts.forEach(a => window.addEventListener(a, touch, { passive: true }));
     const idleTimer = setInterval(idleCheck, 60000);
-    const onStorage = (e) => { if (e.key === "token" && !e.newValue) navigate("/login", { replace: true }); };
+    const onStorage = (e) => { if (e.key === "token" && !e.newValue) { try { localStorage.setItem("logoutReason", localStorage.getItem("logoutReason") || (new Date().toISOString() + " signed out from another open Victoria tab")); } catch {} navigate("/login", { replace: true }); } };
     const onFocus = () => { idleCheck(); check(); };
     const t = setInterval(check, 30000);
     window.addEventListener("focus", onFocus);
