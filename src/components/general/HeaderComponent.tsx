@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect } from "react";
 import { Avatar, Badge, Dropdown, Menu } from "antd";
-import { UserOutlined, LogoutOutlined, BellOutlined, BarChartOutlined, SnippetsOutlined, DiffOutlined, SettingOutlined, DollarOutlined, AreaChartOutlined, BulbOutlined, BankOutlined, MailOutlined, CloseOutlined, TableOutlined, ToolOutlined, FileTextOutlined, DownOutlined } from "@ant-design/icons";
+import { UserOutlined, LogoutOutlined, BellOutlined, BarChartOutlined, SnippetsOutlined, DiffOutlined, SettingOutlined, DollarOutlined, AreaChartOutlined, BulbOutlined, BankOutlined, ContactsOutlined, MailOutlined, CloseOutlined, TableOutlined, ToolOutlined, FileTextOutlined, DownOutlined } from "@ant-design/icons";
 import { LuUsers } from "react-icons/lu";
 import { LiaFileInvoiceDollarSolid } from "react-icons/lia";
 import { MdPayment } from "react-icons/md";
@@ -37,6 +37,7 @@ const navItems = [
       { key: "/home/agents",       label: "Agents Data",  icon: ic(<BarChartOutlined />, "#22d3ee") },
       { key: "/home/logs",         label: "Logs",         icon: ic(<SnippetsOutlined />, "#94a3b8") },
       { key: "/home/bank-mappings", label: "Bank Mappings", icon: ic(<BankOutlined />, "#6ee7b7") },
+      { key: "/home/iso-contacts", label: "ISO Contacts", icon: ic(<ContactsOutlined />, "#facc15") },
       { key: "/home/tickets",      label: "Tickets",      icon: ic(<ToolOutlined />, "#fb923c") },
     ]
   },
@@ -160,7 +161,7 @@ const HeaderComponent = () => {
   );
 
   const getSelectedKey = () => {
-    const adminPaths = ["/home/users","/home/adjustments","/home/agents","/home/logs","/home/bank-mappings","/home/tickets"];
+    const adminPaths = ["/home/users","/home/adjustments","/home/agents","/home/logs","/home/bank-mappings","/home/iso-contacts","/home/tickets"];
     if (adminPaths.some(p => currentPath.startsWith(p))) return currentPath;
     if (currentPath.startsWith("/home/merchants")) return "/home/merchants";
     return currentPath;
