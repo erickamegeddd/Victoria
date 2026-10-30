@@ -26,6 +26,7 @@ import AddAgentsPage from "../pages/users/AddAgentsPage";
 import ViewUsersPage from "../pages/users/ViewUsersPage";
 import MidPerIso from "../pages/iso/MidPerIsoPage";
 import BankMappingsPage from "../pages/BankMappingsPage";
+import ISOContactsPage from "../pages/ISOContactsPage";
 import ISOSummaryPage from "../pages/ISOSummaryPage";
 import TicketsPage from "../pages/TicketsPage";
 import SummaryUpdatesPage from "../pages/SummaryUpdatesPage";
@@ -66,6 +67,7 @@ const HomeRoutes = () => {
       <Route path="/adjustments/:id" element={<SP><AddAdjustments/></SP>}/>
       <Route path="/adjustments" element={<SP><ViewAdjustments/></SP>}/>
       <Route path="/bank-mappings" element={<SP><BankMappingsPage/></SP>}/>
+      <Route path="/iso-contacts" element={<SP><ISOContactsPage/></SP>}/>
       <Route path="/tickets" element={<SP><TicketsPage/></SP>}/>
       <Route path="/unauthorized" element={<ErrorPage/>}/>
       <Route path="/*" element={<PageNotFound/>}/>
