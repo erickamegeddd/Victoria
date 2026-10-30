@@ -265,7 +265,7 @@ const ISOSummaryPage = () => {
           )}
         </Space>
       </div>
-      <style>{`.iso-sum-table .ant-table-column-sorters { justify-content: center; gap: 6px; } .iso-sum-table .ant-table-column-sorter { color: #fff !important; font-size: 12px; } .iso-sum-table .ant-table-column-sorter-up.active, .iso-sum-table .ant-table-column-sorter-down.active { color: #fbbf24 !important; } .ant-table-wrapper .ant-table-tbody > tr.iso-total-row > td, .ant-table-wrapper .ant-table-tbody > tr.iso-total-row:hover > td { background: #0f2040 !important; color: #fff !important; font-weight: 700; } .ant-table-wrapper .ant-table-tbody > tr.iso-row-expected > td, .ant-table-wrapper .ant-table-tbody > tr.iso-row-expected:hover > td { background: #3b5f99 !important; } .ant-table-wrapper .ant-table-tbody > tr.iso-row-received > td, .ant-table-wrapper .ant-table-tbody > tr.iso-row-received:hover > td { background: #1e3a66 !important; } .ant-table-wrapper .ant-table-tbody > tr.iso-row-pending > td, .ant-table-wrapper .ant-table-tbody > tr.iso-row-pending:hover > td { background: #0b162b !important; } .ant-table-wrapper .ant-table-tbody > tr.iso-row-pending > td span { color: #fbbf24 !important; }`}</style>
+      <style>{`.iso-sum-table .ant-table-column-sorters { justify-content: center; gap: 6px; } .iso-sum-table .ant-table-column-sorter { color: #fff !important; font-size: 12px; } .iso-sum-table .ant-table-column-sorter-up.active, .iso-sum-table .ant-table-column-sorter-down.active { color: #fbbf24 !important; } .ant-table-wrapper .ant-table-tbody > tr.iso-total-row > td, .ant-table-wrapper .ant-table-tbody > tr.iso-total-row:hover > td { background: #0f2040 !important; color: #fff !important; font-weight: 700; } .ant-table-wrapper .ant-table-tbody > tr.iso-row-expected > td, .ant-table-wrapper .ant-table-tbody > tr.iso-row-expected:hover > td { background: #3b5f99 !important; } .ant-table-wrapper .ant-table-tbody > tr.iso-row-received > td, .ant-table-wrapper .ant-table-tbody > tr.iso-row-received:hover > td { background: #1e3a66 !important; } .ant-table-wrapper .ant-table-tbody > tr.iso-row-pending > td, .ant-table-wrapper .ant-table-tbody > tr.iso-row-pending:hover > td { background: #0b162b !important; } .ant-table-wrapper .ant-table-tbody > tr.iso-row-pending > td span { color: #fbbf24 !important; } .iso-sum-table .ant-table-tbody > tr.iso-total-row > td { position: sticky; z-index: 3; top: 0; height: 45px; padding-top: 0 !important; padding-bottom: 0 !important; } .iso-sum-table .ant-table-tbody > tr.iso-row-received > td { top: 45px; } .iso-sum-table .ant-table-tbody > tr.iso-row-pending > td { top: 90px; }`}</style>
       <Tabs activeKey={tab} onChange={setTab} items={[{ key: "residual", label: "Residuals" }, { key: "payments", label: "Payments" }]} />
       <Card>
         {tab === "residual" ? (
@@ -276,10 +276,9 @@ const ISOSummaryPage = () => {
             columns={columns}
             pagination={false}
             size="middle"
-            sticky
             rowClassName={(r) => (r.isTotal ? "iso-total-row" : r.isChild ? "iso-child-row" : "")}
             expandable={{ defaultExpandAllRows: false }}
-            scroll={{ x: 1500 }}
+            scroll={{ x: 1500, y: "calc(100vh - 300px)" }}
           />
         </Spin>
         ) : (
@@ -290,10 +289,9 @@ const ISOSummaryPage = () => {
             columns={payColumns}
             pagination={false}
             size="middle"
-            sticky
             rowClassName={(r) => (r.isTotal ? "iso-total-row" + (r.key === "__0_expected" ? " iso-row-expected" : r.key === "__a_total" ? " iso-row-received" : r.key === "__b_pending" ? " iso-row-pending" : "") : r.isChild ? "iso-child-row" : "")}
             expandable={{ defaultExpandAllRows: false }}
-            scroll={{ x: 1780 }}
+            scroll={{ x: 1780, y: "calc(100vh - 300px)" }}
           />
         </Spin>
         )}
