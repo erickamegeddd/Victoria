@@ -15,6 +15,7 @@ export default function Login() {
   const [forgotOpen, setForgotOpen] = useState(false);
 
   useEffect(() => { if (localStorage.getItem("token")) navigate("/home"); }, []);
+  useEffect(() => { const r = localStorage.getItem("logoutReason"); if (r) { localStorage.removeItem("logoutReason"); message.warning({ content: "You were signed out: " + r, duration: 20 }); } }, []);
 
   const onFinish = async (values) => {
     if (!values.email || !values.password) return message.error("Please enter credentials");
