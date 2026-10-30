@@ -131,17 +131,20 @@ const SummaryUpdatesPage = () => {
 
   const openEdit = (r) => { setEditIso(r); setNoteText(""); setNoteStatus(r.latest?.status || "Open"); };
   const saveNote = async () => {
-    if (!noteText.trim()) return message.warning("Please enter a note");
+    const carried = noteStatus === "Resolved" && editIso && editIso.latest ? shownNote(editIso) : "";
+    if (!noteText.trim() && !carried) return message.warning("Please enter a note");
     setSaving(true);
-    const { error } = await supabase.from("iso_updates").insert({ iso_id: editIso.isoId, report_month: editIso.month, note: noteText.trim(), status: noteStatus, author: user?.name || user?.email || null });
+    const { error } = await supabase.from("iso_updates").insert({ iso_id: editIso.isoId, report_month: editIso.month, note: noteText.trim() || carried, status: noteStatus, author: user?.name || user?.email || null });
     setSaving(false);
     if (error) return message.error("Could not save: " + error.message);
     setEditIso(null);
     refresh();
   };
 
+  // A bare "Closed" entry never hides the real note: show (and carry forward) the latest actual note
+  const shownNote = (r) => { const l = r.latest; if (!l) return ""; if ((l.note || "").trim() !== "Closed") return l.note; const h = r.history.find(x => (x.note || "").trim() !== "Closed"); return h ? h.note : l.note; };
   const closeItem = async (r) => {
-    const { error } = await supabase.from("iso_updates").insert({ iso_id: r.isoId, report_month: r.month, note: "Closed", status: "Resolved", author: user?.name || user?.email || null });
+    const { error } = await supabase.from("iso_updates").insert({ iso_id: r.isoId, report_month: r.month, note: shownNote(r) || "Closed", status: "Resolved", author: user?.name || user?.email || null });
     if (error) return message.error("Could not close: " + error.message);
     refresh();
   };
@@ -163,7 +166,7 @@ const SummaryUpdatesPage = () => {
   const saveInline = async (r) => {
     const t = inlineText.trim();
     if (!t) return message.warning("Please enter an update");
-    if (r.latest && t === (r.latest.note || "").trim()) { setInlineIso(null); return; }
+    if (r.latest && t === (shownNote(r) || "").trim()) { setInlineIso(null); return; }
     setSaving(true);
     // Edit the existing update in place; only create a new entry when the ISO has none yet
     const { error } = r.latest
@@ -188,11 +191,11 @@ const SummaryUpdatesPage = () => {
       );
     }
     const editable = canEdit && !setupNeeded;
-    const startEdit = () => { setInlineIso(r.rkey); setInlineText(r.latest?.note || ""); };
+    const startEdit = () => { setInlineIso(r.rkey); setInlineText(shownNote(r)); };
     const body = r.latest ? (
       <div>
         <Tag color={STATUS_COLOR[r.latest.status] || "default"}>{r.latest.status}</Tag>
-        <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", textAlign: "left" }}>{r.latest.note}</div>
+        <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", textAlign: "left" }}>{shownNote(r)}</div>
         <div><Text type="secondary" style={{ fontSize: 11 }}>{dayjs(r.latest.created_at).format("MMM D, YYYY")}{r.latest.author ? " - " + r.latest.author : ""}</Text></div>
       </div>
     ) : <Text type="secondary">{editable ? "Click to add an update" : "--"}</Text>;
@@ -313,7 +316,7 @@ const SummaryUpdatesPage = () => {
       <Modal title={editIso ? "Update - " + editIso.name : ""} open={!!editIso} onCancel={() => setEditIso(null)} onOk={saveNote} okText="Save update" confirmLoading={saving} destroyOnClose>
         <Space direction="vertical" style={{ width: "100%" }} size={12}>
           <Select value={noteStatus} onChange={setNoteStatus} style={{ width: 180 }} options={STATUSES.map(v => ({ value: v, label: v }))} />
-          <Input.TextArea rows={4} value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="e.g. Password reset requested, waiting on access code" />
+          <Input.TextArea rows={4} value={noteText} onChange={e => setNoteText(e.target.value)} placeholder={noteStatus === "Resolved" ? "Optional - leave blank to keep the existing note with this item" : "e.g. Password reset requested, waiting on access code"} />
           <Text type="secondary" style={{ fontSize: 12 }}>Each update is saved with today's date so the history shows progress. Marking it Resolved moves the ISO to "Resolved this month".</Text>
         </Space>
       </Modal>
