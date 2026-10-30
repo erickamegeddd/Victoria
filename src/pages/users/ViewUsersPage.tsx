@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
 import { Table, Tag, Button, Modal, Input, message } from "antd";
-import { ReloadOutlined, EditOutlined } from "@ant-design/icons";
+import { ReloadOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 
 const ViewUsersPage = () => {
@@ -28,6 +28,24 @@ const ViewUsersPage = () => {
       load();
     } catch { message.error("Could not update email"); }
     finally { setSaving(false); }
+  };
+
+  const removeUser = (u) => {
+    Modal.confirm({
+      title: "Remove this user permanently?",
+      icon: <DeleteOutlined style={{ color: "#dc2626" }} />,
+      content: <div><p><b>{u.email}</b> will lose access to Victoria right away.</p><p style={{ color: "#dc2626", marginBottom: 0 }}>This is final and cannot be undone. To give them access again you would have to create a new account.</p></div>,
+      okText: "Yes, remove permanently", okType: "danger", cancelText: "Cancel",
+      onOk: async () => {
+        try {
+          const r = await fetch("/api/agent-adjustments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete_user", user_id: u.id, confirm: true }) });
+          const d = await r.json().catch(() => ({}));
+          if (!r.ok) { message.error(d.error || "Could not remove user"); return; }
+          message.success(u.email + " was removed");
+          load();
+        } catch { message.error("Could not remove user"); }
+      },
+    });
   };
 
   const load = () => {
@@ -66,6 +84,7 @@ const ViewUsersPage = () => {
       render: v => dayjs(v).format("MMM D, YYYY"),
     },
     { title: "", width: 120, render: (_, r) => <Button size="small" icon={<EditOutlined />} onClick={() => { setEditUser(r); setNewEmail(r.email || ""); }}>Edit email</Button> },
+    { title: "", width: 110, render: (_, r) => { let me = null; try { me = JSON.parse(localStorage.getItem("user") || "null"); } catch { /* ignore */ } const own = !!me && me.email === r.email; return <Button size="small" danger icon={<DeleteOutlined />} disabled={own} title={own ? "You cannot remove your own account" : ""} onClick={() => removeUser(r)}>Remove</Button>; } },
   ];
 
   return (
