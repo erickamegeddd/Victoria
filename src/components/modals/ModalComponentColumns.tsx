@@ -58,6 +58,7 @@ export const agentColumns: any = [
   { key: 5, title: "MID", dataIndex: "mid", width: "150px", sorter: (a: any, b: any) => a.mid?.localeCompare(b.mid), render: (mid: string) => mid || <Tag color="error">Not Provided</Tag> },
   { key: 6, title: "Total Residual", dataIndex: "total_residual", width: "150px", sorter: (a: any, b: any) => (a?.total_residual || 0) - (b?.total_residual || 0), render: (v: number) => formatCurrency(v) },
   { key: 7, title: "PayDiverse Residual", dataIndex: "paydiverse_residual", width: "150px", sorter: (a: any, b: any) => (a?.paydiverse_residual || 0) - (b?.paydiverse_residual || 0), render: (v: number) => formatCurrency(v) },
+  { key: 10, title: "ISO Total Residual", dataIndex: "iso_total_residual", width: "170px", sorter: (a: any, b: any) => (a?.iso_total_residual || 0) - (b?.iso_total_residual || 0), render: (v: number) => v == null ? "--" : formatCurrency(v) },
   { key: 8, title: "Agent Percentage", dataIndex: "agent_percentage", width: "150px", sorter: (a: any, b: any) => (a?.agent_percentage || "").localeCompare(b?.agent_percentage || ""), render: (v: string) => v ? `${v}%` : <Tag color="error">Not Provided</Tag> },
   { key: 9, title: "Agent Payout", dataIndex: "agent_payout", width: "150px", className: "custom-column", onHeaderCell: () => ({className: "custom-header"}), sorter: (a: any, b: any) => (a?.agent_payout ?? 0) - (b?.agent_payout ?? 0), render: formatCurrency },
 ];
