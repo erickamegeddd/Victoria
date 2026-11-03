@@ -61,7 +61,7 @@ const AgentsDashboard = () => {
       const s = String(v ?? "");
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    const header = ["ISO", "DBA", "MID", "ISO Total Residual", "Agent Percentage", "Agent Payout"];
+    const header = ["ISO", "DBA", "MID", "Total Residual", "Agent Percentage", "Agent Payout"];
     const monthLabel = dayjs(date as string).format("MMMM YYYY");
     const lines = [
       ["Agent", user?.name || ""].map(esc).join(","),
@@ -76,7 +76,7 @@ const AgentsDashboard = () => {
           item?.iso || "Not Provided",
           item?.dba || "Not Provided",
           item?.mid || "Not Provided",
-          item?.iso_total_residual == null ? "" : Number(item.iso_total_residual).toFixed(2),
+          item?.paydiverse_residual == null ? "" : Number(item.paydiverse_residual).toFixed(2),
           item?.agent_percentage || "0.00%",
           (Number(item?.agent_payout) || 0).toFixed(2),
         ].map(esc).join(",")
@@ -143,7 +143,7 @@ const AgentsDashboard = () => {
       </div>
       <div style={{ height: 16 }} />
       <Table
-        columns={agentColumns.filter((c: any) => ["iso", "dba", "mid", "iso_total_residual", "agent_percentage", "agent_payout"].includes(c.dataIndex))}
+        columns={agentColumns.filter((c: any) => ["iso", "dba", "mid", "paydiverse_residual", "agent_percentage", "agent_payout"].includes(c.dataIndex)).map((c: any) => c.dataIndex === "paydiverse_residual" ? { ...c, title: "Total Residual" } : c)}
         loading={agentLoading}
         rowHoverable={false}
         onChange={(
