@@ -133,8 +133,8 @@ export const AgentsTrendRibbons = ({ hideTotal = false, endMonth }: { hideTotal?
     <div style={{ fontSize: 15, fontWeight: 700, margin: "4px 0 8px" }}>Calendar Year (Year-to-Date)</div>
     <AgentsTrendTable hideTotal={hideTotal} mode="calendar" />
     <div style={{ fontSize: 15, fontWeight: 700, margin: "24px 0 8px" }}>Trailing 12 Months</div>
-    {/* fixed window: always the 12 months ending at the default month (two months back), never the month picker */}
-    <AgentsTrendTable hideTotal={hideTotal} mode="trailing" />
+    {/* fixed window: always the 12 months ending at the current month, never the month picker */}
+    <AgentsTrendTable hideTotal={hideTotal} mode="trailing" endMonth={dayjs().startOf("month").format("YYYY-MM-01")} />
   </>
 );
 
