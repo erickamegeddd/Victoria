@@ -42,7 +42,7 @@ export default async function handler(req, res) {
 
   const mids = activeMerchants.map((m) => m.mid);
   const rows = await sbGet(
-    `residuals?select=mid,business_name,gross_revenue,paydiversenet,isos(name)&mid=in.(${mids.join(",")})&report_month=eq.${date}&limit=5000`
+    `residuals?select=mid,business_name,gross_revenue,paydiversenet,iso_id,isos(name)&mid=in.(${mids.join(",")})&report_month=eq.${date}&limit=5000`
   );
   if (!Array.isArray(rows)) return res.status(500).json({ error: "DB error" });
 
@@ -50,11 +50,19 @@ export default async function handler(req, res) {
   rows.forEach((r) => {
     if (isReseller(r.isos?.name, date, agent_name)) return;
     if (!byMid[r.mid]) {
-      byMid[r.mid] = { mid: r.mid, dba: r.business_name || "", iso: r.isos?.name || "", paydiversenet: 0, total_residual: 0 };
+      byMid[r.mid] = { mid: r.mid, dba: r.business_name || "", iso: r.isos?.name || "", iso_id: r.iso_id, paydiversenet: 0, total_residual: 0 };
     }
     byMid[r.mid].paydiversenet += r.paydiversenet || 0;
     byMid[r.mid].total_residual += r.gross_revenue || 0;
   });
+
+  // Whole-ISO total for the month (every MID the ISO reported, not just this agent's) for each ISO the agent has a percentage with
+  const isoTotals = {};
+  const isoIds = [...new Set(Object.values(byMid).map((m) => m.iso_id).filter(Boolean))];
+  await Promise.all(isoIds.map(async (id) => {
+    const all = await sbGet(`residuals?select=paydiversenet&iso_id=eq.${id}&report_month=eq.${date}&limit=5000`);
+    isoTotals[id] = Array.isArray(all) ? Math.round(all.reduce((t, r) => t + (r.paydiversenet || 0), 0) * 100) / 100 : null;
+  }));
 
   const data = Object.values(byMid).map((m) => {
     const pct = getPct(agent_name, m.mid, date);
@@ -68,12 +76,13 @@ export default async function handler(req, res) {
       agent_payout: Math.round(m.paydiversenet * pct / 100 * 100) / 100,
       paydiverse_residual: Math.round(m.paydiversenet * 100) / 100,
       total_residual: Math.round(m.total_residual * 100) / 100,
+      iso_total_residual: isoTotals[m.iso_id] ?? null,
     };
   });
 
   // Agents only get their own payout lines, never the company\'s residual figures
   if (caller.role === "agent") {
-    return res.json(data.map(({ iso, dba, mid, agent_percentage, agent_payout }) => ({ iso, dba, mid, agent_percentage, agent_payout })));
+    return res.json(data.map(({ iso, dba, mid, iso_total_residual, agent_percentage, agent_payout }) => ({ iso, dba, mid, iso_total_residual, agent_percentage, agent_payout })));
   }
   return res.json(data);
 }
