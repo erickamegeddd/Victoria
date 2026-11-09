@@ -512,7 +512,7 @@ const OutreachPage = () => {
       <div style={{ marginTop: 24 }}>
         <h3 style={{ margin: 0 }}>Paid short - payment received but deficit ({shortPaid.length})</h3>
         <p style={{ color: "#6f7280", margin: "4px 0 10px", fontSize: 13 }}>Payment was received but is less than the residual total. Deficit = expected minus received; differences under $1 (rounding) are ignored. Items drop off once the shortfall is made up or the item is closed on Summary / Updates.</p>
-        <Table size="small" rowKey="key" dataSource={shortPaid} pagination={{ pageSize: 25, hideOnSinglePage: true, showSizeChanger: false }} locale={{ emptyText: "No deficits" }}
+        <Table size="small" rowKey="key" dataSource={shortPaid} pagination={{ pageSize: 25, hideOnSinglePage: true, showSizeChanger: false }} scroll={{ x: "max-content" }} locale={{ emptyText: "No deficits" }}
           summary={(rows) => <Table.Summary.Row style={{ background: "#0f2040" }}><Table.Summary.Cell index={0} colSpan={4}><span style={{ color: "rgba(255,255,255,0.8)", fontWeight: 700 }}>TOTAL DEFICIT - {rows.length} rows</span></Table.Summary.Cell><Table.Summary.Cell index={4} align="right"><span style={{ color: "#fca5a5", fontWeight: 900 }}>{fmtMoney(rows.reduce((t, r) => t + r.deficit, 0))}</span></Table.Summary.Cell><Table.Summary.Cell index={5} colSpan={5} /></Table.Summary.Row>}
           columns={[
             { title: "ISO", dataIndex: "iso_name", sorter: (a, b) => a.iso_name.localeCompare(b.iso_name) },
@@ -541,7 +541,7 @@ const OutreachPage = () => {
               ) : <span style={{ color: "#9ca3af" }}>{canEditShort ? "Click to add a note" : "--"}</span>;
               return canEditShort ? <div onClick={() => { setInlineKey(r.key); setInlineText(r.latest?.note || ""); }} style={{ cursor: "text", minHeight: 22 }} title="Click to edit">{body}</div> : body;
             } },
-            ...(canEditShort ? [{ title: "", width: 60, render: (_, r) => (
+            ...(canEditShort ? [{ title: "", width: 90, fixed: "right", render: (_, r) => (
               <Popconfirm title={"Dismiss " + r.iso_name + " " + dayjs(r.report_month).format("MMM YYYY") + "?"} okText="Dismiss" onConfirm={() => setShortDismissal(r, true)}>
                 <Button size="small">Dismiss</Button>
               </Popconfirm>
