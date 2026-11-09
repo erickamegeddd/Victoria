@@ -271,6 +271,20 @@ const SummaryUpdatesPage = () => {
 
   const monthLabel = dayjs(month).format("MMMM YYYY");
 
+  // No-reports list split by payment: paid ISOs only need their report awaited, unpaid ones need chasing
+  const hasPay = (r) => r.received != null;
+  const noReportTabs = (list, cols, loadingFlag, pagination) => {
+    const withPay = list.filter(hasPay), without = list.filter(r => !hasPay(r));
+    const tbl = (data, empty) => <Table rowKey="rkey" size="middle" loading={loadingFlag} columns={cols} dataSource={data} expandable={expandable} pagination={pagination}
+      locale={{ emptyText: <Empty description={empty} /> }} />;
+    return (
+      <Tabs size="small" defaultActiveKey="without" items={[
+        { key: "without", label: "ISOs w/o payments (" + without.length + ")", children: tbl(without, "No unpaid ISOs waiting on reports") },
+        { key: "with", label: "ISOs with payments (" + withPay.length + ")", children: tbl(withPay, "No paid ISOs waiting on reports") },
+      ]} />
+    );
+  };
+
   return (
     <div style={{ padding: 24, maxWidth: 1280, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
@@ -301,8 +315,7 @@ const SummaryUpdatesPage = () => {
       </Card>
 
       <Card title="ISO with No Reports Yet" style={{ marginBottom: 16 }} bodyStyle={{ padding: 12 }}>
-        <Table rowKey="rkey" size="middle" loading={loading} columns={noReportCols} dataSource={noReport} expandable={expandable} pagination={false}
-          locale={{ emptyText: <Empty description={"All reports received for " + monthLabel} /> }} />
+        {noReportTabs(noReport, noReportCols, loading, false)}
       </Card>
 
       {resolved.length > 0 && (
@@ -319,8 +332,7 @@ const SummaryUpdatesPage = () => {
               locale={{ emptyText: <Empty description="No pending payments" /> }} />
           </Card>
           <Card title="ISO with No Reports Yet" style={{ marginBottom: 16 }} bodyStyle={{ padding: 12 }}>
-            <Table rowKey="rkey" size="middle" loading={!overall} columns={[monthCol, ...noReportCols]} dataSource={overall ? overall.noReport : []} expandable={expandable} pagination={{ pageSize: 25, hideOnSinglePage: true }}
-              locale={{ emptyText: <Empty description="All reports received" /> }} />
+            {noReportTabs(overall ? overall.noReport : [], [monthCol, ...noReportCols], !overall, { pageSize: 25, hideOnSinglePage: true })}
           </Card>
           {overall && overall.resolved.length > 0 && (
             <Card title="Resolved" bodyStyle={{ padding: 12 }}>
