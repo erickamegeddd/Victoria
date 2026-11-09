@@ -6,6 +6,7 @@ import dayjs from "dayjs";
 import { useLatestMonth } from "../utils/latestMonth";
 import { supabase } from "../utils/supabase";
 import { getUserFromLocalStorage } from "../utils/getUser";
+import { computeExpDate, parseExpDate } from "../utils/paymentDue";
 const { Title, Text } = Typography;
 
 const STATUSES = ["Open", "In Progress", "Resolved"];
@@ -44,7 +45,7 @@ const SummaryUpdatesPage = () => {
     setLoading(true);
     const [i, p, u] = await Promise.all([
       supabase.from("isos").select("id,name,status").eq("status","active").order("name"),
-      supabase.from("iso_payments").select("iso_id,expected_amount,received_amount,updated_at").eq("report_month", month),
+      supabase.from("iso_payments").select("iso_id,expected_amount,received_amount,updated_at,notes").eq("report_month", month),
       supabase.from("iso_updates").select("*").eq("report_month", month).order("created_at", { ascending: false }),
     ]);
     // residuals can exceed the 1000-row API cap, so page through them
@@ -75,7 +76,7 @@ const SummaryUpdatesPage = () => {
     const page = async (q) => { let out = [], from = 0; while (true) { const { data } = await q().range(from, from + 999); if (!data) break; out = out.concat(data); if (data.length < 1000) break; from += 1000; } return out; };
     const [res, pays, ups] = await Promise.all([
       page(() => supabase.from("residuals").select("iso_id,paydiversenet,created_at,report_month,isos!inner(status)").eq("isos.status","active").order("id")),
-      page(() => supabase.from("iso_payments").select("iso_id,expected_amount,received_amount,report_month").order("id")),
+      page(() => supabase.from("iso_payments").select("iso_id,expected_amount,received_amount,report_month,notes").order("id")),
       page(() => supabase.from("iso_updates").select("*").order("created_at", { ascending: false })),
     ]);
     setAllData({ res, pays, ups });
@@ -109,7 +110,9 @@ const SummaryUpdatesPage = () => {
       // An ISO whose first note was logged before its report was uploaded stays in the "no reports yet" list (with a green check) until closed
       const oldest = history.length ? history[history.length - 1] : null;
       const fromNoReport = !!oldest && reportIn && (!resFirst[iso.id] || oldest.created_at < resFirst[iso.id]);
-      return { isoId: iso.id, rkey: iso.id + "|" + mon, month: mon, name: iso.name, expected, received, status, history, latest, reportIn, fromNoReport, noRes: !(iso.id in resMap), closed: latest?.status === "Resolved" };
+      const storedDue = parseExpDate(p?.notes);
+      const dueDate = storedDue || computeExpDate(iso.name, mon);
+      return { dueDate, dueEst: !storedDue, isoId: iso.id, rkey: iso.id + "|" + mon, month: mon, name: iso.name, expected, received, status, history, latest, reportIn, fromNoReport, noRes: !(iso.id in resMap), closed: latest?.status === "Resolved" };
     });
   };
   const rows = useMemo(() => computeRows(isos, residuals, payments, updates, month), [isos, residuals, payments, updates, month]);
@@ -153,6 +156,15 @@ const SummaryUpdatesPage = () => {
       <Tooltip title="Close this item"><Button size="small" icon={<CheckOutlined />} /></Tooltip>
     </Popconfirm>
   );
+  const today = dayjs().format("YYYY-MM-DD");
+  const dueCell = (r) => {
+    if (!r.dueDate) return <Text type="secondary">--</Text>;
+    const days = dayjs(r.dueDate).diff(dayjs(today), "day");
+    const est = r.dueEst ? <span style={{ color: "#9ca3af", fontSize: 10 }}> est.</span> : null;
+    if (days < 0) return <div><Tag color="red" style={{ fontWeight: 600, margin: 0 }}>Overdue {-days}d</Tag><div style={{ fontSize: 12 }}>{dayjs(r.dueDate).format("MMM D, YYYY")}{est}</div></div>;
+    return <div><Tag color={days <= 7 ? "gold" : "default"} style={{ margin: 0 }}>{days === 0 ? "Due today" : "Due in " + days + "d"}</Tag><div style={{ fontSize: 12 }}>{dayjs(r.dueDate).format("MMM D, YYYY")}{est}</div></div>;
+  };
+  const dueCol = { title: "Payment Due", width: 140, sorter: (a, b) => (a.dueDate || "9999").localeCompare(b.dueDate || "9999"), render: (_, r) => dueCell(r) };
   const green = { color: "#16a34a" };
   const reportStatus = (r) => r.reportIn ? <span style={green}><CheckCircleFilled /> Report uploaded</span> : <span style={{ color: "#d97706" }}><ClockCircleOutlined /> Waiting</span>;
   const payStatus = (r) => {
@@ -223,6 +235,7 @@ const SummaryUpdatesPage = () => {
     { title: "Received", dataIndex: "received", width: 120, align: "right", render: v => v != null ? fmt(v) : "--" },
     { title: "Commission Pending", dataIndex: "owed", width: 170, align: "right", sorter: (a, b) => a.owed - b.owed, onHeaderCell: () => ({ style: { background: "#f97316", color: "#fff" } }), onCell: () => ({ style: { background: "#ffedd5" } }), render: (v, r) => <span style={{ color: "#c2410c", fontWeight: 700 }}>{fmt(v)}</span> },
     { title: "Status", width: 150, render: (_, r) => payStatus(r) },
+    dueCol,
     { title: "Latest Update", align: "left", onCell: () => ({ style: { textAlign: "left" } }), render: (_, r) => noteCell(r) },
     ...editCol,
   ];
