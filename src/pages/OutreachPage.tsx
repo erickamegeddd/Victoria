@@ -4,6 +4,8 @@ import { Table, Button, Popconfirm, Tag, Input, message, Modal, Drawer, Spin, Sw
 import { MailOutlined, EditOutlined, CheckCircleOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { computeExpDate, parseExpDate } from "../utils/paymentDue";
+import { supabase } from "../utils/supabase";
+import { getUserFromLocalStorage } from "../utils/getUser";
 
 const fmtMoney = (v) => "$" + Number(v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const ME_FRESNO = "ebabea6f-2ab6-460d-a47e-362fb9e7d15a";
@@ -123,6 +125,37 @@ const OutreachPage = () => {
   };
 
   const [shortPaid, setShortPaid] = useState([]);
+  const [shortDismissed, setShortDismissed] = useState([]);
+  const [showShortDismissed, setShowShortDismissed] = useState(false);
+  const [inlineKey, setInlineKey] = useState(null);
+  const [inlineText, setInlineText] = useState("");
+  const [inlineSaving, setInlineSaving] = useState(false);
+  const shortUser = getUserFromLocalStorage();
+  const canEditShort = shortUser?.role === "admin";
+  const saveShortNote = async (r) => {
+    const t = inlineText.trim();
+    if (!t) return message.warning("Please enter an update");
+    if (r.latest && t === (r.latest.note || "").trim()) { setInlineKey(null); return; }
+    setInlineSaving(true);
+    const { error } = r.latest
+      ? await supabase.from("iso_updates").update({ note: t }).eq("id", r.latest.id)
+      : await supabase.from("iso_updates").insert({ iso_id: r.iso_id, report_month: r.report_month, note: t, status: "Open", author: shortUser?.name || shortUser?.email || null });
+    setInlineSaving(false);
+    if (error) return message.error("Could not save: " + error.message);
+    setInlineKey(null);
+    fetchShortPaid();
+  };
+  const setShortDismissal = async (r, on) => {
+    try {
+      const resp = await fetch(`${SUPABASE_URL}/rest/v1/iso_payments?id=eq.${r.key}`, {
+        method: "PATCH",
+        headers: { ...sbHeaders, "Content-Type": "application/json", Prefer: "return=minimal" },
+        body: JSON.stringify({ notes: on ? addTag(r.notes) : removeTag(r.notes) })
+      });
+      if (!resp.ok) throw new Error("save failed");
+      fetchShortPaid();
+    } catch (_) { message.error("Could not " + (on ? "dismiss" : "restore")); }
+  };
   // ISO-months where a payment was received but it is less than the residual total (deficit)
   const fetchShortPaid = async () => {
     try {
@@ -130,14 +163,14 @@ const OutreachPage = () => {
       const [pays, res, ups] = await Promise.all([
         page("iso_payments?select=id,iso_id,report_month,expected_amount,received_amount,payment_date,notes,isos!inner(name,email)&isos.status=eq.active&received_amount=not.is.null&report_month=gte.2026-01-01&order=id"),
         page("residuals?select=iso_id,report_month,paydiversenet&report_month=gte.2026-01-01&order=id"),
-        page("iso_updates?select=iso_id,report_month,status,created_at&order=created_at.desc"),
+        page("iso_updates?select=id,iso_id,report_month,status,note,author,created_at&order=created_at.desc"),
       ]);
       const resMap = {}; res.forEach(r => { const k = r.iso_id + "|" + r.report_month; resMap[k] = (resMap[k] || 0) + (Number(r.paydiversenet) || 0); });
       const hasRes = new Set(res.map(r => r.iso_id + "|" + r.report_month));
       const latestUp = {}; ups.forEach(u => { const k = u.iso_id + "|" + u.report_month; if (!latestUp[k]) latestUp[k] = u; });
       // MerchantE Fresno + Synovous are one account: compare the combined total with the combined payments
       const meRecv = {}; pays.forEach(p => { if (p.iso_id === ME_FRESNO || p.iso_id === ME_SYN) meRecv[p.report_month] = (meRecv[p.report_month] || 0) + (Number(p.received_amount) || 0); });
-      const out = [];
+      const out = [], outD = [];
       pays.forEach(p => {
         if (p.iso_id === ME_FRESNO) return;
         const k = p.iso_id + "|" + p.report_month;
@@ -146,11 +179,12 @@ const OutreachPage = () => {
         const expected = Math.round(expRaw * 100) / 100;
         const received = Math.round((isME ? meRecv[p.report_month] : Number(p.received_amount) || 0) * 100) / 100;
         const deficit = Math.round((expected - received) * 100) / 100;
-        if (deficit < 1 || latestUp[k]?.status === "Resolved" || String(p.notes || "").includes("[DISMISSED]")) return;
-        out.push({ key: p.id, iso_name: isME ? "MerchantE (Synovous + Fresno)" : p.isos?.name, iso_email: p.isos?.email || "", report_month: p.report_month, due_date: parseExpDate(p.notes) || computeExpDate(p.isos?.name, p.report_month), expected, received, deficit, payment_date: p.payment_date, update: latestUp[k]?.status || null });
+        if (deficit < 1 || latestUp[k]?.status === "Resolved") return;
+        (String(p.notes || "").includes("[DISMISSED]") ? outD : out).push({ key: p.id, iso_id: p.iso_id, notes: p.notes, latest: latestUp[k] || null, iso_name: isME ? "MerchantE (Synovous + Fresno)" : p.isos?.name, iso_email: p.isos?.email || "", report_month: p.report_month, due_date: parseExpDate(p.notes) || computeExpDate(p.isos?.name, p.report_month), expected, received, deficit, payment_date: p.payment_date, update: latestUp[k]?.status || null });
       });
       setShortPaid(out.sort((a, b) => b.deficit - a.deficit));
-    } catch (_) { setShortPaid([]); }
+      setShortDismissed(outD.sort((a, b) => b.deficit - a.deficit));
+    } catch (_) { setShortPaid([]); setShortDismissed([]); }
   };
 
   const fetchOverdue = async () => {
@@ -479,7 +513,7 @@ const OutreachPage = () => {
         <h3 style={{ margin: 0 }}>Paid short - payment received but deficit ({shortPaid.length})</h3>
         <p style={{ color: "#6f7280", margin: "4px 0 10px", fontSize: 13 }}>Payment was received but is less than the residual total. Deficit = expected minus received; differences under $1 (rounding) are ignored. Items drop off once the shortfall is made up or the item is closed on Summary / Updates.</p>
         <Table size="small" rowKey="key" dataSource={shortPaid} pagination={{ pageSize: 25, hideOnSinglePage: true, showSizeChanger: false }} locale={{ emptyText: "No deficits" }}
-          summary={(rows) => <Table.Summary.Row style={{ background: "#0f2040" }}><Table.Summary.Cell index={0} colSpan={4}><span style={{ color: "rgba(255,255,255,0.8)", fontWeight: 700 }}>TOTAL DEFICIT - {rows.length} rows</span></Table.Summary.Cell><Table.Summary.Cell index={4} align="right"><span style={{ color: "#fca5a5", fontWeight: 900 }}>{fmtMoney(rows.reduce((t, r) => t + r.deficit, 0))}</span></Table.Summary.Cell><Table.Summary.Cell index={5} colSpan={3} /></Table.Summary.Row>}
+          summary={(rows) => <Table.Summary.Row style={{ background: "#0f2040" }}><Table.Summary.Cell index={0} colSpan={4}><span style={{ color: "rgba(255,255,255,0.8)", fontWeight: 700 }}>TOTAL DEFICIT - {rows.length} rows</span></Table.Summary.Cell><Table.Summary.Cell index={4} align="right"><span style={{ color: "#fca5a5", fontWeight: 900 }}>{fmtMoney(rows.reduce((t, r) => t + r.deficit, 0))}</span></Table.Summary.Cell><Table.Summary.Cell index={5} colSpan={5} /></Table.Summary.Row>}
           columns={[
             { title: "ISO", dataIndex: "iso_name", sorter: (a, b) => a.iso_name.localeCompare(b.iso_name) },
             { title: "Month", dataIndex: "report_month", render: v => dayjs(v).format("MMM YYYY"), sorter: (a, b) => a.report_month.localeCompare(b.report_month) },
@@ -489,7 +523,44 @@ const OutreachPage = () => {
             { title: "Payment Date", dataIndex: "payment_date", render: v => v ? dayjs(v).format("MMM D, YYYY") : <span style={{ color: "#9ca3af" }}>--</span> },
             { title: "Due Date", dataIndex: "due_date", render: v => v ? dayjs(v).format("MMM D, YYYY") : <span style={{ color: "#9ca3af" }}>--</span> },
             { title: "Status", dataIndex: "update", render: v => v ? <Tag>{v}</Tag> : <span style={{ color: "#9ca3af" }}>No update</span> },
+            { title: "Notes", width: 260, onCell: () => ({ style: { textAlign: "left" } }), render: (_, r) => {
+              if (canEditShort && inlineKey === r.key) return (
+                <div>
+                  <Input.TextArea autoFocus autoSize={{ minRows: 2, maxRows: 6 }} value={inlineText} onChange={e => setInlineText(e.target.value)} onKeyDown={e => { if (e.key === "Escape") setInlineKey(null); }} />
+                  <div style={{ marginTop: 6, display: "flex", gap: 6 }}>
+                    <Button size="small" type="primary" loading={inlineSaving} onClick={() => saveShortNote(r)}>Save</Button>
+                    <Button size="small" onClick={() => setInlineKey(null)}>Cancel</Button>
+                  </div>
+                </div>
+              );
+              const body = r.latest ? (
+                <div>
+                  <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{r.latest.note}</div>
+                  <div style={{ color: "#9ca3af", fontSize: 11 }}>{dayjs(r.latest.created_at).format("MMM D, YYYY")}{r.latest.author ? " - " + r.latest.author : ""}</div>
+                </div>
+              ) : <span style={{ color: "#9ca3af" }}>{canEditShort ? "Click to add a note" : "--"}</span>;
+              return canEditShort ? <div onClick={() => { setInlineKey(r.key); setInlineText(r.latest?.note || ""); }} style={{ cursor: "text", minHeight: 22 }} title="Click to edit">{body}</div> : body;
+            } },
+            ...(canEditShort ? [{ title: "", width: 60, render: (_, r) => (
+              <Popconfirm title={"Dismiss " + r.iso_name + " " + dayjs(r.report_month).format("MMM YYYY") + "?"} okText="Dismiss" onConfirm={() => setShortDismissal(r, true)}>
+                <Button size="small">Dismiss</Button>
+              </Popconfirm>
+            ) }] : []),
           ]} />
+        {shortDismissed.length > 0 && (
+          <div style={{ marginTop: 10 }}>
+            <a onClick={() => setShowShortDismissed(v => !v)} style={{ fontSize: 13 }}>{showShortDismissed ? "Hide" : "Show"} dismissed ({shortDismissed.length})</a>
+            {showShortDismissed && (
+              <Table size="small" style={{ marginTop: 6 }} rowKey="key" dataSource={shortDismissed} pagination={false}
+                columns={[
+                  { title: "ISO", dataIndex: "iso_name" },
+                  { title: "Month", dataIndex: "report_month", render: v => dayjs(v).format("MMM YYYY") },
+                  { title: "Deficit", dataIndex: "deficit", align: "right", render: fmtMoney },
+                  { title: "", width: 80, render: (_, r) => canEditShort ? <Button size="small" onClick={() => setShortDismissal(r, false)}>Restore</Button> : null },
+                ]} />
+            )}
+          </div>
+        )}
       </div>
 
       <Modal
