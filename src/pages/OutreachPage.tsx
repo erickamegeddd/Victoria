@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Table, Button, Popconfirm, Tag, Input, message, Modal, Drawer, Spin, Switch, Select } from "antd";
 import { MailOutlined, EditOutlined, CheckCircleOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { computeExpDate, parseExpDate } from "../utils/paymentDue";
 
 const ME_FRESNO = "ebabea6f-2ab6-460d-a47e-362fb9e7d15a";
 const ME_SYN = "c97162d5-d5c2-4c02-8068-d33cd6958567";
@@ -120,6 +121,40 @@ const OutreachPage = () => {
     }
   };
 
+  const [noReport, setNoReport] = useState([]);
+  // Overdue ISO-months with no residual report and no payment: no amount to bill, so they never reach the main list
+  const fetchNoReport = async () => {
+    try {
+      const page = async (path) => { let out = [], from = 0; while (true) { const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}&limit=1000&offset=${from}`, { headers: sbHeaders }); const d = await r.json(); if (!Array.isArray(d)) break; out = out.concat(d); if (d.length < 1000) break; from += 1000; } return out; };
+      const [isos, pays, res, ups] = await Promise.all([
+        page("isos?select=id,name,email&status=eq.active&order=name.asc"),
+        page("iso_payments?select=iso_id,report_month,received_amount,notes&report_month=gte.2026-01-01&order=id"),
+        page("residuals?select=iso_id,report_month&report_month=gte.2026-01-01&order=id"),
+        page("iso_updates?select=iso_id,report_month,status,created_at&order=created_at.desc"),
+      ]);
+      const hasRes = new Set(res.map(r => r.iso_id + "|" + r.report_month));
+      const payMap = {}; pays.forEach(x => { payMap[x.iso_id + "|" + x.report_month] = x; });
+      const firstM = {}; [...res, ...pays].forEach(x => { if (!firstM[x.iso_id] || x.report_month < firstM[x.iso_id]) firstM[x.iso_id] = x.report_month; });
+      const latestUp = {}; ups.forEach(u => { const k = u.iso_id + "|" + u.report_month; if (!latestUp[k]) latestUp[k] = u; });
+      const todayD = dayjs().startOf("day");
+      const out = [];
+      isos.forEach(iso => {
+        if (!firstM[iso.id]) return;
+        for (let m = dayjs(firstM[iso.id]); !m.isAfter(todayD, "month"); m = m.add(1, "month")) {
+          const mk = m.format("YYYY-MM-01"), k = iso.id + "|" + mk;
+          const p = payMap[k];
+          if (hasRes.has(k) || (p && p.received_amount != null)) continue;
+          if (String(p?.notes || "").includes("[DISMISSED]") || latestUp[k]?.status === "Resolved") continue;
+          const due = parseExpDate(p?.notes) || computeExpDate(iso.name, mk);
+          const days = due ? todayD.diff(dayjs(due), "day") : null;
+          if (days == null || days < 2) continue;
+          out.push({ key: k, iso_name: iso.name, iso_email: iso.email || "", report_month: mk, due_date: due, days_past_due: days, update: latestUp[k]?.status || null });
+        }
+      });
+      setNoReport(out.sort((a, b) => a.due_date.localeCompare(b.due_date)));
+    } catch (_) { setNoReport([]); }
+  };
+
   const fetchOverdue = async () => {
     setLoading(true);
     try {
@@ -175,6 +210,7 @@ const OutreachPage = () => {
         });
       }
       // Zero / negative amounts owe nothing, so they never appear on Outreach
+      fetchNoReport();
       const owed = enriched.filter(p => (p.computed_amount || 0) > 0.005);
       setRecords(owed.filter(p => !String(p.notes || "").includes("[DISMISSED]")));
       setDismissed(owed.filter(p => String(p.notes || "").includes("[DISMISSED]")));
@@ -440,6 +476,20 @@ const OutreachPage = () => {
           );
         }}
       />
+
+      <div style={{ marginTop: 24 }}>
+        <h3 style={{ margin: 0 }}>Overdue - no report received yet ({noReport.length})</h3>
+        <p style={{ color: "#6f7280", margin: "4px 0 10px", fontSize: 13 }}>Past their payment due date with no residual report and no payment logged, so there is no amount to bill yet. Items disappear once the report is imported or the item is closed on Summary / Updates.</p>
+        <Table size="small" rowKey="key" dataSource={noReport} pagination={{ pageSize: 25, hideOnSinglePage: true, showSizeChanger: false }} locale={{ emptyText: "Nothing overdue without a report" }}
+          columns={[
+            { title: "ISO", dataIndex: "iso_name", sorter: (a, b) => a.iso_name.localeCompare(b.iso_name) },
+            { title: "Month", dataIndex: "report_month", render: v => dayjs(v).format("MMM YYYY"), sorter: (a, b) => a.report_month.localeCompare(b.report_month) },
+            { title: "Due Date", dataIndex: "due_date", render: v => dayjs(v).format("MMM D, YYYY"), sorter: (a, b) => a.due_date.localeCompare(b.due_date) },
+            { title: "Days Overdue", dataIndex: "days_past_due", render: v => <Tag color="red">{v}d</Tag>, sorter: (a, b) => a.days_past_due - b.days_past_due, defaultSortOrder: "descend" },
+            { title: "Email", dataIndex: "iso_email", render: v => v || <span style={{ color: "#9ca3af" }}>--</span> },
+            { title: "Status", dataIndex: "update", render: v => v ? <Tag>{v}</Tag> : <span style={{ color: "#9ca3af" }}>No update</span> },
+          ]} />
+      </div>
 
       <Modal
         open={!!previewRecord}
