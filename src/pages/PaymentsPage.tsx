@@ -35,7 +35,7 @@ const PaymentsPage = () => {
   const [srcForm, setSrcForm] = useState({source:'',url:''});
   const [savingSrc, setSavingSrc] = useState(false);
   const srcOf=(r)=>{const d=getIsoSource(r.isoName);const iso=isos.find(i=>i.id===r.isoId);const m=/SOURCE:([^|]*)/.exec(iso?.notes||'');const dbSrc=m?m[1].trim():'';return{source:dbSrc||d.source,url:(iso?.login_url||'').trim()||d.url};};
-  const saveSrc=async()=>{setSavingSrc(true);const iso=isos.find(i=>i.id===srcModal.isoId);const rest=String(iso?.notes||'').replace(/SOURCE:[^|]*\|?/,'').trim();const notes=srcForm.source?('SOURCE:'+srcForm.source+'|'+rest):rest;const{error}=await supabase.from('isos').update({login_url:srcForm.url.trim()||null,notes:notes||null}).eq('id',srcModal.isoId);setSavingSrc(false);if(error){message.error('Could not save: '+error.message);return;}message.success('Source updated');setSrcModal(null);fetchIsos();};
+  const saveSrc=async()=>{setSavingSrc(true);const iso=isos.find(i=>i.id===srcModal.isoId);const rest=String(iso?.notes||'').replace(/SOURCE:[^|]*\|?/,'').trim();const notes=srcForm.source?('SOURCE:'+srcForm.source+'|'+rest):rest;const{data,error}=await supabase.from('isos').update({login_url:srcForm.url.trim()||null,notes:notes||null}).eq('id',srcModal.isoId).select('id');setSavingSrc(false);if(error){message.error('Could not save: '+error.message);return;}if(!data||!data.length){message.error('Source was not saved (no row updated) - please try again');return;}message.success('Source updated');setSrcModal(null);fetchIsos();};
   const [editingExpected, setEditingExpected] = useState({}); // isoId → string value being edited
   const [savingExpected, setSavingExpected] = useState({});
 
@@ -262,7 +262,7 @@ const PaymentsPage = () => {
       onFilter:(val,r)=>r.isoId===val,
       filterSearch:true,
       render:(_,r)=><Text strong>{r.isoName}</Text>},
-    {title:'Source',key:'source',width:120,sorter:(a,b)=>srcOf(a).source.localeCompare(srcOf(b).source),render:(_,r)=>{const {source,url}=srcOf(r);const edit=<a onClick={()=>{setSrcForm({source,url});setSrcModal({isoId:r.isoId,isoName:r.isoName});}} title="Edit source / link" style={{marginLeft:6,fontSize:12}}>&#9998;</a>;let body;if(!source)body=<Text style={{color:'var(--muted-color)'}}>--</Text>;else if((source==='Portal'||source==='Sheet')&&url)body=<a href={url} target="_blank" rel="noopener noreferrer">{source}</a>;else body=<Text title={source==='Portal'?'Portal link not added yet':undefined}>{source}</Text>;return<span>{body}{edit}</span>;}},
+    {title:'Source',key:'source',width:140,sorter:(a,b)=>srcOf(a).source.localeCompare(srcOf(b).source),render:(_,r)=>{const {source,url}=srcOf(r);const edit=<a onClick={()=>{setSrcForm({source,url});setSrcModal({isoId:r.isoId,isoName:r.isoName});}} title="Edit source / link" style={{marginLeft:6,fontSize:12}}>&#9998;</a>;let body;if(!source)body=<Text style={{color:'var(--muted-color)'}}>--</Text>;else if((source==='Portal'||source==='Portal - VPN'||source==='Sheet')&&url)body=<a href={url} target="_blank" rel="noopener noreferrer">{source}</a>;else body=<Text title={source==='Portal'||source==='Portal - VPN'?'Portal link not added yet':undefined}>{source}</Text>;return<span>{body}{edit}</span>;}},
     {title:'Expected',key:'exp',align:'right',width:150,sorter:(a,b)=>(a.expected??-1)-(b.expected??-1),render:(_,r)=>{
       const p=getPaymentForISO(r.isoId);
       const displayVal=r.expected;
@@ -603,7 +603,7 @@ const PaymentsPage = () => {
       {/* Record Payment Modal */}
       <Modal open={!!srcModal} title={'Source & link - '+(srcModal?.isoName||'')} onCancel={()=>setSrcModal(null)} onOk={saveSrc} confirmLoading={savingSrc} okText="Save">
         <div style={{marginBottom:12}}><div style={{marginBottom:4}}>Source</div>
-          <Select style={{width:'100%'}} value={srcForm.source||undefined} onChange={v=>setSrcForm(f=>({...f,source:v}))} allowClear placeholder="Choose source" options={['Portal','Email','Sheet','Unknown/New'].map(v=>({value:v,label:v}))}/></div>
+          <Select style={{width:'100%'}} value={srcForm.source||undefined} onChange={v=>setSrcForm(f=>({...f,source:v}))} allowClear placeholder="Choose source" options={['Portal','Portal - VPN','Email','Sheet','Unknown/New'].map(v=>({value:v,label:v}))}/></div>
         <div><div style={{marginBottom:4}}>Portal link</div>
           <Input value={srcForm.url} onChange={e=>setSrcForm(f=>({...f,url:e.target.value}))} placeholder="https://..."/></div>
       </Modal>
