@@ -5,6 +5,7 @@ import { MailOutlined, EditOutlined, CheckCircleOutlined, ClockCircleOutlined } 
 import dayjs from "dayjs";
 import { computeExpDate, parseExpDate } from "../utils/paymentDue";
 
+const fmtMoney = (v) => "$" + Number(v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const ME_FRESNO = "ebabea6f-2ab6-460d-a47e-362fb9e7d15a";
 const ME_SYN = "c97162d5-d5c2-4c02-8068-d33cd6958567";
 const emailList = (v) => String(v || "").split(/[,;\s]+/).filter(x => x.includes("@"));
@@ -121,38 +122,35 @@ const OutreachPage = () => {
     }
   };
 
-  const [noReport, setNoReport] = useState([]);
-  // Overdue ISO-months with no residual report and no payment: no amount to bill, so they never reach the main list
-  const fetchNoReport = async () => {
+  const [shortPaid, setShortPaid] = useState([]);
+  // ISO-months where a payment was received but it is less than the residual total (deficit)
+  const fetchShortPaid = async () => {
     try {
       const page = async (path) => { let out = [], from = 0; while (true) { const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}&limit=1000&offset=${from}`, { headers: sbHeaders }); const d = await r.json(); if (!Array.isArray(d)) break; out = out.concat(d); if (d.length < 1000) break; from += 1000; } return out; };
-      const [isos, pays, res, ups] = await Promise.all([
-        page("isos?select=id,name,email&status=eq.active&order=name.asc"),
-        page("iso_payments?select=iso_id,report_month,received_amount,notes&report_month=gte.2026-01-01&order=id"),
-        page("residuals?select=iso_id,report_month&report_month=gte.2026-01-01&order=id"),
+      const [pays, res, ups] = await Promise.all([
+        page("iso_payments?select=id,iso_id,report_month,expected_amount,received_amount,payment_date,notes,isos!inner(name,email)&isos.status=eq.active&received_amount=not.is.null&report_month=gte.2026-01-01&order=id"),
+        page("residuals?select=iso_id,report_month,paydiversenet&report_month=gte.2026-01-01&order=id"),
         page("iso_updates?select=iso_id,report_month,status,created_at&order=created_at.desc"),
       ]);
+      const resMap = {}; res.forEach(r => { const k = r.iso_id + "|" + r.report_month; resMap[k] = (resMap[k] || 0) + (Number(r.paydiversenet) || 0); });
       const hasRes = new Set(res.map(r => r.iso_id + "|" + r.report_month));
-      const payMap = {}; pays.forEach(x => { payMap[x.iso_id + "|" + x.report_month] = x; });
-      const firstM = {}; [...res, ...pays].forEach(x => { if (!firstM[x.iso_id] || x.report_month < firstM[x.iso_id]) firstM[x.iso_id] = x.report_month; });
       const latestUp = {}; ups.forEach(u => { const k = u.iso_id + "|" + u.report_month; if (!latestUp[k]) latestUp[k] = u; });
-      const todayD = dayjs().startOf("day");
+      // MerchantE Fresno + Synovous are one account: compare the combined total with the combined payments
+      const meRecv = {}; pays.forEach(p => { if (p.iso_id === ME_FRESNO || p.iso_id === ME_SYN) meRecv[p.report_month] = (meRecv[p.report_month] || 0) + (Number(p.received_amount) || 0); });
       const out = [];
-      isos.forEach(iso => {
-        if (!firstM[iso.id]) return;
-        for (let m = dayjs(firstM[iso.id]); !m.isAfter(todayD, "month"); m = m.add(1, "month")) {
-          const mk = m.format("YYYY-MM-01"), k = iso.id + "|" + mk;
-          const p = payMap[k];
-          if (hasRes.has(k) || (p && p.received_amount != null)) continue;
-          if (String(p?.notes || "").includes("[DISMISSED]") || latestUp[k]?.status === "Resolved") continue;
-          const due = parseExpDate(p?.notes) || computeExpDate(iso.name, mk);
-          const days = due ? todayD.diff(dayjs(due), "day") : null;
-          if (days == null || days < 2) continue;
-          out.push({ key: k, iso_name: iso.name, iso_email: iso.email || "", report_month: mk, due_date: due, days_past_due: days, update: latestUp[k]?.status || null });
-        }
+      pays.forEach(p => {
+        if (p.iso_id === ME_FRESNO) return;
+        const k = p.iso_id + "|" + p.report_month;
+        const isME = p.iso_id === ME_SYN;
+        const expRaw = hasRes.has(k) || (isME && hasRes.has(ME_FRESNO + "|" + p.report_month)) ? (resMap[k] || 0) + (isME ? (resMap[ME_FRESNO + "|" + p.report_month] || 0) : 0) : (Number(p.expected_amount) || 0);
+        const expected = Math.round(expRaw * 100) / 100;
+        const received = Math.round((isME ? meRecv[p.report_month] : Number(p.received_amount) || 0) * 100) / 100;
+        const deficit = Math.round((expected - received) * 100) / 100;
+        if (deficit < 1 || latestUp[k]?.status === "Resolved" || String(p.notes || "").includes("[DISMISSED]")) return;
+        out.push({ key: p.id, iso_name: isME ? "MerchantE (Synovous + Fresno)" : p.isos?.name, iso_email: p.isos?.email || "", report_month: p.report_month, due_date: parseExpDate(p.notes) || computeExpDate(p.isos?.name, p.report_month), expected, received, deficit, payment_date: p.payment_date, update: latestUp[k]?.status || null });
       });
-      setNoReport(out.sort((a, b) => a.due_date.localeCompare(b.due_date)));
-    } catch (_) { setNoReport([]); }
+      setShortPaid(out.sort((a, b) => b.deficit - a.deficit));
+    } catch (_) { setShortPaid([]); }
   };
 
   const fetchOverdue = async () => {
@@ -210,7 +208,7 @@ const OutreachPage = () => {
         });
       }
       // Zero / negative amounts owe nothing, so they never appear on Outreach
-      fetchNoReport();
+      fetchShortPaid();
       const owed = enriched.filter(p => (p.computed_amount || 0) > 0.005);
       setRecords(owed.filter(p => !String(p.notes || "").includes("[DISMISSED]")));
       setDismissed(owed.filter(p => String(p.notes || "").includes("[DISMISSED]")));
@@ -478,15 +476,18 @@ const OutreachPage = () => {
       />
 
       <div style={{ marginTop: 24 }}>
-        <h3 style={{ margin: 0 }}>Overdue - no report received yet ({noReport.length})</h3>
-        <p style={{ color: "#6f7280", margin: "4px 0 10px", fontSize: 13 }}>Past their payment due date with no residual report and no payment logged, so there is no amount to bill yet. Items disappear once the report is imported or the item is closed on Summary / Updates.</p>
-        <Table size="small" rowKey="key" dataSource={noReport} pagination={{ pageSize: 25, hideOnSinglePage: true, showSizeChanger: false }} locale={{ emptyText: "Nothing overdue without a report" }}
+        <h3 style={{ margin: 0 }}>Paid short - payment received but deficit ({shortPaid.length})</h3>
+        <p style={{ color: "#6f7280", margin: "4px 0 10px", fontSize: 13 }}>Payment was received but is less than the residual total. Deficit = expected minus received; differences under $1 (rounding) are ignored. Items drop off once the shortfall is made up or the item is closed on Summary / Updates.</p>
+        <Table size="small" rowKey="key" dataSource={shortPaid} pagination={{ pageSize: 25, hideOnSinglePage: true, showSizeChanger: false }} locale={{ emptyText: "No deficits" }}
+          summary={(rows) => <Table.Summary.Row style={{ background: "#0f2040" }}><Table.Summary.Cell index={0} colSpan={4}><span style={{ color: "rgba(255,255,255,0.8)", fontWeight: 700 }}>TOTAL DEFICIT - {rows.length} rows</span></Table.Summary.Cell><Table.Summary.Cell index={4} align="right"><span style={{ color: "#fca5a5", fontWeight: 900 }}>{fmtMoney(rows.reduce((t, r) => t + r.deficit, 0))}</span></Table.Summary.Cell><Table.Summary.Cell index={5} colSpan={3} /></Table.Summary.Row>}
           columns={[
             { title: "ISO", dataIndex: "iso_name", sorter: (a, b) => a.iso_name.localeCompare(b.iso_name) },
             { title: "Month", dataIndex: "report_month", render: v => dayjs(v).format("MMM YYYY"), sorter: (a, b) => a.report_month.localeCompare(b.report_month) },
-            { title: "Due Date", dataIndex: "due_date", render: v => dayjs(v).format("MMM D, YYYY"), sorter: (a, b) => a.due_date.localeCompare(b.due_date) },
-            { title: "Days Overdue", dataIndex: "days_past_due", render: v => <Tag color="red">{v}d</Tag>, sorter: (a, b) => a.days_past_due - b.days_past_due, defaultSortOrder: "descend" },
-            { title: "Email", dataIndex: "iso_email", render: v => v || <span style={{ color: "#9ca3af" }}>--</span> },
+            { title: "Expected", dataIndex: "expected", align: "right", render: fmtMoney },
+            { title: "Received", dataIndex: "received", align: "right", render: fmtMoney },
+            { title: "Deficit", dataIndex: "deficit", align: "right", render: v => <span style={{ color: "#dc2626", fontWeight: 700 }}>{fmtMoney(v)}</span>, sorter: (a, b) => a.deficit - b.deficit, defaultSortOrder: "descend" },
+            { title: "Payment Date", dataIndex: "payment_date", render: v => v ? dayjs(v).format("MMM D, YYYY") : <span style={{ color: "#9ca3af" }}>--</span> },
+            { title: "Due Date", dataIndex: "due_date", render: v => v ? dayjs(v).format("MMM D, YYYY") : <span style={{ color: "#9ca3af" }}>--</span> },
             { title: "Status", dataIndex: "update", render: v => v ? <Tag>{v}</Tag> : <span style={{ color: "#9ca3af" }}>No update</span> },
           ]} />
       </div>
