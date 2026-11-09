@@ -5,6 +5,7 @@ const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
 const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ1cWZsb2Z1emh5YnV0a2t6cm9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwNDE3NTYsImV4cCI6MjEwMTYxNzc1Nn0.46kKCy_3cY7oKuONb9e2e18yKVNui3oSOzySK33fMFE";
 
 import nodemailer from "nodemailer";
+import { requireCaller } from "./_auth.js";
 
 function buildAutoBody(isoName, amount, reportMonth, dueDate) {
   const monthLabel = new Date(reportMonth.slice(0, 7) + "-01T12:00:00Z")
@@ -270,6 +271,37 @@ async function handleTicketCleanup(req, res) {
   return res.status(200).json({ ok: true, removed: names.length });
 }
 
+// ISO source + portal link — POST ?action=iso-source {iso_id, source, url}. Admin login required.
+// Signed-in users cannot UPDATE the isos table (RLS silently matches 0 rows), so the write is done here with the service key.
+const ISO_SOURCES = ["Portal", "Portal - VPN", "Email", "Sheet", "Unknown/New"];
+async function handleIsoSource(req, res) {
+  if (req.method !== "POST") return res.status(405).end();
+  const caller = await requireCaller(req, res);
+  if (!caller) return;
+  const SVC = process.env.SUPABASE_SERVICE_KEY;
+  if (!SVC) return res.status(500).json({ ok: false, error: "Service key not configured" });
+  const id = String(req.body?.iso_id || "");
+  const source = String(req.body?.source || "").trim();
+  const url = String(req.body?.url || "").trim();
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ ok: false, error: "Invalid ISO" });
+  if (source && !ISO_SOURCES.includes(source)) return res.status(400).json({ ok: false, error: "Invalid source" });
+  if (url && !/^https?:\/\//i.test(url)) return res.status(400).json({ ok: false, error: "Link must start with http:// or https://" });
+  const H = { apikey: SVC, Authorization: `Bearer ${SVC}`, "Content-Type": "application/json" };
+  const cur = await fetch(`${SUPABASE_URL}/rest/v1/isos?id=eq.${id}&select=id,notes`, { headers: H });
+  const rows = await cur.json().catch(() => []);
+  const iso = Array.isArray(rows) ? rows[0] : null;
+  if (!iso) return res.status(404).json({ ok: false, error: "ISO not found" });
+  const rest = String(iso.notes || "").replace(/SOURCE:[^|]*\|?/, "").trim();
+  const notes = source ? "SOURCE:" + source + "|" + rest : rest;
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/isos?id=eq.${id}`, {
+    method: "PATCH", headers: { ...H, Prefer: "return=representation" },
+    body: JSON.stringify({ login_url: url || null, notes: notes || null })
+  });
+  const out = await r.json().catch(() => []);
+  if (!r.ok || !Array.isArray(out) || !out.length) return res.status(500).json({ ok: false, error: "Source was not saved" });
+  return res.status(200).json({ ok: true, notes: out[0].notes, login_url: out[0].login_url });
+}
+
 // Password reset email — POST ?action=password-reset {email}. Public; always answers success so it never reveals which emails exist.
 // Uses a Supabase recovery token (single use, expires) emailed as a link to /reset-password; the page verifies it when the user submits.
 async function handlePasswordReset(req, res) {
@@ -324,6 +356,7 @@ export default async function handler(req, res) {
   if (action === "password-reset") return handlePasswordReset(req, res);
   if (action === "ticket") return handleTicketNotify(req, res);
   if (action === "ticket-cleanup") return handleTicketCleanup(req, res);
+  if (action === "iso-source") return handleIsoSource(req, res);
 
   // Cron auto-send — called via /api/auto-reminders rewrite (Vercel cron uses GET)
   if (action === "cron" || (req.method === "GET" && !action)) {

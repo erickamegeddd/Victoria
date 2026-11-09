@@ -35,7 +35,7 @@ const PaymentsPage = () => {
   const [srcForm, setSrcForm] = useState({source:'',url:''});
   const [savingSrc, setSavingSrc] = useState(false);
   const srcOf=(r)=>{const d=getIsoSource(r.isoName);const iso=isos.find(i=>i.id===r.isoId);const m=/SOURCE:([^|]*)/.exec(iso?.notes||'');const dbSrc=m?m[1].trim():'';return{source:dbSrc||d.source,url:(iso?.login_url||'').trim()||d.url};};
-  const saveSrc=async()=>{setSavingSrc(true);const iso=isos.find(i=>i.id===srcModal.isoId);const rest=String(iso?.notes||'').replace(/SOURCE:[^|]*\|?/,'').trim();const notes=srcForm.source?('SOURCE:'+srcForm.source+'|'+rest):rest;const{data,error}=await supabase.from('isos').update({login_url:srcForm.url.trim()||null,notes:notes||null}).eq('id',srcModal.isoId).select('id');setSavingSrc(false);if(error){message.error('Could not save: '+error.message);return;}if(!data||!data.length){message.error('Source was not saved (no row updated) - please try again');return;}message.success('Source updated');setSrcModal(null);fetchIsos();};
+  const saveSrc=async()=>{setSavingSrc(true);try{const r=await fetch('/api/send-payment-reminder?action=iso-source',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({iso_id:srcModal.isoId,source:srcForm.source||'',url:srcForm.url||''})});const j=await r.json().catch(()=>({}));if(!r.ok||!j.ok){message.error('Could not save: '+(j.error||('error '+r.status)));setSavingSrc(false);return;}}catch(e){message.error('Could not save: '+e.message);setSavingSrc(false);return;}setSavingSrc(false);message.success('Source updated');setSrcModal(null);fetchIsos();};
   const [editingExpected, setEditingExpected] = useState({}); // isoId → string value being edited
   const [savingExpected, setSavingExpected] = useState({});
 
