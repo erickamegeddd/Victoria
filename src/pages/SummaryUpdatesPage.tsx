@@ -245,6 +245,7 @@ const SummaryUpdatesPage = () => {
   const noReportCols = [
     { title: "ISO", dataIndex: "name", width: 200, sorter: (a, b) => a.name.localeCompare(b.name) },
     { title: "Expected", dataIndex: "expected", width: 120, align: "right", render: v => v != null ? fmt(v) : "--" },
+    { title: "Payment Received", dataIndex: "received", width: 150, align: "right", render: v => v != null ? fmt(v) : "--" },
     { title: "Status", width: 170, render: (_, r) => reportStatus(r) },
     dueColNoReport,
     { title: "Latest Update", align: "left", onCell: () => ({ style: { textAlign: "left" } }), render: (_, r) => noteCell(r) },
