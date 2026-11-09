@@ -157,15 +157,17 @@ const SummaryUpdatesPage = () => {
     </Popconfirm>
   );
   const today = dayjs().format("YYYY-MM-DD");
-  const dueCell = (r) => {
+  const dueCell = (r, ignorePaid) => {
     if (!r.dueDate) return <Text type="secondary">--</Text>;
     const days = dayjs(r.dueDate).diff(dayjs(today), "day");
     const est = r.dueEst ? <span style={{ color: "#9ca3af", fontSize: 10 }}> est.</span> : null;
-    if (r.received != null) return <div style={{ fontSize: 12 }}>{dayjs(r.dueDate).format("MMM D, YYYY")}{est}</div>;
+    if (!ignorePaid && r.received != null) return <div style={{ fontSize: 12 }}>{dayjs(r.dueDate).format("MMM D, YYYY")}{est}</div>;
     if (days < 0) return <div><Tag color="red" style={{ fontWeight: 600, margin: 0 }}>Overdue {-days}d</Tag><div style={{ fontSize: 12 }}>{dayjs(r.dueDate).format("MMM D, YYYY")}{est}</div></div>;
     return <div><Tag color={days <= 7 ? "gold" : "default"} style={{ margin: 0 }}>{days === 0 ? "Due today" : "Due in " + days + "d"}</Tag><div style={{ fontSize: 12 }}>{dayjs(r.dueDate).format("MMM D, YYYY")}{est}</div></div>;
   };
-  const dueCol = { title: "Payment Due", width: 140, sorter: (a, b) => (a.dueDate || "9999").localeCompare(b.dueDate || "9999"), render: (_, r) => dueCell(r) };
+  const mkDueCol = (ignorePaid) => ({ title: "Payment Due", width: 140, sorter: (a, b) => (a.dueDate || "9999").localeCompare(b.dueDate || "9999"), render: (_, r) => dueCell(r, ignorePaid) });
+  // Pending table: overdue only while unpaid. No-reports table: overdue even if paid, since the report is still missing
+  const dueCol = mkDueCol(false), dueColNoReport = mkDueCol(true);
   const green = { color: "#16a34a" };
   const reportStatus = (r) => r.reportIn ? <span style={green}><CheckCircleFilled /> Report uploaded</span> : <span style={{ color: "#d97706" }}><ClockCircleOutlined /> Waiting</span>;
   const payStatus = (r) => {
@@ -244,7 +246,7 @@ const SummaryUpdatesPage = () => {
     { title: "ISO", dataIndex: "name", width: 200, sorter: (a, b) => a.name.localeCompare(b.name) },
     { title: "Expected", dataIndex: "expected", width: 120, align: "right", render: v => v != null ? fmt(v) : "--" },
     { title: "Status", width: 170, render: (_, r) => reportStatus(r) },
-    dueCol,
+    dueColNoReport,
     { title: "Latest Update", align: "left", onCell: () => ({ style: { textAlign: "left" } }), render: (_, r) => noteCell(r) },
     ...editCol,
   ];
