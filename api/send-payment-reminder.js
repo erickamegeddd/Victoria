@@ -5,6 +5,8 @@ const SUPABASE_URL = "https://vuqflofuzhybutkkzroa.supabase.co";
 const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ1cWZsb2Z1emh5YnV0a2t6cm9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwNDE3NTYsImV4cCI6MjEwMTYxNzc1Nn0.46kKCy_3cY7oKuONb9e2e18yKVNui3oSOzySK33fMFE";
 
 import nodemailer from "nodemailer";
+import MailComposer from "nodemailer/lib/mail-composer/index.js";
+import { ImapFlow } from "imapflow";
 import { requireCaller } from "./_auth.js";
 
 function buildAutoBody(isoName, amount, reportMonth, dueDate) {
@@ -374,33 +376,27 @@ export default async function handler(req, res) {
   }
 
   const { paymentId, isoName, isoEmail, amount, month, dueDate, body } = req.body || {};
-  if (!paymentId || !isoEmail || !body) {
+  const toList = (Array.isArray(isoEmail) ? isoEmail : String(isoEmail || "").split(/[,;\s]+/)).filter((x) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x));
+  if (!paymentId || !toList.length || !body) {
     return res.status(400).json({ ok: false, error: "Missing required fields" });
   }
 
   const monthLabel = new Date(month.slice(0, 7) + "-01T00:00:00Z").toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
   const amt = (amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2 });
+  const subject = `Payment Reminder — ${isoName} Residuals ${monthLabel} ($${amt} past due)`;
+  const toStr = toList.join(", ");
 
   try {
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: GMAIL_USER, pass: GMAIL_PASS }
-    });
-
-    await transporter.sendMail({
-      from: `PayDiverse Payments <${GMAIL_USER}>`,
-      to: isoEmail,
-      subject: `Payment Reminder — ${isoName} Residuals ${monthLabel} ($${amt} past due)`,
-      text: body,
-      html: (() => {
-        const msgOnly = body.split("\n--\n")[0].trim();
-        const htmlBody = msgOnly
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/\n/g, "<br>")
-          .replace(`$${amt}`, `<strong>$${amt}</strong>`);
-        const signature = `
+    // The message is saved as a Gmail DRAFT (IMAP APPEND to Drafts) - it is never sent from here.
+    // The HTML signature below replaces the plain-text signature in the template (everything after "\n--\n" is dropped).
+    const msgOnly = body.split("\n--\n")[0].trim();
+    const htmlBody = msgOnly
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\n/g, "<br>")
+      .replace(`$${amt}`, `<strong>$${amt}</strong>`);
+    const signature = `
           <table style="margin-top:24px;padding-top:20px;border-top:1px solid #e5e7eb;font-family:Arial,sans-serif;font-size:13px;color:#333;border-collapse:collapse">
             <tr>
               <td style="padding-right:20px;border-right:2px solid #d1d5db;vertical-align:top;text-align:center">
@@ -415,12 +411,30 @@ export default async function handler(req, res) {
               </td>
             </tr>
           </table>`;
-        return `<div style="font-family:Arial,sans-serif;max-width:620px;line-height:1.7;color:#333;padding:20px">
+    const html = `<div style="font-family:Arial,sans-serif;max-width:620px;line-height:1.7;color:#333;padding:20px">
           <p style="margin:0 0 16px 0">${htmlBody}</p>
           ${signature}
         </div>`;
-      })()
-    });
+
+    const raw = await new MailComposer({
+      from: `PayDiverse Payments <${GMAIL_USER}>`,
+      to: toStr,
+      subject,
+      text: body,
+      html,
+      date: new Date(),
+    }).compile().build();
+
+    const imap = new ImapFlow({ host: "imap.gmail.com", port: 993, secure: true, auth: { user: GMAIL_USER, pass: GMAIL_PASS }, logger: false });
+    imap.on("error", () => {});
+    await imap.connect();
+    try {
+      const boxes = await imap.list();
+      const drafts = boxes.find((b) => b.specialUse === "\\Drafts")?.path || "[Gmail]/Drafts";
+      await imap.append(drafts, raw, ["\\Draft"]);
+    } finally {
+      await imap.logout().catch(() => {});
+    }
 
     await fetch(`${SUPABASE_URL}/rest/v1/email_logs`, {
       method: "POST",
@@ -430,9 +444,9 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         payment_id: paymentId,
-        to_email: isoEmail,
+        to_email: toStr,
         from_email: GMAIL_USER,
-        subject: `Payment Reminder — ${isoName} Residuals ${monthLabel} ($${amt} past due)`
+        subject: `[Draft] ${subject}`
       })
     });
 

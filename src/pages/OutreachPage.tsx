@@ -44,6 +44,7 @@ const OutreachPage = () => {
   // Key by record.id (payment ID) — each row is independent
   const [editingEmail, setEditingEmail] = useState({});
   const [pickedEmail, setPickedEmail] = useState({});
+  const [draftIds, setDraftIds] = useState([]);
   const [dismissed, setDismissed] = useState([]);
   const [showDismissed, setShowDismissed] = useState(false);
   const DTAG = "[DISMISSED]";
@@ -63,7 +64,9 @@ const OutreachPage = () => {
       message.success(on ? "Dismissed - won't be chased" : "Restored to Outreach");
     } catch (e) { message.error("Could not update"); }
   };
-  const chosenEmail = (r) => { const l = emailList(r.iso_email); return pickedEmail[r.id] && l.includes(pickedEmail[r.id]) ? pickedEmail[r.id] : (l[0] || ""); };
+  // Selected recipients for a row (multi-select); defaults to the primary (first) address only
+  const chosenEmails = (r) => { const l = emailList(r.iso_email); const p = (pickedEmail[r.id] || []).filter(e => l.includes(e)); return p.length ? p : (l[0] ? [l[0]] : []); };
+  const chosenEmail = (r) => chosenEmails(r).join(", ");
   const [savingEmail, setSavingEmail] = useState(null);
   const [previewRecord, setPreviewRecord] = useState(null);
   const [editingBody, setEditingBody] = useState(null);
@@ -246,6 +249,14 @@ const OutreachPage = () => {
       const owed = enriched.filter(p => (p.computed_amount || 0) > 0.005);
       setRecords(owed.filter(p => !String(p.notes || "").includes("[DISMISSED]")));
       setDismissed(owed.filter(p => String(p.notes || "").includes("[DISMISSED]")));
+      try {
+        const ids = owed.map(p => p.id);
+        if (ids.length) {
+          const dr = await fetch(`${SUPABASE_URL}/rest/v1/email_logs?select=payment_id&subject=like.${encodeURIComponent("[Draft]*")}&payment_id=in.(${ids.join(",")})&limit=2000`, { headers: sbHeaders });
+          const dj = await dr.json();
+          if (Array.isArray(dj)) setDraftIds([...new Set(dj.map(x => x.payment_id))]);
+        }
+      } catch (_) { /* tag falls back to "Sent" */ }
     } catch (e) {
       message.error("Failed to load overdue payments");
     } finally {
@@ -286,7 +297,7 @@ const OutreachPage = () => {
   };
 
   const sendEmail = async (record) => {
-    const emailToUse = editingEmail[record.id] !== undefined ? emailList(editingEmail[record.id])[0] : chosenEmail(record);
+    const emailToUse = editingEmail[record.id] !== undefined ? emailList(editingEmail[record.id]).slice(0, 1).join(", ") : chosenEmail(record);
     if (!emailToUse) { message.error("Please add an email address first"); return; }
     setSending(prev => ({ ...prev, [record.id]: true }));
     try {
@@ -305,15 +316,16 @@ const OutreachPage = () => {
       });
       const result = await res.json();
       if (result.ok) {
-        message.success(`Reminder sent to ${emailToUse}`);
+        message.success(`Draft saved in Gmail for ${emailToUse} — open Gmail to review and send`);
+        setDraftIds(prev => [...prev, record.id]);
         setRecords(prev => prev.map(r =>
           r.id === record.id ? { ...r, email_sent: true, email_sent_at: new Date().toISOString() } : r
         ));
       } else {
-        message.error(result.error || "Failed to send email");
+        message.error(result.error || "Failed to save Gmail draft");
       }
     } catch (e) {
-      message.error("Failed to send email");
+      message.error("Failed to save Gmail draft");
     } finally {
       setSending(prev => { const n = { ...prev }; delete n[record.id]; return n; });
     }
@@ -379,7 +391,7 @@ const OutreachPage = () => {
         return (
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             {!isEditing && emailList(record.iso_email).length > 0 && (
-              <Select size="small" style={{ flex: 1, fontSize: 12, minWidth: 0 }} value={chosenEmail(record)}
+              <Select size="small" mode="multiple" maxTagCount="responsive" style={{ flex: 1, fontSize: 12, minWidth: 0 }} value={chosenEmails(record)}
                 onChange={v => setPickedEmail(prev => ({ ...prev, [record.id]: v }))}
                 options={emailList(record.iso_email).map((e, i) => ({ value: e, label: i === 0 ? e : `${e} (backup)` }))} />
             )}
@@ -431,7 +443,7 @@ const OutreachPage = () => {
       filters: [{ text: "Sent", value: "sent" }, { text: "Pending", value: "pending" }],
       onFilter: (value, record) => value === "sent" ? !!record.email_sent : !record.email_sent,
       render: (sent, record) => sent
-        ? <Tag icon={<CheckCircleOutlined />} color="success">Sent {record.email_sent_at ? dayjs(record.email_sent_at).format("MMM D") : ""}</Tag>
+        ? <Tag icon={<CheckCircleOutlined />} color={draftIds.includes(record.id) ? "processing" : "success"}>{draftIds.includes(record.id) ? "Drafted" : "Sent"} {record.email_sent_at ? dayjs(record.email_sent_at).format("MMM D") : ""}</Tag>
         : <Tag icon={<ClockCircleOutlined />} color="warning">Pending</Tag>
     },
     {
@@ -575,20 +587,20 @@ const OutreachPage = () => {
           </Button>,
           <Popconfirm
             key="send"
-            title="Send this reminder?"
-            description={`Send to ${(previewRecord ? chosenEmail(previewRecord) : "") || "this ISO"}?`}
+            title="Save this reminder as a Gmail draft?"
+            description={`Draft addressed to ${(previewRecord ? chosenEmail(previewRecord) : "") || "this ISO"}. Nothing is sent until you send it from Gmail.`}
             onConfirm={() => {
               const toSend = editingBody !== null ? { ...previewRecord, body: editingBody } : previewRecord;
               sendEmail(toSend);
               setPreviewRecord(null);
               setEditingBody(null);
             }}
-            okText="Yes, Send Now"
+            okText="Yes, Save Draft"
             disabled={!(previewRecord ? chosenEmail(previewRecord) : "")}
           >
             <Button type="primary" icon={<MailOutlined />} style={{ background: "#0f2040" }}
              disabled={!(previewRecord ? chosenEmail(previewRecord) : "")}>
-              Send Now
+              Save as Gmail Draft
             </Button>
           </Popconfirm>
         ]}
