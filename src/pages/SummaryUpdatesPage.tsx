@@ -107,7 +107,7 @@ const SummaryUpdatesPage = () => {
       const history = upMap[iso.id] || [];
       const latest = history[0] || null;
       const reportIn = expected != null;
-      // An ISO whose first note was logged before its report was uploaded stays in the "no reports yet" list (with a green check) until closed
+      // A PAID ISO whose first note was logged before its report was uploaded stays in the "no reports yet" list (with a green check) until closed; an unpaid one moves to pending payment once its report is in
       const oldest = history.length ? history[history.length - 1] : null;
       const fromNoReport = !!oldest && reportIn && (!resFirst[iso.id] || oldest.created_at < resFirst[iso.id]);
       const storedDue = parseExpDate(p?.notes);
@@ -119,7 +119,7 @@ const SummaryUpdatesPage = () => {
 
   // Rows stay listed until closed; expected / received / status update by themselves as reports and payments arrive
   const deriveLists = (rows) => {
-    const noReport = rows.filter(r => !r.closed && (r.status === "no_report" || r.fromNoReport || (r.noRes && r.received != null)));
+    const noReport = rows.filter(r => !r.closed && (r.status === "no_report" || (r.fromNoReport && r.received != null) || (r.noRes && r.received != null)));
     const noReportIds = new Set(noReport.map(r => r.rkey));
     const pending = rows.filter(r => !r.closed && !noReportIds.has(r.rkey) && (((r.status === "pending" && r.expected > 0.005) || r.status === "short_paid") || (r.history.length && r.expected != null && r.received != null)))
       .map(r => ({ ...r, owed: r.status === "short_paid" ? r.expected - r.received : (r.status === "pending" ? r.expected : 0) }));
