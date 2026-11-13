@@ -273,6 +273,62 @@ async function handleTicketCleanup(req, res) {
   return res.status(200).json({ ok: true, removed: names.length });
 }
 
+// ISO contacts — POST ?action=iso-contacts {iso_id, contacts:[{name,email,phone}]}. Admin login required.
+// Replaces the ISO's contact lines in iso_contacts, then keeps isos.email (ordered, de-duplicated) and the
+// PHONE:/CONTACT: tags in isos.notes in step with the first lines so Outreach and the cron keep working.
+async function handleIsoContacts(req, res) {
+  if (req.method !== "POST") return res.status(405).end();
+  const caller = await requireCaller(req, res);
+  if (!caller) return;
+  const SVC = process.env.SUPABASE_SERVICE_KEY;
+  if (!SVC) return res.status(500).json({ ok: false, error: "Service key not configured" });
+  const id = String(req.body?.iso_id || "");
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ ok: false, error: "Invalid ISO" });
+  const raw = Array.isArray(req.body?.contacts) ? req.body.contacts : null;
+  if (!raw || raw.length > 40) return res.status(400).json({ ok: false, error: "Invalid contacts" });
+  const clean = (v) => String(v || "").replace(/\|/g, "/").replace(/\s+/g, " ").trim().slice(0, 200);
+  const contacts = [];
+  for (const c of raw) {
+    const row = { name: clean(c?.name), email: clean(c?.email), phone: clean(c?.phone) };
+    if (!row.name && !row.email && !row.phone) continue;
+    if (row.email && !/^[^@\s,;]+@[^@\s,;]+\.[^@\s,;]+$/.test(row.email)) return res.status(400).json({ ok: false, error: "Not a valid email: " + row.email });
+    contacts.push(row);
+  }
+  const H = { apikey: SVC, Authorization: `Bearer ${SVC}`, "Content-Type": "application/json" };
+  const cur = await fetch(`${SUPABASE_URL}/rest/v1/isos?id=eq.${id}&select=id,notes`, { headers: H });
+  const isoRows = await cur.json().catch(() => []);
+  const iso = Array.isArray(isoRows) ? isoRows[0] : null;
+  if (!iso) return res.status(404).json({ ok: false, error: "ISO not found" });
+  const oldR = await fetch(`${SUPABASE_URL}/rest/v1/iso_contacts?iso_id=eq.${id}&select=id`, { headers: H });
+  const oldIds = ((await oldR.json().catch(() => [])) || []).map((x) => x.id);
+  // Insert the new lines first, then remove the old ones, so a failure never leaves the ISO with no contacts
+  if (contacts.length) {
+    const ins = await fetch(`${SUPABASE_URL}/rest/v1/iso_contacts`, {
+      method: "POST", headers: { ...H, Prefer: "return=minimal" },
+      body: JSON.stringify(contacts.map((c, i) => ({ iso_id: id, ...c, sort_order: i })))
+    });
+    if (!ins.ok) return res.status(500).json({ ok: false, error: "Contacts were not saved" });
+  }
+  if (oldIds.length) {
+    await fetch(`${SUPABASE_URL}/rest/v1/iso_contacts?id=in.(${oldIds.join(",")})`, { method: "DELETE", headers: H });
+  }
+  const seen = new Set();
+  const emails = contacts.map((c) => c.email).filter((e) => e && !seen.has(e.toLowerCase()) && seen.add(e.toLowerCase()));
+  const phone = (contacts.find((c) => c.phone) || {}).phone || "";
+  const name = (contacts.find((c) => c.name) || {}).name || "";
+  const rest = String(iso.notes || "").replace(/(PHONE|CONTACT):[^|]*\|?/g, "").replace(/^\|+/, "");
+  let notes = rest && !rest.endsWith("|") ? rest + "|" : rest;
+  if (phone) notes += "PHONE:" + phone + "|";
+  if (name) notes += "CONTACT:" + name + "|";
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/isos?id=eq.${id}`, {
+    method: "PATCH", headers: { ...H, Prefer: "return=representation" },
+    body: JSON.stringify({ email: emails.join(", ") || null, notes: notes || null })
+  });
+  const out = await r.json().catch(() => []);
+  if (!r.ok || !Array.isArray(out) || !out.length) return res.status(500).json({ ok: false, error: "ISO email was not updated" });
+  return res.status(200).json({ ok: true, count: contacts.length, email: out[0].email });
+}
+
 // ISO source + portal link — POST ?action=iso-source {iso_id, source, url}. Admin login required.
 // Signed-in users cannot UPDATE the isos table (RLS silently matches 0 rows), so the write is done here with the service key.
 const ISO_SOURCES = ["Portal", "Portal - VPN", "Email", "Sheet", "Unknown/New"];
@@ -359,6 +415,7 @@ export default async function handler(req, res) {
   if (action === "ticket") return handleTicketNotify(req, res);
   if (action === "ticket-cleanup") return handleTicketCleanup(req, res);
   if (action === "iso-source") return handleIsoSource(req, res);
+  if (action === "iso-contacts") return handleIsoContacts(req, res);
 
   // Cron auto-send — called via /api/auto-reminders rewrite (Vercel cron uses GET)
   if (action === "cron" || (req.method === "GET" && !action)) {
