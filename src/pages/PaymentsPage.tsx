@@ -179,7 +179,7 @@ const PaymentsPage = () => {
     const cols=[
       {title:'Account',dataIndex:'name',key:'name',render:(v)=><Text strong>{v}</Text>},
       {title:'Expected',key:'e',align:'right',render:(_,x)=>x.exp!=null?fmt(x.exp):'--'},
-      {title:'Received',key:'r',align:'right',render:(_,x)=>x.p?.received_amount!=null?<Text strong style={{color:'#059669'}}>{fmt(x.p.received_amount)}</Text>:(x.exp!=null&&x.exp<=0&&!hasNoReport(x.p?.notes))?<Text style={{color:'var(--muted-color)',fontStyle:'italic'}}>No Amount Expected</Text>:'--'},
+      {title:'Received',key:'r',align:'right',render:(_,x)=>x.p?.received_amount!=null?<Text strong style={{color:'#059669'}}>{fmt(x.p.received_amount)}</Text>:(hasNoReport(x.p?.notes)||(x.exp!=null&&x.exp<=0))?<Text style={{color:'var(--muted-color)',fontStyle:'italic'}}>No Amount Expected</Text>:'--'},
       {title:'Status',key:'s',render:(_,x)=>{const c=STATUS_CONFIG[x.status];return<Tag color={c.color}>{c.label}</Tag>;}},
       {title:'Expected By',key:'d',render:(_,x)=>parseExpDate(x.p?.notes)||'--'},
       {title:'Payment Date',key:'pd',render:(_,x)=>x.p?.payment_date||'--'},
@@ -206,7 +206,7 @@ const PaymentsPage = () => {
     setSavingExpected(prev=>({...prev,[isoId]:true}));
     const ex=hostPayment(isoId);
     const base=(ex?.notes||'').split(NO_REPORT_TAG).join('').trim();
-    const notes=flag?(base.startsWith('EXP:')?base.replace(/^(EXP:\d{4}-\d{2}-\d{2}\|)/,'$1'+NO_REPORT_TAG+' '):NO_REPORT_TAG+(base?' '+base:'')):(base||null);
+    const notes=flag?(base.startsWith('EXP:')?base.replace(/^(EXP:\d{4}-\d{2}-\d{2}\|)\s*/,'$1'+NO_REPORT_TAG+(base.replace(/^EXP:\d{4}-\d{2}-\d{2}\|\s*/,'')?' ':'')):NO_REPORT_TAG+(base?' '+base:'')):(base||null);
     const{error}=ex?await supabase.from('iso_payments').update({notes,updated_at:new Date().toISOString()}).eq('id',ex.id):await supabase.from('iso_payments').insert({iso_id:isoId,report_month:selectedMonth,notes});
     if(error)message.error('Could not save: '+error.message);
     setEditingExpected(prev=>{const n={...prev};delete n[isoId];return n;});
@@ -307,7 +307,7 @@ const PaymentsPage = () => {
       );
       if(hasNoReport(p?.notes)&&p?.received_amount==null)return<Tag color="purple" style={{cursor:'pointer',marginInlineEnd:0}} onClick={()=>setEditingExpected(prev=>({...prev,[r.isoId]:displayVal!=null?String(displayVal):''}))} title="The ISO said no report is available this month. Click to change.">No Residual Report Expected</Tag>;
       return<Text strong style={{color:'var(--primary-color)',cursor:'pointer'}} onClick={()=>setEditingExpected(prev=>({...prev,[r.isoId]:displayVal!=null?String(displayVal):''}))} title="Click to edit">{fmt(displayVal)}</Text>;}},
-    {title:'Received',key:'rec',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return(pa?.received_amount||0)-(pb?.received_amount||0);},render:(_,r)=>{const p=getPaymentForISO(r.isoId);return p?.received_amount!=null?<Text strong style={{color:'#059669'}} title={p.parts&&p.parts.length?p.parts.map(x=>`${x.name} ${fmt(x.amount)}`).join(' + '):undefined}>{fmt(p.received_amount)}</Text>:(r.expected!=null&&r.expected<=0&&!hasNoReport(p?.notes))?<Text style={{color:'var(--muted-color)',fontStyle:'italic'}}>No Amount Expected</Text>:<Text style={{color:'var(--muted-color)'}}>--</Text>;}},
+    {title:'Received',key:'rec',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return(pa?.received_amount||0)-(pb?.received_amount||0);},render:(_,r)=>{const p=getPaymentForISO(r.isoId);return p?.received_amount!=null?<Text strong style={{color:'#059669'}} title={p.parts&&p.parts.length?p.parts.map(x=>`${x.name} ${fmt(x.amount)}`).join(' + '):undefined}>{fmt(p.received_amount)}</Text>:(hasNoReport(p?.notes)||(r.expected!=null&&r.expected<=0))?<Text style={{color:'var(--muted-color)',fontStyle:'italic'}}>No Amount Expected</Text>:<Text style={{color:'var(--muted-color)'}}>--</Text>;}},
     {title:'Difference',key:'diff',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return((pa?.received_amount||0)-(a.expected??0))-((pb?.received_amount||0)-(b.expected??0));},render:(_,r)=>{const p=getPaymentForISO(r.isoId);if(p?.received_amount==null||r.expected==null)return<Text style={{color:'var(--muted-color)'}}>--</Text>;const diff=(p?.received_amount||0)-r.expected;return<Text strong style={{color:Math.abs(diff)<0.01?'#059669':diff<0?'#dc2626':'#2563eb'}}>{diff>=0?'+':''}{fmt(diff)}</Text>;}},
     {title:'Status',key:'status',
       sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return STATUS_ORDER[getStatus(a.expected,pa?.received_amount,pa?.notes)]-STATUS_ORDER[getStatus(b.expected,pb?.received_amount,pb?.notes)];},
