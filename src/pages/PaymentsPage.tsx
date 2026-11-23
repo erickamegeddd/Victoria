@@ -12,9 +12,11 @@ const { Option } = Select;
 const fmt = (n) => n != null ? `$${Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}` : '--';
 
 // expected_date stored as EXP:YYYY-MM-DD| prefix in notes field
-const parseActualNotes = (notes) => { if (!notes) return ''; return notes.replace(/^EXP:\d{4}-\d{2}-\d{2}\|/, ''); };
+const NO_REPORT_TAG = '[No Report]';
+const hasNoReport = (n) => !!n && n.includes(NO_REPORT_TAG);
+const parseActualNotes = (notes) => { if (!notes) return ''; return notes.replace(/^EXP:\d{4}-\d{2}-\d{2}\|/, '').split(NO_REPORT_TAG).join('').trim(); };
 const stripSyncNote = (n) => (n||'').replace(/\[Bank Sync [^\]]+\][^|]*/g,'').replace(/^\s*\|\s*/,'').replace(/\s*\|\s*$/,'').trim();
-const buildNotes = (expDate, actualNotes) => { const prefix = expDate ? `EXP:${expDate}|` : ''; const full = prefix + (actualNotes || ''); return full || null; };
+const buildNotes = (expDate, actualNotes, noReport) => { const prefix = expDate ? `EXP:${expDate}|` : ''; const full = prefix + (noReport ? NO_REPORT_TAG + (actualNotes ? ' ' : '') : '') + (actualNotes || ''); return full || null; };
 
 const PaymentsPage = () => {
   const [allIsos, setIsos] = useState([]);
@@ -171,19 +173,32 @@ const PaymentsPage = () => {
   const mergedRows=()=>payments.filter(p=>p.iso_id===mFresno.id||p.iso_id===mSyn.id);
   const hostPayment=(isoId)=>{if(!isMerged(isoId))return payments.find(p=>p.iso_id===isoId);const rs=mergedRows();return rs.find(p=>p.received_amount!=null)||rs.find(p=>parseExpDate(p.notes))||rs.find(p=>p.iso_id===mSyn.id)||rs[0];};
   const getPaymentForISO=(isoId)=>{if(!isMerged(isoId))return payments.find(p=>p.iso_id===isoId);const rs=mergedRows();const host=hostPayment(isoId);if(!host)return undefined;const got=rs.filter(p=>p.received_amount!=null);return{...host,received_amount:got.length?got.reduce((s,p)=>s+p.received_amount,0):null,parts:got.map(p=>({name:p.iso_id===mFresno.id?'Fresno':'Synovous',amount:p.received_amount}))};};
-  const getStatus=(expected,received)=>{if(received==null)return expected==null?'no_report':'pending';if(expected==null)return'received';const d=received-expected;if(Math.abs(d)<0.01)return'paid';if(d<0)return'short_paid';return'overpaid';};
+  const getStatus=(expected,received,notes)=>{if(received==null){if(hasNoReport(notes))return'report_none';if(expected==null)return'no_report';if(expected<=0)return'no_amount';return'pending';}if(expected==null)return'received';const d=received-expected;if(Math.abs(d)<0.01)return'paid';if(d<0)return'short_paid';return'overpaid';};
   const statusMatches=(status,key)=>status===key||(key==='no_report'&&status==='received')||(key==='paid_full'&&(status==='paid'||status==='overpaid'));
   const STATUS_FILTER_OPTIONS={
-    all:[{text:'Paid',value:'paid'},{text:'Overpaid',value:'overpaid'},{text:'Short Paid',value:'short_paid'},{text:'Pending',value:'pending'},{text:'Received',value:'received'},{text:'No residual report',value:'no_report'}],
+    all:[{text:'Paid',value:'paid'},{text:'Overpaid',value:'overpaid'},{text:'Short Paid',value:'short_paid'},{text:'Pending',value:'pending'},{text:'Received',value:'received'},{text:'Awaiting report',value:'no_report'},{text:'No Residual Report',value:'report_none'},{text:'No Amount Expected',value:'no_amount'}],
     paid_full:[{text:'Paid',value:'paid'},{text:'Overpaid',value:'overpaid'}],
     paid:[{text:'Paid',value:'paid'},{text:'Overpaid',value:'overpaid'}],
-    no_report:[{text:'Received',value:'received'},{text:'No residual report',value:'no_report'}],
+    no_report:[{text:'Received',value:'received'},{text:'Awaiting report',value:'no_report'}],
+    report_none:[{text:'No Residual Report',value:'report_none'}],
+    no_amount:[{text:'No Amount Expected',value:'no_amount'}],
     short_paid:[{text:'Short Paid',value:'short_paid'}],
     pending:[{text:'Pending',value:'pending'}],
   };
-  const STATUS_ORDER={pending:0,short_paid:1,paid:2,overpaid:3,received:4,no_report:5};
-  const STATUS_CONFIG={no_report:{label:'No residual report',color:'orange'},pending:{label:'Pending',color:'default'},paid:{label:'Paid',color:'green'},short_paid:{label:'Short Paid',color:'red'},overpaid:{label:'Overpaid',color:'blue'},received:{label:'Received',color:'cyan'}};
+  const STATUS_ORDER={pending:0,short_paid:1,paid:2,overpaid:3,received:4,no_report:5,no_amount:6,report_none:7};
+  const STATUS_CONFIG={no_report:{label:'Awaiting report',color:'orange'},report_none:{label:'No Residual Report',color:'purple'},no_amount:{label:'No Amount Expected',color:'default'},pending:{label:'Pending',color:'default'},paid:{label:'Paid',color:'green'},short_paid:{label:'Short Paid',color:'red'},overpaid:{label:'Overpaid',color:'blue'},received:{label:'Received',color:'cyan'}};
 
+  const setNoReport=async(isoId,flag)=>{
+    setSavingExpected(prev=>({...prev,[isoId]:true}));
+    const ex=hostPayment(isoId);
+    const base=(ex?.notes||'').split(NO_REPORT_TAG).join('').trim();
+    const notes=flag?(base.startsWith('EXP:')?base.replace(/^(EXP:\d{4}-\d{2}-\d{2}\|)/,'$1'+NO_REPORT_TAG+' '):NO_REPORT_TAG+(base?' '+base:'')):(base||null);
+    const{error}=ex?await supabase.from('iso_payments').update({notes,updated_at:new Date().toISOString()}).eq('id',ex.id):await supabase.from('iso_payments').insert({iso_id:isoId,report_month:selectedMonth,notes});
+    if(error)message.error('Could not save: '+error.message);
+    setEditingExpected(prev=>{const n={...prev};delete n[isoId];return n;});
+    setSavingExpected(prev=>{const n={...prev};delete n[isoId];return n;});
+    fetchPayments();
+  };
   const saveExpected=async(isoId, isoName, newAmount)=>{
     const val=parseFloat(String(newAmount).replace(/[^0-9.-]/g,''));
     if(isNaN(val))return;
@@ -215,8 +230,8 @@ const PaymentsPage = () => {
     setSavingPayment(true);
     const received=parseFloat(paymentForm.received_amount)||null;
     // DB check constraint only allows pending/paid/short_paid/overpaid, so map the display-only states
-    const rawStatus=getStatus(selectedIsoForPayment.expected,received);
-    const status=rawStatus==='no_report'?'pending':rawStatus==='received'?'paid':rawStatus;
+    const rawStatus=getStatus(selectedIsoForPayment.expected,received,editingPayment?.notes);
+    const status=(rawStatus==='no_report'||rawStatus==='report_none'||rawStatus==='no_amount')?'pending':rawStatus==='received'?'paid':rawStatus;
     // A manually changed amount replaces the bank-sync value, so the [Bank Sync] note is dropped.
     const amountChanged=!!editingPayment&&Math.abs((received||0)-(editingPayment.received_amount||0))>=0.005;
     const record={
@@ -226,7 +241,7 @@ const PaymentsPage = () => {
       received_amount:received,
       payment_date:paymentForm.payment_date||null,
       payment_method:paymentForm.payment_method||null,
-      notes:buildNotes(paymentForm.expected_date,amountChanged?stripSyncNote(paymentForm.notes):paymentForm.notes),
+      notes:buildNotes(paymentForm.expected_date,amountChanged?stripSyncNote(paymentForm.notes):paymentForm.notes,hasNoReport(editingPayment?.notes)),
       status,
       updated_at:new Date().toISOString()
     };
@@ -244,15 +259,17 @@ const PaymentsPage = () => {
   const expectedByISO=getExpectedByISO();
   const totalExpected=expectedByISO.reduce((s,i)=>s+i.expected,0);
   const totalReceived=payments.reduce((s,p)=>s+(p.received_amount||0),0);
-  const matched=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return p&&getStatus(i.expected,p.received_amount)==='paid';}).length;
-  const shortPaid=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return p&&getStatus(i.expected,p.received_amount)==='short_paid';}).length;
-  const pending=expectedByISO.filter(i=>{if(i.expected==null)return false;const p=getPaymentForISO(i.isoId);return !p||p.received_amount==null;}).length;
-  const noReport=expectedByISO.filter(i=>i.expected==null).length;
+  const matched=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return p&&getStatus(i.expected,p.received_amount,p.notes)==='paid';}).length;
+  const shortPaid=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return p&&getStatus(i.expected,p.received_amount,p.notes)==='short_paid';}).length;
+  const pending=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return getStatus(i.expected,p?.received_amount,p?.notes)==='pending';}).length;
+  const noAmount=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return getStatus(i.expected,p?.received_amount,p?.notes)==='no_amount';}).length;
+  const reportNone=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return getStatus(i.expected,p?.received_amount,p?.notes)==='report_none';}).length;
+  const noReport=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return i.expected==null&&!(hasNoReport(p?.notes)&&p?.received_amount==null);}).length;
   const receivedOnly=expectedByISO.filter(i=>{if(i.expected!=null)return false;const p=getPaymentForISO(i.isoId);return p&&p.received_amount!=null;}).length;
-  const overpaid=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return p&&getStatus(i.expected,p.received_amount)==='overpaid';}).length;
+  const overpaid=expectedByISO.filter(i=>{const p=getPaymentForISO(i.isoId);return p&&getStatus(i.expected,p.received_amount,p.notes)==='overpaid';}).length;
   const totalOutstanding=expectedByISO.reduce((s,i)=>{if(i.expected==null)return s;const p=getPaymentForISO(i.isoId);const received=p?.received_amount||0;const diff=i.expected-received;return diff>0?s+diff:s;},0);
 
-  const filteredISOs=activeStatusFilter?expectedByISO.filter(r=>{const p=getPaymentForISO(r.isoId);return statusMatches(getStatus(r.expected,p?.received_amount),activeStatusFilter);}):expectedByISO;
+  const filteredISOs=activeStatusFilter?expectedByISO.filter(r=>{const p=getPaymentForISO(r.isoId);return statusMatches(getStatus(r.expected,p?.received_amount,p?.notes),activeStatusFilter);}):expectedByISO;
 
   const reconCols=[
     {title:'ISO',key:'iso',
@@ -261,7 +278,7 @@ const PaymentsPage = () => {
       filterSearch:true,
       render:(_,r)=><Text strong>{r.isoName}</Text>},
     {title:'Source',key:'source',width:140,sorter:(a,b)=>srcOf(a).source.localeCompare(srcOf(b).source),render:(_,r)=>{const {source,url}=srcOf(r);const edit=<a onClick={()=>{setSrcForm({source,url});setSrcModal({isoId:r.isoId,isoName:r.isoName});}} title="Edit source / link" style={{marginLeft:6,fontSize:12}}>&#9998;</a>;let body;if(!source)body=<Text style={{color:'var(--muted-color)'}}>--</Text>;else if((source==='Portal'||source==='Portal - VPN'||source==='Sheet')&&url)body=<a href={url} target="_blank" rel="noopener noreferrer">{source}</a>;else body=<Text title={source==='Portal'||source==='Portal - VPN'?'Portal link not added yet':undefined}>{source}</Text>;return<span>{body}{edit}</span>;}},
-    {title:'Expected',key:'exp',align:'right',width:150,sorter:(a,b)=>(a.expected??-1)-(b.expected??-1),render:(_,r)=>{
+    {title:'Expected',key:'exp',align:'right',width:210,sorter:(a,b)=>(a.expected??-1)-(b.expected??-1),render:(_,r)=>{
       const p=getPaymentForISO(r.isoId);
       const displayVal=r.expected;
       const isEditing=editingExpected[r.isoId]!==undefined;
@@ -271,16 +288,18 @@ const PaymentsPage = () => {
           <Input size="small" value={editingExpected[r.isoId]} onChange={e=>setEditingExpected(prev=>({...prev,[r.isoId]:e.target.value}))} style={{width:90,fontSize:12}} prefix="$" onPressEnter={()=>saveExpected(r.isoId,r.isoName,editingExpected[r.isoId])} autoFocus/>
           <Button size="small" type="primary" loading={isSaving} onClick={()=>saveExpected(r.isoId,r.isoName,editingExpected[r.isoId])}>&#10003;</Button>
           <Button size="small" onClick={()=>setEditingExpected(prev=>{const n={...prev};delete n[r.isoId];return n;})}>&#10005;</Button>
+          {hasNoReport(p?.notes)?<Button size="small" loading={isSaving} onClick={()=>setNoReport(r.isoId,false)} title="Back to awaiting a report">Awaiting</Button>:<Button size="small" loading={isSaving} onClick={()=>setNoReport(r.isoId,true)} title="The ISO said no report is available this month">No Residual Report</Button>}
         </Space>
       );
+      if(hasNoReport(p?.notes)&&p?.received_amount==null)return<Tag color="purple" style={{cursor:'pointer',marginInlineEnd:0}} onClick={()=>setEditingExpected(prev=>({...prev,[r.isoId]:displayVal!=null?String(displayVal):''}))} title="The ISO said no report is available this month. Click to change.">No Residual Report</Tag>;
       return<Text strong style={{color:'var(--primary-color)',cursor:'pointer'}} onClick={()=>setEditingExpected(prev=>({...prev,[r.isoId]:displayVal!=null?String(displayVal):''}))} title="Click to edit">{fmt(displayVal)}</Text>;}},
-    {title:'Received',key:'rec',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return(pa?.received_amount||0)-(pb?.received_amount||0);},render:(_,r)=>{const p=getPaymentForISO(r.isoId);return p?.received_amount!=null?<Text strong style={{color:'#059669'}} title={p.parts&&p.parts.length?p.parts.map(x=>`${x.name} ${fmt(x.amount)}`).join(' + '):undefined}>{fmt(p.received_amount)}</Text>:<Text style={{color:'var(--muted-color)'}}>--</Text>;}},
+    {title:'Received',key:'rec',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return(pa?.received_amount||0)-(pb?.received_amount||0);},render:(_,r)=>{const p=getPaymentForISO(r.isoId);return p?.received_amount!=null?<Text strong style={{color:'#059669'}} title={p.parts&&p.parts.length?p.parts.map(x=>`${x.name} ${fmt(x.amount)}`).join(' + '):undefined}>{fmt(p.received_amount)}</Text>:(r.expected!=null&&r.expected<=0&&!hasNoReport(p?.notes))?<Text style={{color:'var(--muted-color)',fontStyle:'italic'}}>No Amount Expected</Text>:<Text style={{color:'var(--muted-color)'}}>--</Text>;}},
     {title:'Difference',key:'diff',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return((pa?.received_amount||0)-(a.expected??0))-((pb?.received_amount||0)-(b.expected??0));},render:(_,r)=>{const p=getPaymentForISO(r.isoId);if(p?.received_amount==null||r.expected==null)return<Text style={{color:'var(--muted-color)'}}>--</Text>;const diff=(p?.received_amount||0)-r.expected;return<Text strong style={{color:Math.abs(diff)<0.01?'#059669':diff<0?'#dc2626':'#2563eb'}}>{diff>=0?'+':''}{fmt(diff)}</Text>;}},
     {title:'Status',key:'status',
-      sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return STATUS_ORDER[getStatus(a.expected,pa?.received_amount)]-STATUS_ORDER[getStatus(b.expected,pb?.received_amount)];},
+      sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return STATUS_ORDER[getStatus(a.expected,pa?.received_amount,pa?.notes)]-STATUS_ORDER[getStatus(b.expected,pb?.received_amount,pb?.notes)];},
       filters:STATUS_FILTER_OPTIONS[activeStatusFilter||'all'],
-      onFilter:(val,r)=>{const p=getPaymentForISO(r.isoId);return getStatus(r.expected,p?.received_amount)===val;},
-      render:(_,r)=>{const p=getPaymentForISO(r.isoId);const s=getStatus(r.expected,p?.received_amount);const cfg=STATUS_CONFIG[s];return<Tag color={cfg.color}>{cfg.label}</Tag>;}},
+      onFilter:(val,r)=>{const p=getPaymentForISO(r.isoId);return getStatus(r.expected,p?.received_amount,p?.notes)===val;},
+      render:(_,r)=>{const p=getPaymentForISO(r.isoId);const s=getStatus(r.expected,p?.received_amount,p?.notes);const cfg=STATUS_CONFIG[s];return<Tag color={cfg.color}>{cfg.label}</Tag>;}},
     {title:'Payment Expected By',key:'expdate',width:150,
       filters:[{text:'Overdue',value:'overdue'},{text:'Has Due Date',value:'has_date'},{text:'No Date Set',value:'no_date'}],
       onFilter:(val,r)=>{const p=getPaymentForISO(r.isoId);const expDate=parseExpDate(p?.notes)||computeExpDate(r.isoName,selectedMonth);if(val==='no_date')return!expDate;if(val==='has_date')return!!expDate;if(val==='overdue')return expDate&&expDate<today&&p?.received_amount==null;return true;},
@@ -306,10 +325,10 @@ const PaymentsPage = () => {
       const exp = r.expected;
       const rec = p?.received_amount;
       const diff = (rec != null && exp != null) ? Number((rec - exp).toFixed(2)) : '';
-      const status = getStatus(r.expected, p?.received_amount);
+      const status = getStatus(r.expected,p?.received_amount,p?.notes);
       const expDate = parseExpDate(p?.notes);
       const notes = parseActualNotes(p?.notes);
-      return [r.isoName, srcOf(r).source, dayjs(selectedMonth).format('MMMM YYYY'), exp ?? '', rec ?? '', diff, status, expDate || '', p?.payment_date || '', notes || ''];
+      return [r.isoName, srcOf(r).source, dayjs(selectedMonth).format('MMMM YYYY'), exp ?? '', rec ?? '', diff, (STATUS_CONFIG[status]?STATUS_CONFIG[status].label:status), expDate || '', p?.payment_date || '', notes || ''];
     });
     const csv = [headers,...rows].map(row=>row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
     const blob = new Blob([csv],{type:'text/csv'});
@@ -355,21 +374,21 @@ const PaymentsPage = () => {
           </Row>
 
           <div style={{display:'flex',gap:8,marginBottom:activeStatusFilter?8:16,flexWrap:'wrap'}}>
-            {[{label:`${matched+overpaid} Paid in Full`,color:'#059669',bg:'#f0fdf4',key:'paid_full'},{label:`${shortPaid} Short Paid`,color:'#dc2626',bg:'#fef2f2',key:'short_paid'},{label:`${pending} Pending`,color:'#92400e',bg:'#fffbeb',key:'pending'},{label:`${noReport} No residual report`,color:'#9a3412',bg:'#fff7ed',key:'no_report'}].map(({label,color,bg,key})=>(
+            {[{label:`${matched+overpaid} Paid in Full`,color:'#059669',bg:'#f0fdf4',key:'paid_full'},{label:`${shortPaid} Short Paid`,color:'#dc2626',bg:'#fef2f2',key:'short_paid'},{label:`${pending} Pending`,color:'#92400e',bg:'#fffbeb',key:'pending'},{label:`${noReport} Awaiting report`,color:'#9a3412',bg:'#fff7ed',key:'no_report'},{label:`${reportNone} No Residual Report`,color:'#6b21a8',bg:'#faf5ff',key:'report_none'},{label:`${noAmount} No Amount Expected`,color:'#475569',bg:'#f1f5f9',key:'no_amount'}].map(({label,color,bg,key})=>(
               <div key={key} onClick={()=>setActiveStatusFilter(activeStatusFilter===key?null:key)}
                 style={{padding:'6px 14px',borderRadius:20,background:bg,color,fontSize:13,fontWeight:600,cursor:'pointer',border:activeStatusFilter===key?`2px solid ${color}`:'1px solid transparent',transform:activeStatusFilter===key?'translateY(-2px)':'none',transition:'all 0.18s',userSelect:'none'}}>
                 {label}
               </div>
             ))}
           </div>
-          {activeStatusFilter&&(<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12,padding:'8px 14px',background:'#eff6ff',borderRadius:10,border:'1px solid #bfdbfe'}}><Text style={{fontSize:13,fontWeight:600,color:'#1d4ed8'}}>{(activeStatusFilter==='paid_full'||activeStatusFilter==='paid')?`Showing ${matched+overpaid} ISO${(matched+overpaid)!==1?'s':''} paid in full${overpaid>0?` (${overpaid} overpaid)`:''}`:activeStatusFilter==='short_paid'?`Showing ${shortPaid} ISO${shortPaid!==1?'s':''} with short payments`:activeStatusFilter==='overpaid'?`Showing ${overpaid} overpaid ISO${overpaid!==1?'s':''}`:activeStatusFilter==='no_report'?`Showing ${noReport} ISO${noReport!==1?'s':''} with no residual report yet${receivedOnly>0?` (${receivedOnly} already received)`:''}`:activeStatusFilter==='received'?`Showing ${receivedOnly} ISO${receivedOnly!==1?'s':''} paid with no residuals yet`:`Showing ${pending} pending ISO${pending!==1?'s':''}`}</Text><Button size="small" onClick={()=>setActiveStatusFilter(null)} style={{marginLeft:'auto'}}>Clear x</Button></div>)}
+          {activeStatusFilter&&(<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12,padding:'8px 14px',background:'#eff6ff',borderRadius:10,border:'1px solid #bfdbfe'}}><Text style={{fontSize:13,fontWeight:600,color:'#1d4ed8'}}>{(activeStatusFilter==='paid_full'||activeStatusFilter==='paid')?`Showing ${matched+overpaid} ISO${(matched+overpaid)!==1?'s':''} paid in full${overpaid>0?` (${overpaid} overpaid)`:''}`:activeStatusFilter==='short_paid'?`Showing ${shortPaid} ISO${shortPaid!==1?'s':''} with short payments`:activeStatusFilter==='overpaid'?`Showing ${overpaid} overpaid ISO${overpaid!==1?'s':''}`:activeStatusFilter==='no_report'?`Showing ${noReport} ISO${noReport!==1?'s':''} awaiting a residual report${receivedOnly>0?` (${receivedOnly} already received)`:''}`:activeStatusFilter==='report_none'?`Showing ${reportNone} ISO${reportNone!==1?'s':''} where no residual report is available`:activeStatusFilter==='no_amount'?`Showing ${noAmount} ISO${noAmount!==1?'s':''} with no amount expected`:activeStatusFilter==='received'?`Showing ${receivedOnly} ISO${receivedOnly!==1?'s':''} paid with no residuals yet`:`Showing ${pending} pending ISO${pending!==1?'s':''}`}</Text><Button size="small" onClick={()=>setActiveStatusFilter(null)} style={{marginLeft:'auto'}}>Clear x</Button></div>)}
           {(shortPaid>0||pending>0)&&<Alert type="warning" showIcon style={{marginBottom:16}} message={`Action needed: ${shortPaid>0?`${shortPaid} ISO${shortPaid>1?'s':''} paid less than expected. `:''}${pending>0?`${pending} ISO${pending>1?' have':' has'} no payment recorded yet.`:''}`}/>}
 
           <Card><Table key={activeStatusFilter||'all'} dataSource={filteredISOs} columns={reconCols} rowKey="isoId" pagination={false} size="middle"
               scroll={{x:1000,y:'calc(100vh - 340px)'}}
-              onRow={r=>({style:{background:(()=>{const p=getPaymentForISO(r.isoId);const s=getStatus(r.expected,p?.received_amount);if(s==='short_paid')return'#fff5f5';if(s==='pending')return'#fffbeb';if(s==='paid')return'#f0fdf4';return undefined;})(),cursor:'pointer'},onClick:()=>setExpandedRows(prev=>prev.includes(r.isoId)?prev.filter(k=>k!==r.isoId):[...prev,r.isoId])})}
+              onRow={r=>({style:{background:(()=>{const p=getPaymentForISO(r.isoId);const s=getStatus(r.expected,p?.received_amount,p?.notes);if(s==='short_paid')return'#fff5f5';if(s==='pending')return'#fffbeb';if(s==='paid')return'#f0fdf4';return undefined;})(),cursor:'pointer'},onClick:()=>setExpandedRows(prev=>prev.includes(r.isoId)?prev.filter(k=>k!==r.isoId):[...prev,r.isoId])})}
               expandedRowKeys={expandedRows}
-              expandable={{showExpandColumn:false,expandedRowRender:(r)=>{const p=getPaymentForISO(r.isoId);const exp=r.expected;const rec=p?.received_amount;const diff=(rec!=null&&exp!=null)?rec-exp:null;const status=getStatus(r.expected,p?.received_amount);const expDate=parseExpDate(p?.notes)||computeExpDate(r.isoName,selectedMonth);const notes=parseActualNotes(p?.notes);const statusColors:Record<string,string>={paid:'#10b981',pending:'#f59e0b',short_paid:'#ef4444',overpaid:'#3b82f6',received:'#10b981'};return(<div style={{padding:'10px 24px 10px 48px',background:'rgba(0,32,64,0.04)',borderTop:'1px solid rgba(0,0,0,0.06)',display:'flex',flexWrap:'wrap',gap:'12px 40px'}}><div style={{minWidth:110}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Expected</Text><Text style={{fontWeight:600}}>{exp!=null?fmt(exp):'--'}</Text></div><div style={{minWidth:110}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Received</Text><Text style={{fontWeight:600}}>{rec!=null?fmt(rec):'--'}</Text></div><div style={{minWidth:110}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Difference</Text><Text style={{fontWeight:600,color:diff!=null&&diff<0?'#ef4444':diff!=null&&diff>0?'#3b82f6':'inherit'}}>{diff!=null?`${diff<0?'-':''}${fmt(Math.abs(diff))}`:'--'}</Text></div><div style={{minWidth:100}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Status</Text><Tag color={statusColors[status]||'default'} style={{textTransform:'capitalize'}}>{status.replace('_',' ')}</Tag></div><div style={{minWidth:110}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Expected By</Text><Text>{expDate||'--'}</Text></div><div style={{minWidth:110}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Payment Date</Text><Text>{p?.payment_date||'--'}</Text></div><div style={{flex:1,minWidth:200}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Notes</Text><Text>{notes||'--'}</Text></div></div>);}}}
+              expandable={{showExpandColumn:false,expandedRowRender:(r)=>{const p=getPaymentForISO(r.isoId);const exp=r.expected;const rec=p?.received_amount;const diff=(rec!=null&&exp!=null)?rec-exp:null;const status=getStatus(r.expected,p?.received_amount,p?.notes);const expDate=parseExpDate(p?.notes)||computeExpDate(r.isoName,selectedMonth);const notes=parseActualNotes(p?.notes);const statusColors:Record<string,string>={paid:'#10b981',pending:'#f59e0b',short_paid:'#ef4444',overpaid:'#3b82f6',received:'#10b981',report_none:'#7c3aed',no_amount:'#64748b',no_report:'#f97316'};return(<div style={{padding:'10px 24px 10px 48px',background:'rgba(0,32,64,0.04)',borderTop:'1px solid rgba(0,0,0,0.06)',display:'flex',flexWrap:'wrap',gap:'12px 40px'}}><div style={{minWidth:110}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Expected</Text><Text style={{fontWeight:600}}>{exp!=null?fmt(exp):'--'}</Text></div><div style={{minWidth:110}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Received</Text><Text style={{fontWeight:600}}>{rec!=null?fmt(rec):'--'}</Text></div><div style={{minWidth:110}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Difference</Text><Text style={{fontWeight:600,color:diff!=null&&diff<0?'#ef4444':diff!=null&&diff>0?'#3b82f6':'inherit'}}>{diff!=null?`${diff<0?'-':''}${fmt(Math.abs(diff))}`:'--'}</Text></div><div style={{minWidth:100}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Status</Text><Tag color={statusColors[status]||'default'} style={{textTransform:'capitalize'}}>{STATUS_CONFIG[status]?STATUS_CONFIG[status].label:status.replace('_',' ')}</Tag></div><div style={{minWidth:110}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Expected By</Text><Text>{expDate||'--'}</Text></div><div style={{minWidth:110}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Payment Date</Text><Text>{p?.payment_date||'--'}</Text></div><div style={{flex:1,minWidth:200}}><Text type="secondary" style={{fontSize:11,display:'block'}}>Notes</Text><Text>{notes||'--'}</Text></div></div>);}}}
               summary={()=>{
                 const tExp=filteredISOs.reduce((s,r)=>s+(r.expected??0),0);
                 const tRec=filteredISOs.reduce((s,r)=>{const p=getPaymentForISO(r.isoId);return s+(p?.received_amount||0);},0);
@@ -401,7 +420,7 @@ const PaymentsPage = () => {
               const payMonthPrefix=dayjs(selectedMonth).add(1,'month').format('YYYY-MM');
               if(!resolvedDate||!resolvedDate.startsWith(payMonthPrefix))return null;
               const amount=fromResiduals?.expected ?? (p?.expected_amount||0);
-              const status=getStatus(amount,p?.received_amount);
+              const status=getStatus(fromResiduals?.expected ?? p?.expected_amount ?? null,p?.received_amount,p?.notes);
               return{name:iso.name,isoId:iso.id,dayNum:parseInt(resolvedDate.split('-')[2]),expDate:resolvedDate,amount,received:p?.received_amount??null,status};
             }).filter(Boolean);
             const paymentItems=activeStatusFilter?allISOsForCalendar.filter(i=>statusMatches(i.status,activeStatusFilter)):allISOsForCalendar;
@@ -427,7 +446,9 @@ const PaymentsPage = () => {
                 <div style={{display:'flex',gap:12,marginBottom:12,flexWrap:'wrap'}}>
                   {[
                     {label:'Pending',color:'#d97706',bg:'#fffbeb',skey:'pending'},
-                    {label:'No residual report',color:'#9a3412',bg:'#fff7ed',skey:'no_report'},
+                    {label:'Awaiting report',color:'#9a3412',bg:'#fff7ed',skey:'no_report'},
+                    {label:'No Residual Report',color:'#6b21a8',bg:'#faf5ff',skey:'report_none'},
+                    {label:'No Amount Expected',color:'#475569',bg:'#f1f5f9',skey:'no_amount'},
                     {label:'Paid in Full',color:'#059669',bg:'#f0fdf4',skey:'paid_full'},
                     {label:'Short Paid',color:'#dc2626',bg:'#fef2f2',skey:'short_paid'},
                   ].map(({label,color,bg,skey})=>{const isActive=activeStatusFilter===skey;return(
@@ -448,8 +469,8 @@ const PaymentsPage = () => {
                       const isPast=dateStr&&dateStr<today;
                       const items=day?byDay[day]||[]:[];
                       const isSun=di===0,isSat=di===6;
-                      const dominant=items.length?(['short_paid','pending','no_report','overpaid','paid'].find(s=>items.some(it=>it.status===s))||'paid'):null;
-                      const cellBgMap={paid:'#dcfce7',short_paid:'#fee2e2',overpaid:'#dbeafe',pending:'#fef9c3',no_report:'#ffedd5'};
+                      const dominant=items.length?(['short_paid','pending','no_report','report_none','no_amount','overpaid','paid'].find(s=>items.some(it=>it.status===s))||'paid'):null;
+                      const cellBgMap={paid:'#dcfce7',short_paid:'#fee2e2',overpaid:'#dbeafe',pending:'#fef9c3',no_report:'#ffedd5',report_none:'#f3e8ff',no_amount:'#f1f5f9'};
                       return(
                         <div key={di} style={{minHeight:72,padding:'6px 8px',background:!day?'#fafbfc':isToday?'#f0f6ff':dominant?cellBgMap[dominant]:isSun||isSat?'#fafbfc':'#fff',borderRight:di<6?'1px solid var(--line-color)':'none',position:'relative'}}>
                           {day&&(<>
