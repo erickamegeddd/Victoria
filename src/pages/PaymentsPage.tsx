@@ -190,17 +190,17 @@ const PaymentsPage = () => {
   const getStatus=(expected,received,notes)=>{if(received==null){if(hasNoReport(notes))return'report_none';if(expected==null)return'no_report';if(expected<=0)return'no_amount';return'pending';}if(expected==null)return'received';const d=received-expected;if(Math.abs(d)<0.01)return'paid';if(d<0)return'short_paid';return'overpaid';};
   const statusMatches=(status,key)=>status===key||(key==='no_report'&&status==='received')||(key==='paid_full'&&(status==='paid'||status==='overpaid'));
   const STATUS_FILTER_OPTIONS={
-    all:[{text:'Paid',value:'paid'},{text:'Overpaid',value:'overpaid'},{text:'Short Paid',value:'short_paid'},{text:'Pending',value:'pending'},{text:'Received',value:'received'},{text:'Awaiting report',value:'no_report'},{text:'No Residual Report',value:'report_none'},{text:'No Amount Expected',value:'no_amount'}],
+    all:[{text:'Paid',value:'paid'},{text:'Overpaid',value:'overpaid'},{text:'Short Paid',value:'short_paid'},{text:'Pending',value:'pending'},{text:'Received',value:'received'},{text:'Awaiting report',value:'no_report'},{text:'No Residual Report Expected',value:'report_none'},{text:'No Amount Expected',value:'no_amount'}],
     paid_full:[{text:'Paid',value:'paid'},{text:'Overpaid',value:'overpaid'}],
     paid:[{text:'Paid',value:'paid'},{text:'Overpaid',value:'overpaid'}],
     no_report:[{text:'Received',value:'received'},{text:'Awaiting report',value:'no_report'}],
-    report_none:[{text:'No Residual Report',value:'report_none'}],
+    report_none:[{text:'No Residual Report Expected',value:'report_none'}],
     no_amount:[{text:'No Amount Expected',value:'no_amount'}],
     short_paid:[{text:'Short Paid',value:'short_paid'}],
     pending:[{text:'Pending',value:'pending'}],
   };
   const STATUS_ORDER={pending:0,short_paid:1,paid:2,overpaid:3,received:4,no_report:5,no_amount:6,report_none:7};
-  const STATUS_CONFIG={no_report:{label:'Awaiting report',color:'orange'},report_none:{label:'No Residual Report',color:'purple'},no_amount:{label:'No Amount Expected',color:'default'},pending:{label:'Pending',color:'default'},paid:{label:'Paid',color:'green'},short_paid:{label:'Short Paid',color:'red'},overpaid:{label:'Overpaid',color:'blue'},received:{label:'Received',color:'cyan'}};
+  const STATUS_CONFIG={no_report:{label:'Awaiting report',color:'orange'},report_none:{label:'No Residual Report Expected',color:'purple'},no_amount:{label:'No Amount Expected',color:'default'},pending:{label:'Pending',color:'default'},paid:{label:'Paid',color:'green'},short_paid:{label:'Short Paid',color:'red'},overpaid:{label:'Overpaid',color:'blue'},received:{label:'Received',color:'cyan'}};
 
   const setNoReport=async(isoId,flag)=>{
     setSavingExpected(prev=>({...prev,[isoId]:true}));
@@ -302,10 +302,10 @@ const PaymentsPage = () => {
           <Input size="small" value={editingExpected[r.isoId]} onChange={e=>setEditingExpected(prev=>({...prev,[r.isoId]:e.target.value}))} style={{width:90,fontSize:12}} prefix="$" onPressEnter={()=>saveExpected(r.isoId,r.isoName,editingExpected[r.isoId])} autoFocus/>
           <Button size="small" type="primary" loading={isSaving} onClick={()=>saveExpected(r.isoId,r.isoName,editingExpected[r.isoId])}>&#10003;</Button>
           <Button size="small" onClick={()=>setEditingExpected(prev=>{const n={...prev};delete n[r.isoId];return n;})}>&#10005;</Button>
-          {hasNoReport(p?.notes)?<Button size="small" loading={isSaving} onClick={()=>setNoReport(r.isoId,false)} title="Back to awaiting a report">Awaiting</Button>:<Button size="small" loading={isSaving} onClick={()=>setNoReport(r.isoId,true)} title="The ISO said no report is available this month">No Residual Report</Button>}
+          {hasNoReport(p?.notes)?<Button size="small" loading={isSaving} onClick={()=>setNoReport(r.isoId,false)} title="Back to awaiting a report">Awaiting</Button>:<Button size="small" loading={isSaving} onClick={()=>setNoReport(r.isoId,true)} title="The ISO said no report is available this month">No Residual Report Expected</Button>}
         </Space>
       );
-      if(hasNoReport(p?.notes)&&p?.received_amount==null)return<Tag color="purple" style={{cursor:'pointer',marginInlineEnd:0}} onClick={()=>setEditingExpected(prev=>({...prev,[r.isoId]:displayVal!=null?String(displayVal):''}))} title="The ISO said no report is available this month. Click to change.">No Residual Report</Tag>;
+      if(hasNoReport(p?.notes)&&p?.received_amount==null)return<Tag color="purple" style={{cursor:'pointer',marginInlineEnd:0}} onClick={()=>setEditingExpected(prev=>({...prev,[r.isoId]:displayVal!=null?String(displayVal):''}))} title="The ISO said no report is available this month. Click to change.">No Residual Report Expected</Tag>;
       return<Text strong style={{color:'var(--primary-color)',cursor:'pointer'}} onClick={()=>setEditingExpected(prev=>({...prev,[r.isoId]:displayVal!=null?String(displayVal):''}))} title="Click to edit">{fmt(displayVal)}</Text>;}},
     {title:'Received',key:'rec',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return(pa?.received_amount||0)-(pb?.received_amount||0);},render:(_,r)=>{const p=getPaymentForISO(r.isoId);return p?.received_amount!=null?<Text strong style={{color:'#059669'}} title={p.parts&&p.parts.length?p.parts.map(x=>`${x.name} ${fmt(x.amount)}`).join(' + '):undefined}>{fmt(p.received_amount)}</Text>:(r.expected!=null&&r.expected<=0&&!hasNoReport(p?.notes))?<Text style={{color:'var(--muted-color)',fontStyle:'italic'}}>No Amount Expected</Text>:<Text style={{color:'var(--muted-color)'}}>--</Text>;}},
     {title:'Difference',key:'diff',align:'right',sorter:(a,b)=>{const pa=getPaymentForISO(a.isoId);const pb=getPaymentForISO(b.isoId);return((pa?.received_amount||0)-(a.expected??0))-((pb?.received_amount||0)-(b.expected??0));},render:(_,r)=>{const p=getPaymentForISO(r.isoId);if(p?.received_amount==null||r.expected==null)return<Text style={{color:'var(--muted-color)'}}>--</Text>;const diff=(p?.received_amount||0)-r.expected;return<Text strong style={{color:Math.abs(diff)<0.01?'#059669':diff<0?'#dc2626':'#2563eb'}}>{diff>=0?'+':''}{fmt(diff)}</Text>;}},
@@ -388,7 +388,7 @@ const PaymentsPage = () => {
           </Row>
 
           <div style={{display:'flex',gap:8,marginBottom:activeStatusFilter?8:16,flexWrap:'wrap'}}>
-            {[{label:`${matched+overpaid} Paid in Full`,color:'#059669',bg:'#f0fdf4',key:'paid_full'},{label:`${shortPaid} Short Paid`,color:'#dc2626',bg:'#fef2f2',key:'short_paid'},{label:`${pending} Pending`,color:'#92400e',bg:'#fffbeb',key:'pending'},{label:`${noReport} Awaiting report`,color:'#9a3412',bg:'#fff7ed',key:'no_report'},{label:`${reportNone} No Residual Report`,color:'#6b21a8',bg:'#faf5ff',key:'report_none'},{label:`${noAmount} No Amount Expected`,color:'#475569',bg:'#f1f5f9',key:'no_amount'}].map(({label,color,bg,key})=>(
+            {[{label:`${matched+overpaid} Paid in Full`,color:'#059669',bg:'#f0fdf4',key:'paid_full'},{label:`${shortPaid} Short Paid`,color:'#dc2626',bg:'#fef2f2',key:'short_paid'},{label:`${pending} Pending`,color:'#92400e',bg:'#fffbeb',key:'pending'},{label:`${noReport} Awaiting report`,color:'#9a3412',bg:'#fff7ed',key:'no_report'},{label:`${reportNone} No Residual Report Expected`,color:'#6b21a8',bg:'#faf5ff',key:'report_none'},{label:`${noAmount} No Amount Expected`,color:'#475569',bg:'#f1f5f9',key:'no_amount'}].map(({label,color,bg,key})=>(
               <div key={key} onClick={()=>setActiveStatusFilter(activeStatusFilter===key?null:key)}
                 style={{padding:'6px 14px',borderRadius:20,background:bg,color,fontSize:13,fontWeight:600,cursor:'pointer',border:activeStatusFilter===key?`2px solid ${color}`:'1px solid transparent',transform:activeStatusFilter===key?'translateY(-2px)':'none',transition:'all 0.18s',userSelect:'none'}}>
                 {label}
@@ -461,7 +461,7 @@ const PaymentsPage = () => {
                   {[
                     {label:'Pending',color:'#d97706',bg:'#fffbeb',skey:'pending'},
                     {label:'Awaiting report',color:'#9a3412',bg:'#fff7ed',skey:'no_report'},
-                    {label:'No Residual Report',color:'#6b21a8',bg:'#faf5ff',skey:'report_none'},
+                    {label:'No Residual Report Expected',color:'#6b21a8',bg:'#faf5ff',skey:'report_none'},
                     {label:'No Amount Expected',color:'#475569',bg:'#f1f5f9',skey:'no_amount'},
                     {label:'Paid in Full',color:'#059669',bg:'#f0fdf4',skey:'paid_full'},
                     {label:'Short Paid',color:'#dc2626',bg:'#fef2f2',skey:'short_paid'},
