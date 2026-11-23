@@ -25,7 +25,7 @@ export const PORTAL_URLS = {
   expitrans: "https://var.expitrans.com/forms.php",
   firstdirectfinancial: "https://login.firstdirectfinancial.com/v2/login?ref=%2Fv2",
   frauddeflect: "https://portal.frauddeflect.net/",
-  get: "https://portal.gettrx.com/Account/Signin?ReturnUrl=%2f",
+  get: "https://dashboard.gettrx.com/entity/login",
   maverick: "https://dashboard.maverickpayments.com/login",
   merchantefresno: "https://www.merchante-solutions.com/jsp/secure/sLogin.jsp",
   merchantesynovous: "https://www.merchante-solutions.com/jsp/secure/sLogin.jsp",
