@@ -104,6 +104,10 @@ const SummaryUpdatesPage = () => {
       if (received == null) status = expected == null ? "no_report" : "pending";
       else if (expected == null) status = "received";
       else { const d = received - expected; status = Math.abs(d) < 0.01 ? "paid" : d < 0 ? "short_paid" : "overpaid"; }
+      // Confirmed no report (tagged on Payments) or nothing owed (zero/negative): show $0.00 instead of a blank so it is not mistaken for missing data
+      const tagged = !!p?.notes && p.notes.includes("[No Report]");
+      const zeroRes = received == null && expected == null && tagged;
+      const zeroPay = received == null && (tagged || (expected != null && expected <= 0.005));
       const history = upMap[iso.id] || [];
       const latest = history[0] || null;
       const reportIn = expected != null;
@@ -112,7 +116,7 @@ const SummaryUpdatesPage = () => {
       const fromNoReport = !!oldest && reportIn && (!resFirst[iso.id] || oldest.created_at < resFirst[iso.id]);
       const storedDue = parseExpDate(p?.notes);
       const dueDate = storedDue || computeExpDate(iso.name, mon);
-      return { dueDate, dueEst: !storedDue, isoId: iso.id, rkey: iso.id + "|" + mon, month: mon, name: iso.name, expected, received, status, history, latest, reportIn, fromNoReport, noRes: !(iso.id in resMap), closed: latest?.status === "Resolved" };
+      return { dueDate, dueEst: !storedDue, isoId: iso.id, rkey: iso.id + "|" + mon, month: mon, name: iso.name, expected, received, zeroRes, zeroPay, status, history, latest, reportIn, fromNoReport, noRes: !(iso.id in resMap), closed: latest?.status === "Resolved" };
     });
   };
   const rows = useMemo(() => computeRows(isos, residuals, payments, updates, month), [isos, residuals, payments, updates, month]);
@@ -235,7 +239,7 @@ const SummaryUpdatesPage = () => {
   const pendingCols = [
     { title: "ISO", dataIndex: "name", width: 200, sorter: (a, b) => a.name.localeCompare(b.name) },
     { title: "Expected", dataIndex: "expected", width: 120, align: "right", render: v => fmt(v) },
-    { title: "Received", dataIndex: "received", width: 120, align: "right", render: v => v != null ? fmt(v) : "--" },
+    { title: "Received", dataIndex: "received", width: 120, align: "right", render: (v, r) => v != null || r.zeroPay ? fmt(v) : "--" },
     { title: "Commission Pending", dataIndex: "owed", width: 170, align: "right", sorter: (a, b) => a.owed - b.owed, onHeaderCell: () => ({ style: { background: "#f97316", color: "#fff" } }), onCell: () => ({ style: { background: "#ffedd5" } }), render: (v, r) => <span style={{ color: "#c2410c", fontWeight: 700 }}>{fmt(v)}</span> },
     { title: "Status", width: 150, render: (_, r) => payStatus(r) },
     dueCol,
@@ -244,8 +248,8 @@ const SummaryUpdatesPage = () => {
   ];
   const noReportCols = [
     { title: "ISO", dataIndex: "name", width: 200, sorter: (a, b) => a.name.localeCompare(b.name) },
-    { title: "Expected", dataIndex: "expected", width: 120, align: "right", render: v => v != null ? fmt(v) : "--" },
-    { title: "Payment Received", dataIndex: "received", width: 150, align: "right", render: v => v != null ? fmt(v) : "--" },
+    { title: "Expected", dataIndex: "expected", width: 120, align: "right", render: (v, r) => v != null || r.zeroRes ? fmt(v) : "--" },
+    { title: "Payment Received", dataIndex: "received", width: 150, align: "right", render: (v, r) => v != null || r.zeroPay ? fmt(v) : "--" },
     { title: "Status", width: 170, render: (_, r) => reportStatus(r) },
     dueColNoReport,
     { title: "Latest Update", align: "left", onCell: () => ({ style: { textAlign: "left" } }), render: (_, r) => noteCell(r) },
