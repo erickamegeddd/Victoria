@@ -65,7 +65,7 @@ const ISOSummaryPage = () => {
         if (batch.length < 1000) break;
         from += 1000;
       }
-      const { data: pay } = await supabase.from("iso_payments").select("iso_id,report_month,expected_amount,received_amount").gte("report_month", startDate).lte("report_month", endDate);
+      const { data: pay } = await supabase.from("iso_payments").select("iso_id,report_month,expected_amount,received_amount,notes").gte("report_month", startDate).lte("report_month", endDate);
       if (!cancelled) { setResiduals(all); setPayments(pay || []); setLoading(false); }
     };
     load();
@@ -83,9 +83,15 @@ const ISOSummaryPage = () => {
       if (!byIso[k]) byIso[k] = Array(12).fill(null);
       byIso[k][m] = (byIso[k][m] || 0) + (Number(r.paydiversenet) || 0);
     });
+    // Months the ISO confirmed no report (tagged on the Payments page) count as $0.00 so they are not mistaken for missing data
+    const noReportAt = {};
+    payments.forEach(p => {
+      const m = posOf(p.report_month);
+      if (m >= 0 && p.notes && p.notes.includes("[No Report]") && p.received_amount == null) (noReportAt[canon(p.iso_id)] = noReportAt[canon(p.iso_id)] || {})[m] = true;
+    });
     return isos
       .map(i => {
-        const months = (byIso[i.id] || Array(12).fill(null)).map(v => (v == null ? null : Math.round(v * 100) / 100));
+        const months = (byIso[i.id] || Array(12).fill(null)).map((v, m) => (v == null ? (noReportAt[i.id] && noReportAt[i.id][m] ? 0 : null) : Math.round(v * 100) / 100));
         const have = months.filter(v => v != null);
         const total = Math.round(have.reduce((s, v) => s + v, 0) * 100) / 100;
         const row = { key: i.id, name: i.name, months, total };
@@ -99,7 +105,7 @@ const ISOSummaryPage = () => {
         return row;
       })
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [isos, residuals, merge, windowKeys.join()]);
+  }, [isos, residuals, payments, merge, windowKeys.join()]);
 
   const monthTotals = MONTHS.map((_, m) => {
     const vals = rows.map(r => r.months[m]).filter(v => v != null);
@@ -170,7 +176,9 @@ const ISOSummaryPage = () => {
         const pending = received == null && expected != null && expected > 0.005 ? expected : 0;
         const deficit = received != null && expected != null && received < expected - 0.01 ? Math.round((expected - received) * 100) / 100 : 0;
         const parts = p && p.parts && p.parts.some(x => x.received != null) ? p.parts : null;
-        return { expected, received, pending, deficit, parts };
+        // Nothing owed (zero/negative or confirmed no report) and nothing received: show $0.00 instead of a blank
+        const noPay = received == null && expected != null && expected <= 0.005;
+        return { expected, received, pending, deficit, parts, noPay };
       });
       const total = Math.round(cells.reduce((s, c) => s + (c.received || 0), 0) * 100) / 100;
       const pendingTotal = Math.round(cells.reduce((s, c) => s + c.pending, 0) * 100) / 100;
@@ -190,7 +198,7 @@ const ISOSummaryPage = () => {
         });
       }
       return out;
-    }).filter(r => r.cells.some(c => c.received != null || c.pending > 0));
+    }).filter(r => r.cells.some(c => c.received != null || c.pending > 0 || c.noPay));
   }, [rows, payments, merge, windowKeys.join()]);
   const payMonthTotals = MONTHS.map((_, m) => {
     const vals = payRows.map(r => r.cells[m].received).filter(v => v != null);
@@ -212,6 +220,7 @@ const ISOSummaryPage = () => {
       return <Tooltip title={tip}><span style={{ color, fontWeight: 500 }}>{money(c.received)}</span></Tooltip>;
     }
     if (c.pending > 0) return <Tooltip title={`Expected ${money(c.expected)} - not received yet`}><span style={{ color: "#d97706", fontWeight: 500 }}>Pending</span></Tooltip>;
+    if (c.noPay) return <Tooltip title="No payment expected"><span style={{ color: "#9ca3af", fontWeight: 500 }}>{money(0)}</span></Tooltip>;
     return <span style={{ color: "#c0c4cc" }}>--</span>;
   };
   const payColumns = [
