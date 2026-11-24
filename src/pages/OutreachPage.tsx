@@ -27,14 +27,14 @@ Please communicate the status of this payment as soon as possible.
 Thank you for your prompt attention to this matter.
 
 Best,
-Robert Sena
+Ericka
 
 --
-Robert Sena
-PayDiverse Merchant Services
-+1.516.776.9060 | rob@paydiverse.com
-Telegram: RobertNYC
-PayDiverse.com`;
+Ericka Meged
+Elm Payments - elmpayments.com
+Phone +1 702-930-5480
+Email residuals@elmpayments.com
+Telegram erickameged`;
 }
 
 const OutreachPage = () => {

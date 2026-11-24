@@ -9,6 +9,23 @@ import MailComposer from "nodemailer/lib/mail-composer/index.js";
 import { ImapFlow } from "imapflow";
 import { requireCaller } from "./_auth.js";
 
+const SIGNATURE_HTML = `<div style="margin-top:24px"><table cellpadding="0" cellspacing="0" border="0" style="font-size:medium;color:rgb(34,34,34);line-height:1.4;border-collapse:collapse"><tbody><tr valign="middle"><td width="130" style="width:130px;padding:0px 20px 0px 0px;text-align:center;vertical-align:middle"><img src="https://previews.dropbox.com/p/thumb/ADR1r4vCnNjfG6fK503kj2bHG8b7vGn7jqOmRKzDgu0bm8xER8W1M1_r1Vh0QOF0rZ1EVyDrO_TFGmB-YOF9KAONK6_gjz3MIIlls3Qt3oPbhGn6d0YctHAmKc2z2KL5VvjtcvEHR7174MjkTyllB3dc9Rtb48L7abU1H9NctIXLnyFzWt2-Cxe7vaQhOVa-FGmCcBlmTWqDbadZz3sHJ-jIouMzz8d8tFR_2fy-wSwIhQ/p.png" alt="Elm-Payments_Logo-Stacked_for-Email-Signature_White-Background.png" width="96" height="61"></td><td width="1" style="width:1px;background:rgb(66,75,82);font-size:0px;line-height:0"> </td><td style="padding:0px 0px 0px 20px;font-size:14px;vertical-align:middle;white-space:nowrap"><div style="font-size:18px;font-weight:bold;color:rgb(130,0,196);letter-spacing:0.2px">Ericka Meged</div><div style="font-size:13px;color:rgb(85,85,85);padding:2px 0px 9px">Elm Payments - <a href="https://elmpayments.com/" style="color:rgb(130,0,196);text-decoration:none" target="_blank">elmpayments.com</a></div><table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse"><tbody><tr><td style="padding:2px 12px 2px 0px;color:rgb(119,119,119)">Phone</td><td style="padding:2px 0px"><a href="tel:+17029305480" style="color:rgb(34,34,34);text-decoration:none" target="_blank">+1 702-930-5480</a></td></tr><tr><td style="padding:2px 12px 2px 0px;color:rgb(119,119,119)">Email</td><td style="padding:2px 0px"><a href="mailto:residuals@elmpayments.com" style="color:rgb(130,0,196);text-decoration:none" target="_blank">residuals@elmpayments.com</a></td></tr><tr><td style="padding:2px 12px 2px 0px;color:rgb(119,119,119)">Telegram</td><td style="padding:2px 0px"><a href="https://t.me/erickameged" style="color:rgb(130,0,196);text-decoration:none" target="_blank">erickameged</a></td></tr></tbody></table></td></tr></tbody></table></div>`;
+
+function buildReminderHtml(body, amt) {
+  // Everything after "\n--\n" is the old plain-text signature; the HTML signature (Ericka, residuals@elmpayments.com) replaces it.
+  const msgOnly = body.split("\n--\n")[0].trim();
+  const htmlBody = msgOnly
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\n/g, "<br>")
+    .replace(`$${amt}`, `<strong>$${amt}</strong>`);
+  return `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.7;color:#333">
+    <p style="margin:0 0 16px 0">${htmlBody}</p>
+    ${SIGNATURE_HTML}
+  </div>`;
+}
+
 function buildAutoBody(isoName, amount, reportMonth, dueDate) {
   const monthLabel = new Date(reportMonth.slice(0, 7) + "-01T12:00:00Z")
     .toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
@@ -24,14 +41,14 @@ Please communicate the status of this payment as soon as possible.
 Thank you for your prompt attention to this matter.
 
 Best,
-Robert Sena
+Ericka
 
 --
-Robert Sena
-PayDiverse Merchant Services
-+1.516.776.9060 | rob@paydiverse.com
-Telegram: RobertNYC
-PayDiverse.com`;
+Ericka Meged
+Elm Payments - elmpayments.com
+Phone +1 702-930-5480
+Email residuals@elmpayments.com
+Telegram erickameged`;
 }
 
 async function handleToggleGet(res) {
@@ -186,7 +203,7 @@ async function handleCron(req, res) {
         to: isoEmail,
         subject,
         text: body,
-        html: `<pre style="font-family:inherit;font-size:14px;line-height:1.6">${body}</pre>`,
+        html: buildReminderHtml(body, amt),
       });
 
       await fetch(`${SUPABASE_URL}/rest/v1/email_logs`, {
@@ -445,33 +462,8 @@ export default async function handler(req, res) {
 
   try {
     // The message is saved as a Gmail DRAFT (IMAP APPEND to Drafts) - it is never sent from here.
-    // The HTML signature below replaces the plain-text signature in the template (everything after "\n--\n" is dropped).
-    const msgOnly = body.split("\n--\n")[0].trim();
-    const htmlBody = msgOnly
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/\n/g, "<br>")
-      .replace(`$${amt}`, `<strong>$${amt}</strong>`);
-    const signature = `
-          <table style="margin-top:24px;padding-top:20px;border-top:1px solid #e5e7eb;font-family:Arial,sans-serif;font-size:13px;color:#333;border-collapse:collapse">
-            <tr>
-              <td style="padding-right:20px;border-right:2px solid #d1d5db;vertical-align:top;text-align:center">
-                <img src="https://victoria-ericka3.vercel.app/paydiverse-logo.webp" alt="PayDiverse" style="height:40px;margin-bottom:6px"><br>
-                <a href="https://www.paydiverse.com" style="color:#2563eb;font-size:12px;text-decoration:none">PayDiverse.com</a>
-              </td>
-              <td style="padding-left:20px;vertical-align:top;line-height:1.8">
-                <strong style="color:#2563eb;font-size:14px">Robert Sena</strong><br>
-                PayDiverse Merchant Services<br>
-                +1.516.776.9060&nbsp;|&nbsp;<a href="mailto:rob@paydiverse.com" style="color:#2563eb">rob@paydiverse.com</a><br>
-                Telegram:&nbsp;<span style="color:#2563eb">RobertNYC</span><br>
-              </td>
-            </tr>
-          </table>`;
-    const html = `<div style="font-family:Arial,sans-serif;max-width:620px;line-height:1.7;color:#333;padding:20px">
-          <p style="margin:0 0 16px 0">${htmlBody}</p>
-          ${signature}
-        </div>`;
+    // HTML = flowing text + Ericka signature (shared with the auto-send path).
+    const html = buildReminderHtml(body, amt);
 
     const raw = await new MailComposer({
       from: `PayDiverse Payments <${GMAIL_USER}>`,
