@@ -22,7 +22,7 @@ export const PORTAL_URLS = {
   celerofinical: "https://finical-core.artefactscloud.com/",
   coastalpay: "https://www.mycoastalpay.com/login",
   efitnesstoday: "https://safeweborder.limelightcrm.com/admin/login.php?url=%2Fadmin%2Fdashboard.php",
-  expitrans: "https://var.expitrans.com/forms.php",
+  expitrans: "https://merchants.expitrans.com/auth/login",
   firstdirectfinancial: "https://login.firstdirectfinancial.com/v2/login?ref=%2Fv2",
   frauddeflect: "https://portal.frauddeflect.net/",
   get: "https://dashboard.gettrx.com/entity/login",
