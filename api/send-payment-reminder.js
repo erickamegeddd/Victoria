@@ -93,6 +93,42 @@ async function handleTogglePost(req, res) {
   }
 }
 
+// Days after month-end that each ISO pays. Keep in sync with src/utils/paymentDue.ts (PAYMENT_DUE_RULES).
+const DUE_DAYS = {"Group ISO":0,"AltoPay":30,"Authorize.Net":5,"Expitrans":31,"Pepper Pay":13,"Total-Apps":13,"Finns":16,"CC Bill":15,"Maverick":15,"Simply Payment Group":17,"PayArc":17,"Mitigator":18,"Quantum":19,"GET":20,"MerchantE Fresno":22,"MerchantE Synovous":22,"Nexio":21,"Nuvei":20,"Vendara":20,"Worldpay":20,"Worldpay (Vantiv)":20,"Fraud Deflect":24,"The HiRisk Processor":27,"HiRisk":27,"Cardworks":25,"Celero":25,"Celero (Finical)":25,"SignaPay":25,"Payliance":29,"Taluspay":28,"NMI":29,"Coastal Pay":30,"First Direct Financial":30,"Merchant Industry":30,"Netevia":30,"Payment Cloud":30,"Seamless Chex":30,"RAC":35,"Card Insight":35,"E-Fitness Today":45,"Midmetrics":16,"MidMetrics":16,"Revitpay":40,"Seamless Chex Paynote":30,"Approvely":46,"USAG":45};
+
+// Every ISO-month with a positive residual total needs a pending iso_payments row (with EXP:date|), or the Outreach
+// page and auto-reminders never see it as overdue. Creates the missing ones for the last 4 report months.
+async function ensurePendingPayments(sbH) {
+  const ME_FRESNO = "ebabea6f-2ab6-460d-a47e-362fb9e7d15a"; // merged under Synovous
+  const now = new Date();
+  const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 4, 1)).toISOString().slice(0, 10);
+  const get = async (p) => { const r = await fetch(`${SUPABASE_URL}/rest/v1/${p}`, { headers: sbH }); const j = await r.json(); return Array.isArray(j) ? j : []; };
+  const [isos, pays, res] = await Promise.all([
+    get("isos?select=id,name&status=eq.active&limit=500"),
+    get(`iso_payments?select=iso_id,report_month&report_month=gte.${from}&limit=5000`),
+    get(`residuals?select=iso_id,report_month,paydiversenet&report_month=gte.${from}&limit=50000`),
+  ]);
+  const have = new Set(pays.map((p) => p.iso_id + "|" + p.report_month));
+  const totals = {};
+  res.forEach((r) => { const k = r.iso_id + "|" + r.report_month; totals[k] = (totals[k] || 0) + (Number(r.paydiversenet) || 0); });
+  const lc = Object.fromEntries(Object.entries(DUE_DAYS).map(([k, v]) => [k.toLowerCase(), v]));
+  const toAdd = [];
+  for (const iso of isos) {
+    const days = lc[String(iso.name).toLowerCase()];
+    if (days == null || iso.id === ME_FRESNO) continue;
+    for (const [k, t] of Object.entries(totals)) {
+      const [iid, month] = k.split("|");
+      if (iid !== iso.id || have.has(k) || t <= 0.005) continue;
+      const end = new Date(Date.UTC(+month.slice(0, 4), +month.slice(5, 7), 0) + days * 86400000).toISOString().slice(0, 10);
+      toAdd.push({ iso_id: iso.id, report_month: month, expected_amount: Math.round(t * 100) / 100, notes: `EXP:${end}|`, status: "pending" });
+    }
+  }
+  if (toAdd.length) {
+    await fetch(`${SUPABASE_URL}/rest/v1/iso_payments`, { method: "POST", headers: { ...sbH, Prefer: "return=minimal" }, body: JSON.stringify(toAdd) });
+  }
+  return toAdd.length;
+}
+
 async function handleCron(req, res) {
   // Auth check — Vercel sets Authorization: Bearer {CRON_SECRET} on cron calls
   const cronSecret = process.env.CRON_SECRET;
@@ -110,6 +146,9 @@ async function handleCron(req, res) {
     "Content-Type": "application/json",
   };
 
+  let created = 0;
+  try { created = await ensurePendingPayments(sbH); } catch (_) { /* never block reminders */ }
+
   // Check if auto-send is enabled (default: enabled if table/row missing)
   try {
     const sr = await fetch(
@@ -119,7 +158,7 @@ async function handleCron(req, res) {
     if (sr.ok) {
       const settings = await sr.json();
       if (Array.isArray(settings) && settings[0]?.value === "false") {
-        return res.json({ ok: true, skipped: true, reason: "Auto-send is disabled" });
+        return res.json({ ok: true, skipped: true, reason: "Auto-send is disabled", created_payment_rows: created });
       }
     }
   } catch (_) { /* table not yet created — treat as enabled */ }
